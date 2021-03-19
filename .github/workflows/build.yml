@@ -1,0 +1,160 @@
+name: UnitTests
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache@v2
+        with:
+          key: depedencies
+          path: |
+            depedencies/googletest-src
+            depedencies/ScriptXTestLibs
+      - name: Update
+        run: |
+          mkdir -p depedencies && cd depedencies
+          if [[ -d googletest-src ]];
+            cd googletest-src && git pull
+          else
+            git clone https://github.com/google/googletest.git googletest-src
+          fi
+
+          if [[ ScriptXTestLibs ]];
+            cd ScriptXTestLibs && git pull
+          else
+            git clone https://github.com/LanderlYoung/ScriptXTestLibs.git ScriptXTestLibs
+          fi
+
+          echo "update ENV"
+          echo "SCRIPTX_GOOGLE_TEST=$(pwd)/googletest-src" >> $GITHUB_ENV
+          echo "SCRIPTX_LIBS=$(pwd)/ScriptXTestLibs" >> $GITHUB_ENV
+
+  mac-build:
+    needs: setup
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        build_type: [ Debug, Release ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure cmake
+        run: |
+          mkdir build
+          cd build
+          cmake ../test                                       \
+                -DSCRIPTX_BACKEND=${{ matrix.backends }}      \
+                -DTEST_FLAG_ENABLE_ASAN=ON                    \
+                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Compile UnitTests
+        run: |
+          cd build
+          cmake --build . -j $(sysctl -n hw.ncpu) --target UnitTests
+      - name: Run UnitTests
+        if: matrix.backends != 'Empty'
+        run: |
+          cd build
+          ./UnitTests
+
+  windows-build:
+    needs: setup
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        build_type: [ Debug, Release ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+      - name: Configure cmake X64
+        if: matrix.backends != 'JavaScriptCore'
+        shell: powershell
+        run: |
+          mkdir build
+          cd build
+          cmake ../test -A X64 -DSCRIPTX_BACKEND=${{ matrix.backends }}
+      - name: Configure cmake X86
+        if: matrix.backends == 'JavaScriptCore'
+        shell: powershell
+        run: |
+          mkdir build
+          cd build
+          cmake ../test -A Win32 -DSCRIPTX_BACKEND=${{ matrix.backends }}
+      - name: Compile UnitTests
+        shell: powershell
+        run: |
+          cd build
+          cmake --build . --target UnitTests --config ${{ matrix.build_type }}
+      - name: Run UnitTests
+        if: matrix.backends != 'Empty'
+        shell: powershell
+        run: |
+          cd build
+          ${{ matrix.build_type }}/UnitTests
+
+
+  node-js:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [ 14.x, 15.x ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Prepare npm
+        run: npm i -g cmake-js
+      - name: Compile node-addon
+        run: |
+          cd test/node_addon
+          npm run install
+      - name: Run node-addon
+        run: |
+          cd test/node_addon
+          npm run test
+
+  Webassembly:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v8
+        with:
+          version: '2.0.5'
+          actions-cache-folder: 'emsdk-cache'
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '>= 14'
+      - name: Configure Webassembly backend
+        run: |
+          mkdir build
+          cd build
+          cmake ../test -G "Unix Makefiles" \
+              -DCMAKE_TOOLCHAIN_FILE="${{ env.EMSDK }}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
+              -DSCRIPTX_BACKEND=WebAssembly
+      - name: Build UnitTests
+        run: |
+          cd build
+          make -j $(nproc) UnitTests
+      - name: Run UnitTests
+        run: |
+          cd build
+          # exclude failed tests
+          node UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All'
+
+
+# todo: add NDK build?
+# todo: add linux build?
