@@ -1,4 +1,4 @@
-# ScriptX -- the script engine abstractin layer
+# ScriptX -- the script engine abstraction layer
 [中文readme](README-zh.md)
 
 ![ScriptX Architecture](docs/media/banner.webp)

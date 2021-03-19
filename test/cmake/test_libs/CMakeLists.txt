@@ -1,4 +1,4 @@
-if (NOT EXISTS "${SCRIPTX_LIBS}/README")
+if (NOT EXISTS "${SCRIPTX_LIBS}")
 
     message(STATUS "SCRIPTX_LIBS ${SCRIPTX_LIBS} is empty. "
             "Downloading test libs including V8, JavaScriptCore, Lua, etc.")
@@ -20,4 +20,7 @@ if (NOT EXISTS "${SCRIPTX_LIBS}/README")
     if (result)
         message(FATAL_ERROR "Build step for download ScriptXLibs failed: ${result}")
     endif ()
+elseif (("${SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON) OR ("$ENV{SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON))
+    message(STATUS "update SCRIPTX_LIBS ${SCRIPTX_LIBS}")
+    execute_process(COMMAND git pull --force --rebase WORKING_DIRECTORY ${SCRIPTX_LIBS})
 endif ()

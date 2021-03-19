@@ -16,6 +16,9 @@ if (NOT EXISTS ${SCRIPTX_GOOGLE_TEST})
     if (result)
         message(FATAL_ERROR "Build step for googletest failed: ${result}")
     endif ()
+elseif (("${SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON) OR ("$ENV{SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON))
+    message(STATUS "update SCRIPTX_GOOGLE_TEST ${SCRIPTX_GOOGLE_TEST}")
+    execute_process(COMMAND git pull --force --rebase WORKING_DIRECTORY ${SCRIPTX_GOOGLE_TEST})
 endif ()
 
 # Prevent overriding the parent project's compiler/linker

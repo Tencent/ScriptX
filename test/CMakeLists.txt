@@ -129,5 +129,5 @@ add_test(
         COMMAND UnitTests
 )
 
-add_executable(InspectorTest src/InspectorTest.cc)
-target_link_libraries(InspectorTest gtest ScriptX)
+# add_executable(InspectorTest src/InspectorTest.cc)
+# target_link_libraries(InspectorTest gtest ScriptX)
