@@ -15,7 +15,8 @@ jobs:
         backends: [ V8, JavaScriptCore, Lua, Empty ]
         build_type:
           - Debug
-          - Release
+          # mac runner seems to be slow and less
+          # - Release
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -51,7 +52,7 @@ jobs:
         backends: [ V8, JavaScriptCore, Lua, Empty ]
         build_type:
           - Debug
-          #- Release
+          - Release
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -124,6 +125,10 @@ jobs:
           cmake --build . -j $(nproc) --target UnitTests
 
   android-build:
+    if: ${{ false }}
+    # disable for now
+    # 1. we don't have android libraries
+    # 2. -undefined dynamic_lookup not work with NDK
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
