@@ -91,3 +91,4 @@ People who commit code to this project are encouraged to append their names here
 |    :--:    |           :---:           |                 :---:               | :--: |
 | Yang Chao  | <taylorcyang@tencent.com> | THL A29 Limited, a Tencent company. |      |
 | Yang Chao  | <landerlyoung@gmail.com>  |                                     |      |
+| Yangsen Fang | <renefang@outlook.com>  |                                     |      |
