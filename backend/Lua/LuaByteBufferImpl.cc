@@ -77,7 +77,7 @@ class LuaByteBuffer : public ScriptClass {
   T &writePtr(int32_t pos) {
     // lua use 1-based index
     pos--;
-    if (pos < 0 || pos + sizeof(T) >= size_) {
+    if (pos < 0 || pos + sizeof(T) > size_) {
       throwIndexOutOfRange(pos + 1);
     }
     if (pos % sizeof(T) != 0) {
@@ -90,7 +90,7 @@ class LuaByteBuffer : public ScriptClass {
   T readPtr(int32_t pos) {
     // lua use 1-based index
     pos--;
-    if (pos < 0 || pos + sizeof(T) >= size_) {
+    if (pos < 0 || pos + sizeof(T) > size_) {
       throwIndexOutOfRange(pos + 1);
     }
     if (pos % sizeof(T) != 0) {
