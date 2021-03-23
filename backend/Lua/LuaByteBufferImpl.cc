@@ -52,8 +52,8 @@ class LuaByteBuffer : public ScriptClass {
         return;
       }
     }
-    throw Exception(
-        (std::ostringstream() << "ByteBuffer should be created like ByteBuffer(n) n >= 0").str());
+
+    throw Exception(std::string("ByteBuffer should be created like ByteBuffer(n) n >= 0"));
   }
 
   const std::shared_ptr<void> &getNativeBuffer() const { return nativeBuffer_; }
@@ -62,19 +62,19 @@ class LuaByteBuffer : public ScriptClass {
   using ScriptClass::getScriptObject;
 
   template <typename T>
-  Local<Value> write(uint32_t pos, T data) {
+  Local<Value> write(int32_t pos, T data) {
     writePtr<T>(pos) = data;
     return getScriptObject();
   }
 
   template <typename T>
-  T read(uint32_t pos) {
+  T read(int32_t pos) {
     return readPtr<T>(pos);
   }
 
  private:
   template <typename T>
-  T &writePtr(uint32_t pos) {
+  T &writePtr(int32_t pos) {
     // lua use 1-based index
     pos--;
     if (pos < 0 || pos + sizeof(T) >= size_) {
@@ -87,10 +87,10 @@ class LuaByteBuffer : public ScriptClass {
   }
 
   template <typename T>
-  T readPtr(uint32_t pos) {
+  T readPtr(int32_t pos) {
     // lua use 1-based index
     pos--;
-    if (pos < 0 || pos >= size_) {
+    if (pos < 0 || pos + sizeof(T) >= size_) {
       throwIndexOutOfRange(pos + 1);
     }
     if (pos % sizeof(T) != 0) {
@@ -100,15 +100,15 @@ class LuaByteBuffer : public ScriptClass {
   }
 
   void throwIndexOutOfRange(uint32_t pos) const {
-    throw Exception((std::ostringstream()
-                     << "ByteBuffer index out of range size:" << size_ << " position:" << pos)
-                        .str());
+    std::ostringstream msg;
+    msg << "ByteBuffer index out of range size:" << size_ << " position:" << pos;
+    throw Exception(msg.str());
   }
 
   void throwNotAlignedMemoryAccess(uint32_t pos, uint32_t size) const {
-    throw Exception((std::ostringstream() << "ByteBuffer access memory at: [" << pos
-                                          << "] is not aligned with: [" << size << "]")
-                        .str());
+    std::ostringstream msg;
+    msg << "ByteBuffer access memory at: [" << pos << "] is not aligned with: [" << size << "]";
+    throw Exception(msg.str());
   }
 };
 
