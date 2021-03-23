@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  mac-run:
+  mac-clang-run:
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -44,7 +44,7 @@ jobs:
           cd build
           ./UnitTests
 
-  windows-run:
+  windows-msvc-run:
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -93,7 +93,7 @@ jobs:
           cd build
           ${{ matrix.build_type }}/UnitTests
 
-  ubuntu-build:
+  ubuntu-gcc-build:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -124,11 +124,11 @@ jobs:
           cd build
           cmake --build . -j $(nproc) --target UnitTests
 
-  android-build:
-    if: ${{ false }}
+  android-clang-build:
     # disable for now
     # 1. we don't have android libraries
     # 2. -undefined dynamic_lookup not work with NDK
+    if: ${{ false }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -162,7 +162,7 @@ jobs:
           cd build
           cmake --build . -j $(nproc) --target UnitTests
 
-  node-run:
+  node-gcc-run:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -185,7 +185,7 @@ jobs:
           cd test/node_addon
           npm run test
 
-  webassembly-run:
+  webassembly-emscripten-run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
