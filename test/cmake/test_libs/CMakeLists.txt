@@ -1,6 +1,6 @@
-if (NOT EXISTS "${SCRIPTX_LIBS}")
+if (NOT EXISTS "${SCRIPTX_TEST_LIBS}")
 
-    message(STATUS "SCRIPTX_LIBS ${SCRIPTX_LIBS} is empty. "
+    message(STATUS "SCRIPTX_TEST_LIBS ${SCRIPTX_TEST_LIBS} is empty. "
             "Downloading test libs including V8, JavaScriptCore, Lua, etc.")
 
     configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt.in ScriptXLibsDownload/CMakeLists.txt)
@@ -21,6 +21,6 @@ if (NOT EXISTS "${SCRIPTX_LIBS}")
         message(FATAL_ERROR "Build step for download ScriptXLibs failed: ${result}")
     endif ()
 elseif (("${SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON) OR ("$ENV{SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON))
-    message(STATUS "update SCRIPTX_LIBS ${SCRIPTX_LIBS}")
-    execute_process(COMMAND git pull --force --rebase WORKING_DIRECTORY ${SCRIPTX_LIBS})
+    message(STATUS "update SCRIPTX_TEST_LIBS ${SCRIPTX_TEST_LIBS}")
+    execute_process(COMMAND git pull --force --rebase WORKING_DIRECTORY ${SCRIPTX_TEST_LIBS})
 endif ()

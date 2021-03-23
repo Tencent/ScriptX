@@ -90,6 +90,35 @@ jobs:
           cd build
           ${{ matrix.build_type }}/UnitTests
 
+  ubuntu-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        build_type: [ Debug, Release ]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          key: build-dependencies-macos
+          path: |
+            build/ScriptXTestLibs
+            build/googletest-src
+      - name: Configure cmake
+        env:
+          SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
+          SCRIPTX_TEST_BUILD_ONLY: ON
+        run: |
+          mkdir -p build && cd build
+          cmake ../test                                       \
+                -DSCRIPTX_BACKEND=${{ matrix.backends }}      \
+                -DTEST_FLAG_ENABLE_ASAN=ON                    \
+                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Compile UnitTests
+        run: |
+          cd build
+          cmake --build . -j $(sysctl -n hw.ncpu) --target UnitTests
 
   node-js:
     runs-on: ubuntu-latest
