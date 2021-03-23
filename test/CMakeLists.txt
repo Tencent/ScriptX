@@ -98,8 +98,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU
     target_compile_options(ScriptX PRIVATE -Werror -Wall -Wextra -Wno-unused-parameter)
 
     if (SCRIPTX_TEST_BUILD_ONLY)
-        target_link_options(UnitTests PRIVATE -undefined dynamic_lookup)
-    endif()
+        if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            target_link_options(UnitTests PRIVATE -Wl,-undefined,dynamic_lookup)
+        else ()
+            target_link_options(UnitTests PRIVATE -Wl,--unresolved-symbols=ignore-in-object-files)
+        endif ()
+        message(WARNING "SCRIPTX_TEST_BUILD_ONLY is ON, the compiled UnitTests won't run properly.")
+    endif ()
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     # using Visual Studio C++
     target_compile_options(ScriptX PRIVATE /W4 /WX /Zc:__cplusplus /utf-8 /MP
