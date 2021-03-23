@@ -1,6 +1,6 @@
 # https://github.com/google/googletest/blob/master/googletest/README.md
 
-if (NOT EXISTS ${SCRIPTX_GOOGLE_TEST})
+if (NOT EXISTS ${SCRIPTX_TEST_GOOGLE_TEST})
     # Download and unpack googletest at configure time
     configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt.in googletest-download/CMakeLists.txt)
     execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
@@ -17,8 +17,8 @@ if (NOT EXISTS ${SCRIPTX_GOOGLE_TEST})
         message(FATAL_ERROR "Build step for googletest failed: ${result}")
     endif ()
 elseif (("${SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON) OR ("$ENV{SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON))
-    message(STATUS "update SCRIPTX_GOOGLE_TEST ${SCRIPTX_GOOGLE_TEST}")
-    execute_process(COMMAND git pull --force --rebase WORKING_DIRECTORY ${SCRIPTX_GOOGLE_TEST})
+    message(STATUS "update SCRIPTX_TEST_GOOGLE_TEST ${SCRIPTX_TEST_GOOGLE_TEST}")
+    execute_process(COMMAND git pull --force --rebase WORKING_DIRECTORY ${SCRIPTX_TEST_GOOGLE_TEST})
 endif ()
 
 # Prevent overriding the parent project's compiler/linker
@@ -27,7 +27,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 # Add googletest directly to our build. This defines
 # the gtest and gtest_main targets.
-add_subdirectory(${SCRIPTX_GOOGLE_TEST}
+add_subdirectory(${SCRIPTX_TEST_GOOGLE_TEST}
         ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
         EXCLUDE_FROM_ALL)
 

@@ -136,7 +136,7 @@ class Tracer;
 // using SFINA technology.
 
 // android ndk can't compile follow declare until NDK r21
-// #define StringLikeConcept(StringLike) \
+// #define StringLikeConcept(StringLike)
 //   typename = std::void_t<decltype(::script::String::newString(std::declval<StringLike>()))>
 
 #ifdef __cpp_lib_char8_t

@@ -50,7 +50,7 @@ bool Arguments::hasThiz() const {
 size_t Arguments::size() const { return callbackInfo_.size; }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  if (i >= 0 && i < size()) {
+  if (i < size()) {
     return lua_backend::LuaEngine::make<Local<Value>>(
         static_cast<int>(callbackInfo_.stackBase + i));
   }

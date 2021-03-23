@@ -35,7 +35,7 @@ bool Arguments::hasThiz() const { return callbackInfo_.thisObject != nullptr; }
 size_t Arguments::size() const { return callbackInfo_.size; }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  if (i < 0 || i >= size()) {
+  if (i >= size()) {
     return {};
   }
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)

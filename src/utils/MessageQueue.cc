@@ -115,7 +115,7 @@ std::unique_ptr<InplaceMessage> MessageQueue::obtainInplaceMessage(
   auto msg = messagePool_.obtain();
   // InplaceMessage is essentially a Message with some extra non-virtual method.
   // so it's safe to cast
-  msg->handlerProc = reinterpret_cast<void (*)(Message&)>(handlerProc);
+  msg->handlerProc = reinterpret_cast<void (*)(Message&)>(reinterpret_cast<void*>(handlerProc));
   return std::unique_ptr<InplaceMessage>(reinterpret_cast<InplaceMessage*>(msg));
 }
 
