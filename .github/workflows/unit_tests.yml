@@ -121,7 +121,41 @@ jobs:
       - name: Compile UnitTests
         run: |
           cd build
-          cmake --build . -j $(sysctl -n hw.ncpu) --target UnitTests
+          cmake --build . -j $(nproc) --target UnitTests
+
+  android-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        build_type:
+          - Debug
+          #- Release
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          key: build-dependencies-macos
+          path: |
+            build/ScriptXTestLibs
+            build/googletest-src
+      - name: Configure cmake
+        env:
+          SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
+          SCRIPTX_TEST_BUILD_ONLY: ON
+        run: |
+          mkdir -p build && cd build
+          cmake ../test                                       \
+                -DANDROID_ABI=arm64-v8a                       \
+                -DANDROID_PLATFORM=android-21                 \
+                -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake  \
+                -DSCRIPTX_BACKEND=${{ matrix.backends }}      \
+                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Compile UnitTests
+        run: |
+          cd build
+          cmake --build . -j $(nproc) --target UnitTests
 
   node-run:
     runs-on: ubuntu-latest
@@ -182,6 +216,3 @@ jobs:
           cd build
           # exclude failed tests
           node UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All'
-
-# todo: add NDK build?
-# todo: add linux build?
