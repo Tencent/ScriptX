@@ -28,7 +28,8 @@ JSClassRef JscEngine::externalClass_{};
 
 // When we link against high-version library
 // but run with a low-version one, macOS/iOS linker just set the undefined symbols to nullptr.
-bool JscEngine::hasByteBufferAPI_ = &JSValueGetTypedArrayType != nullptr;
+// cast to void* to suppress g++ -Werror=address
+bool JscEngine::hasByteBufferAPI_ = reinterpret_cast<void*>(&JSValueGetTypedArrayType) != nullptr;
 
 JscEngine::JscEngine(std::shared_ptr<utils::MessageQueue> mq)
     : messageQueue_(mq ? std::move(mq) : std::make_shared<utils::MessageQueue>()) {

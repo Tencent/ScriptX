@@ -87,7 +87,7 @@ They have all licensed their contributions to this project under the
 licensing terms detailed in LICENSE, while still keep copyright of their contributions.
 People who commit code to this project are encouraged to append their names here.
 
-|      name    |           email           |               copyright             |
-|      :--:    |           :---:           |                 :---:               |
-| Yang Chao    | <taylorcyang@tencent.com> | THL A29 Limited, a Tencent company. |
-| Yang Chao    | <landerlyoung@gmail.com>  |                                     |
+|    name    |           email           |               copyright             | note |
+|    :--:    |           :---:           |                 :---:               |      |
+| Yang Chao  | <taylorcyang@tencent.com> | THL A29 Limited, a Tencent company. |      |
+| Yang Chao  | <landerlyoung@gmail.com>  |                                     |      |
