@@ -5,17 +5,17 @@ on:
   push:
     branches:
       - main
-      - 'feature/*'
-      - 'bugfix/*'
 
 jobs:
-  mac-build:
+  mac-run:
     runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
         backends: [ V8, JavaScriptCore, Lua, Empty ]
-        build_type: [ Debug, Release ]
+        build_type:
+          - Debug
+          - Release
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -43,13 +43,15 @@ jobs:
           cd build
           ./UnitTests
 
-  windows-build:
+  windows-run:
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         backends: [ V8, JavaScriptCore, Lua, Empty ]
-        build_type: [ Debug, Release ]
+        build_type:
+          - Debug
+          #- Release
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -96,7 +98,9 @@ jobs:
       fail-fast: false
       matrix:
         backends: [ V8, JavaScriptCore, Lua, Empty ]
-        build_type: [ Debug, Release ]
+        build_type:
+          - Debug
+          #- Release
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -113,14 +117,13 @@ jobs:
           mkdir -p build && cd build
           cmake ../test                                       \
                 -DSCRIPTX_BACKEND=${{ matrix.backends }}      \
-                -DTEST_FLAG_ENABLE_ASAN=ON                    \
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
       - name: Compile UnitTests
         run: |
           cd build
           cmake --build . -j $(sysctl -n hw.ncpu) --target UnitTests
 
-  node-js:
+  node-run:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -143,7 +146,7 @@ jobs:
           cd test/node_addon
           npm run test
 
-  Webassembly:
+  webassembly-run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
