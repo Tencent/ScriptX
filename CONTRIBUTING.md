@@ -90,5 +90,5 @@ People who commit code to this project are encouraged to append their names here
 |    name    |           email           |               copyright             | note |
 |    :--:    |           :---:           |                 :---:               | :--: |
 | Yang Chao  | <taylorcyang@tencent.com> | THL A29 Limited, a Tencent company. |      |
-| Yang Chao  | <landerlyoung@gmail.com>  |                                     |      |
+| Yang Chao  | <landerlyoung@gmail.com>  |                                     | Implement the Lua backend with comprehensive docs. |
 | Yangsen Fang | <renefang@outlook.com>  |                                     |      |

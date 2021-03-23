@@ -1,4 +1,12 @@
-# ScriptX -- the script engine abstraction layer
+<img width="350px" align="left" src="https://raw.githubusercontent.com/Tencent/ScriptX/main/docs/media/scriptx_logo.svg"></img>
+
+<h2>ScriptX</h2>
+<p>A versatile script engine abstraction layer</p>
+
+---
+[![UnitTests](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml)  ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/tencent/ScriptX) ![Lines of code](https://img.shields.io/tokei/lines/github/tencent/ScriptX) ![GitHub top language](https://img.shields.io/github/languages/top/tencent/ScriptX)  ![License](https://img.shields.io/badge/license-Apache--2.0-green)
+
+
 [中文readme](README-zh.md)
 
 ![ScriptX Architecture](docs/media/banner.webp)
