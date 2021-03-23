@@ -68,7 +68,6 @@ jobs:
         run: |
           mkdir -Force build
           cd build
-          ls dependencies
           cmake ../test -A X64 -DSCRIPTX_BACKEND=${{ matrix.backends }}
       - name: Configure cmake X86
         if: matrix.backends == 'JavaScriptCore'
