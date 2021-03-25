@@ -20,6 +20,7 @@
 #include <utility>
 #include "../../src/utils/Helper.hpp"
 #include "V8Engine.h"
+#include "V8Reference.hpp"
 
 namespace script::v8_backend {
 
