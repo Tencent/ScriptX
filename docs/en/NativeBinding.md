@@ -188,6 +188,10 @@ So when you hold a ScriptClass pointer in C++, you may find that `ScriptClass::g
 #### `ScriptClass::ScriptClass(ConstructFromCpp<T>)`
 This is another constructor of ScriptClass. The usage scenario is that a certain binding class requires a lot of C++ dependencies when constructing it. In this way, going through another ScriptX will cause a lot of type conversion and troublesome. So provide this constructor, directly use C++new as an instance, and then get the corresponding ScriptObject through `getScriptObejct` and return it to ScriptX.
 
+Please use this competence with extra CAUTION, read the doc in header file with care, otherwise you may face strange crashes (memory issue).
+
+YOU HAVE BEEN WARNED.
+
 ```c++
 
 class MyImage: public script::ScriptClass {

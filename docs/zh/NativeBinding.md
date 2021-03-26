@@ -176,6 +176,8 @@ ScriptX不保证这个实例一定是在 ScriptObject GC的同时销毁（可能
 #### `ScriptClass::ScriptClass(ConstructFromCpp<T>)`
 这个是ScriptClass的另一个构造函数，使用场景是某个绑定类构造时需要很多C++依赖，这样再经过一道ScriptX就导致类型转换很多很麻烦。所以提供这个构造函数，直接用C++new一个实例出来，然后通过 `getScriptObejct` 拿到对应的ScriptObject返回给ScriptX。
 
+请谨慎使用这个能力，并详细阅读头文件中的相关注释，否则你将面临内存问题导致的crash！
+
 ```c++
 
 class MyImage : public script::ScriptClass {
