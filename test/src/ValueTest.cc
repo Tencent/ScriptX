@@ -571,7 +571,9 @@ template <typename T>
 void testNumber(T value) {
   auto num = Number::newNumber(value);
   EXPECT_EQ(num.toInt32(), static_cast<int32_t>(value));
+#ifndef SCRIPTX_BACKEND_WEBASSEMBLY
   EXPECT_EQ(num.toInt64(), static_cast<int64_t>(value));
+#endif
   EXPECT_FLOAT_EQ(num.toFloat(), static_cast<float>(value));
   EXPECT_FLOAT_EQ(num.toDouble(), static_cast<double>(value));
 }
