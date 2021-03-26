@@ -75,9 +75,14 @@ return view:readInt8(5) == 2 and view:readInt8(6) == 0 and view:readInt8(7) == 4
 #ifdef SCRIPTX_BACKEND_LUA
   // out of index
   EXPECT_THROW({ engine->eval("view:readInt8(10)"); }, Exception);
+  EXPECT_THROW({ engine->eval("view:writeInt8(10, 0)"); }, Exception);
 
   // unaligned access
   EXPECT_THROW({ engine->eval("view:readInt32(2)"); }, Exception);
+  EXPECT_THROW({ engine->eval("view:writeInt32(2, 0)"); }, Exception);
+
+  // bad param
+  EXPECT_THROW({ engine->eval("ByteBuffer(-1)"); }, Exception);
 #endif
 }
 

@@ -146,11 +146,11 @@ ValueKind Local<Value>::getKind() const {
     return ValueKind::kBoolean;
   } else if (type == LUA_TFUNCTION) {
     return ValueKind::kFunction;
+  } else if (isByteBuffer()) {
+    return ValueKind::kByteBuffer;
   } else if (type == LUA_TTABLE) {
     // lua don't have array type, the are all tables
     return ValueKind::kObject;
-  } else if (isByteBuffer()) {
-    return ValueKind::kByteBuffer;
   } else {
     return ValueKind::kUnsupported;
   }
@@ -160,22 +160,32 @@ bool Local<Value>::isNull() const {
   return val_ == 0 || lua_isnoneornil(lua_backend::currentLua(), val_);
 }
 
-bool Local<Value>::isString() const { return getKind() == ValueKind::kString; }
+bool Local<Value>::isString() const {
+  return val_ != 0 && lua_type(lua_backend::currentLua(), val_) == LUA_TSTRING;
+}
 
-bool Local<Value>::isNumber() const { return getKind() == ValueKind::kNumber; }
+bool Local<Value>::isNumber() const {
+  return val_ != 0 && lua_type(lua_backend::currentLua(), val_) == LUA_TNUMBER;
+}
 
-bool Local<Value>::isBoolean() const { return getKind() == ValueKind::kBoolean; }
+bool Local<Value>::isBoolean() const {
+  return val_ != 0 && lua_type(lua_backend::currentLua(), val_) == LUA_TBOOLEAN;
+}
 
-bool Local<Value>::isFunction() const { return getKind() == ValueKind::kFunction; }
+bool Local<Value>::isFunction() const {
+  return val_ != 0 && lua_type(lua_backend::currentLua(), val_) == LUA_TFUNCTION;
+}
 
-bool Local<Value>::isArray() const { return getKind() == ValueKind::kObject; }
+bool Local<Value>::isArray() const { return isObject(); }
 
 bool Local<Value>::isByteBuffer() const {
   auto engine = lua_backend::currentEngine();
   return engine->byteBufferDelegate_->isByteBuffer(engine, *this);
 }
 
-bool Local<Value>::isObject() const { return getKind() == ValueKind::kObject; }
+bool Local<Value>::isObject() const {
+  return val_ != 0 && lua_type(lua_backend::currentLua(), val_) == LUA_TTABLE;
+}
 
 bool Local<Value>::isUnsupported() const { return getKind() == ValueKind::kUnsupported; }
 

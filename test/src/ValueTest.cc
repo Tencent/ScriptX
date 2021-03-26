@@ -609,6 +609,35 @@ TEST_F(ValueTest, Equals) {
   EXPECT_TRUE(s1 != s3);
 }
 
+TEST_F(ValueTest, Kinds) {
+  auto test = [](const Local<Value>& v) {
+    ValueKind kind = v.getKind();
+    if (kind == ValueKind::kNull) {
+      EXPECT_TRUE(v.isNull());
+    }
+#define CAST_TEST(TYPE)                         \
+  if (kind != ValueKind::k##TYPE) {             \
+    EXPECT_THROW({ v.as##TYPE(); }, Exception); \
+  }
+    CAST_TEST(String)
+    CAST_TEST(Number)
+    CAST_TEST(Boolean)
+    CAST_TEST(Function)
+    CAST_TEST(ByteBuffer)
+#undef CAST_TEST
+  };
+
+  EngineScope engineScope(engine);
+  test({});
+  test(String::newString("hello"));
+  test(Object::newObject());
+  test(Number::newNumber(0));
+  test(Boolean::newBoolean(false));
+  test(Function::newFunction([]() {}));
+  test(Array::newArray());
+  test(ByteBuffer::newByteBuffer(0));
+}
+
 TEST_F(ValueTest, KindNames) {
   EXPECT_STREQ(valueKindName(ValueKind::kNull), "Null");
   EXPECT_STREQ(valueKindName(ValueKind::kString), "String");
