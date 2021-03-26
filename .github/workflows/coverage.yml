@@ -20,9 +20,9 @@ jobs:
           path: |
             build/ScriptXTestLibs
             build/googletest-src
-#      - name: prepare lcov
-#        run: |
-#          HOMEBREW_NO_AUTO_UPDATE=1 brew install lcov
+      - name: prepare lcov
+        run: |
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install lcov
       - name: Configure cmake
         env:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
