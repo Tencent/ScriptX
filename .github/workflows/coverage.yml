@@ -1,9 +1,14 @@
 name: Coverage
 
 on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
   push:
     branches:
-      - '*' # debug only
+      - main
+    paths-ignore:
+      - 'docs/**'
 
 jobs:
   coverage-mac-clang:
