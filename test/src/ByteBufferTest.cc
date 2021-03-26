@@ -71,6 +71,14 @@ return view:readInt8(5) == 2 and view:readInt8(6) == 0 and view:readInt8(7) == 4
                        .select());
   ASSERT_TRUE(success.isBoolean()) << success.describeUtf8();
   ASSERT_TRUE(success.asBoolean().value());
+
+#ifdef SCRIPTX_BACKEND_LUA
+  // out of index
+  EXPECT_THROW({ engine->eval("view:readInt8(10)"); }, Exception);
+
+  // unaligned access
+  EXPECT_THROW({ engine->eval("view:readInt32(2)"); }, Exception);
+#endif
 }
 
 TEST_F(ByteBufferTest, Data) {

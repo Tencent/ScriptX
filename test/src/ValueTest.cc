@@ -609,4 +609,20 @@ TEST_F(ValueTest, Equals) {
   EXPECT_TRUE(s1 != s3);
 }
 
+TEST_F(ValueTest, KindNames) {
+  EXPECT_STREQ(valueKindName(ValueKind::kNull), "Null");
+  EXPECT_STREQ(valueKindName(ValueKind::kString), "String");
+  EXPECT_STREQ(valueKindName(ValueKind::kObject), "Object");
+  EXPECT_STREQ(valueKindName(ValueKind::kNumber), "Number");
+  EXPECT_STREQ(valueKindName(ValueKind::kBoolean), "Boolean");
+  EXPECT_STREQ(valueKindName(ValueKind::kFunction), "Function");
+  EXPECT_STREQ(valueKindName(ValueKind::kArray), "Array");
+  EXPECT_STREQ(valueKindName(ValueKind::kByteBuffer), "ByteBuffer");
+  EXPECT_STREQ(valueKindName(ValueKind::kUnsupported), "Unsupported");
+
+  std::ostringstream oss;
+  oss << ValueKind::kNull;
+  EXPECT_EQ(oss.str(), "Null");
+}
+
 }  // namespace script::test
