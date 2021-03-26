@@ -132,6 +132,41 @@ return exceptionStackTraceTest
   std::ostringstream() << Exception();
 }
 
+TEST_F(ExceptionTest, Cross) {
+  EngineScope engineScope(engine);
+
+  Exception e("test");
+  EXPECT_NE(e.message().find("test"), std::string::npos);
+  EXPECT_NE(std::string(e.what()).find("test"), std::string::npos);
+
+  auto exception = e.exception();
+  try {
+    EXPECT_FALSE(exception.isNull());
+    auto throwIt = engine->eval(TS().js("function throwIt(e) { throw e; }; throwIt")
+                                    .lua("return function (e) error(e) end;")
+                                    .select());
+    throwIt.asFunction().call({}, exception);
+  } catch (Exception& ex) {
+    EXPECT_NE(ex.message().find("test"), std::string::npos);
+#ifdef SCRIPTX_LANG_JAVASCRIPT
+    EXPECT_TRUE(exception == ex.exception());
+#endif
+
+#ifdef SCRIPTX_LANG_LUA
+    auto exException = ex.exception();
+    EXPECT_TRUE(exException.isObject());
+    EXPECT_NE(exException.asObject().get("message").asString().toString().find(
+                  exception.asString().toString()),
+              std::string::npos);
+#endif
+  }
+
+  {
+    Exception ex(String::newString("test"));
+    EXPECT_NE(ex.message().find("test"), std::string::npos);
+  }
+}
+
 #ifndef SCRIPTX_BACKEND_WEBASSEMBLY
 TEST_F(ExceptionTest, EngineScopeOnDestory) {
   bool executed = false;

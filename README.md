@@ -5,7 +5,7 @@
 
 ---
 
-[![README中文](https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-lightgreen)](README-zh.md) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://www.apache.org/licenses/LICENSE-2.0) [![UnitTests](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/tencent/ScriptX) ![Lines of code](https://img.shields.io/tokei/lines/github/tencent/ScriptX) ![GitHub top language](https://img.shields.io/github/languages/top/tencent/ScriptX)
+[![README中文](https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-lightgreen)](README-zh.md) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://www.apache.org/licenses/LICENSE-2.0) [![UnitTests](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/tencent/ScriptX) ![Lines of code](https://img.shields.io/tokei/lines/github/tencent/ScriptX) ![GitHub top language](https://img.shields.io/github/languages/top/tencent/ScriptX) [![Coverage Status](https://coveralls.io/repos/github/Tencent/ScriptX/badge.svg)](https://coveralls.io/github/Tencent/ScriptX)
 
 ![ScriptX Architecture](docs/media/banner.webp)
 

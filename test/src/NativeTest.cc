@@ -966,6 +966,15 @@ class X {
 
 }  // namespace
 
+TEST_F(NativeTest, NativeFounction) {
+  EngineScope scope(engine);
+  auto func = Function::newFunction([](int) {});
+  func.call({}, 0);
+  EXPECT_THROW({ func.call(); }, Exception);
+  EXPECT_THROW({ func.call({}, 1, 2); }, Exception);
+  EXPECT_THROW({ func.call({}, ""); }, Exception);
+}
+
 TEST_F(NativeTest, SelectOverloadedFunction) {
   auto o1 = script::selectOverloadedFunc<int(int)>(overload);
   auto o2 = script::selectOverloadedFunc<int(double)>(overload);

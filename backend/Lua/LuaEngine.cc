@@ -496,7 +496,7 @@ bool LuaEngine::isInstanceOf(lua_State* lua, int classIndex, int selfIndex) {
 }
 
 bool LuaEngine::isInstanceOf(lua_State* lua, const void* classDefine, int selfIndex) {
-  if (selfIndex == 0) {
+  if (selfIndex == 0 || classDefine == nullptr) {
     return false;
   }
 

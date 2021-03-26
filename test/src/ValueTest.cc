@@ -98,6 +98,7 @@ TEST_F(ValueTest, Object) {
   try {
     auto hello = String::newString("hello");
     auto obj = Object::newObject();
+    EXPECT_EQ(obj.asValue().getKind(), ValueKind::kObject);
     obj.set("hello", Number::newNumber(321));
 
     EXPECT_TRUE(obj.has(hello));
@@ -166,9 +167,14 @@ TEST_F(ValueTest, String) {
   Local<Value> strVal = String::newString(string);
   EXPECT_FALSE(strVal.isNull());
   EXPECT_TRUE(strVal.isString());
+  EXPECT_EQ(strVal.getKind(), ValueKind::kString);
 
   auto str = String::newString(string);
   EXPECT_STREQ(string, str.toString().c_str());
+#ifdef __cpp_char8_t
+  EXPECT_EQ(u8"hello world", str.toU8string());
+#endif
+  EXPECT_STREQ(string, str.describeUtf8().c_str());
   EXPECT_EQ(strVal, str);
 
   str = engine->eval(TS().js("'hello world'").lua("return 'hello world'").select()).asString();
@@ -494,6 +500,12 @@ TEST_F(ValueTest, ExceptionDeath) {
 TEST_F(ValueTest, Array) {
   EngineScope engineScope(engine);
   Local<Array> arr = Array::newArray(4);
+#ifdef SCRIPTX_LANG_JAVASCRIPT
+  EXPECT_EQ(arr.asValue().getKind(), ValueKind::kArray);
+#elif defined(SCRIPTX_LANG_LUA)
+  EXPECT_EQ(arr.asValue().getKind(), ValueKind::kObject);
+#endif
+
   // EXPECT_EQ(arr.size(), 4);
   EXPECT_TRUE(arr.get(0).isNull());
   EXPECT_TRUE(arr.get(1).isNull());
@@ -527,15 +539,24 @@ TEST_F(ValueTest, Array) {
   EXPECT_TRUE(arr.get(2).isNull());
   arr.set(3, 1);
   EXPECT_TRUE(arr.get(3).isNumber());
+
+  arr = Array::newArray();
+  arr.add(Number::newNumber(42));
+  EXPECT_EQ(arr.get(0).asNumber().toInt32(), 42);
 }
 
 TEST_F(ValueTest, Null) {
   EngineScope engineScope(engine);
 
+  EXPECT_EQ(Local<Value>().getKind(), ValueKind::kNull);
+  EXPECT_STREQ(Local<Value>().describeUtf8().c_str(), "null");
+
 #ifdef SCRIPTX_LANG_JAVASCRIPT
   // JS: null & undefined -> script::Null
   EXPECT_TRUE(engine->eval(String::newString(u8"null")).isNull());
+  EXPECT_EQ(engine->eval(String::newString(u8"null")), Local<Value>());
   EXPECT_TRUE(engine->eval(String::newString(u8"undefined")).isNull());
+  EXPECT_EQ(engine->eval(String::newString(u8"undefined")), Local<Value>());
 
   // script::Null -> JS: undefined
   auto key = String::newString(u8"ValueTest_Null_null");
@@ -544,6 +565,26 @@ TEST_F(ValueTest, Null) {
   ASSERT_TRUE(isUndef.isBoolean());
   EXPECT_TRUE(isUndef.asBoolean().value());
 #endif
+}
+
+template <typename T>
+void testNumber(T value) {
+  auto num = Number::newNumber(value);
+  EXPECT_EQ(num.toInt32(), static_cast<int32_t>(value));
+  EXPECT_EQ(num.toInt64(), static_cast<int64_t>(value));
+  EXPECT_FLOAT_EQ(num.toFloat(), static_cast<float>(value));
+  EXPECT_FLOAT_EQ(num.toDouble(), static_cast<double>(value));
+}
+
+TEST_F(ValueTest, Number) {
+  EngineScope engineScope(engine);
+  EXPECT_EQ(Number::newNumber(0).asValue().getKind(), ValueKind::kNumber);
+  EXPECT_EQ(Number::newNumber(42).describeUtf8(), "42");
+
+  testNumber<int32_t>(42);
+  testNumber<int64_t>(42);
+  testNumber<float>(3.14);
+  testNumber<double>(3.14);
 }
 
 TEST_F(ValueTest, Equals) {
@@ -555,6 +596,8 @@ TEST_F(ValueTest, Equals) {
   EXPECT_TRUE(n1 == n1_);
   EXPECT_FALSE(n1 == n2);
   EXPECT_TRUE(n1 != n2);
+
+  EXPECT_TRUE(Local<Value>() == Local<Value>());
 
   auto s1 = String::newString("hello");
   auto s2 = String::newString("hello");

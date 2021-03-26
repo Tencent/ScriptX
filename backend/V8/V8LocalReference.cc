@@ -26,43 +26,44 @@
 
 namespace script {
 
-#define REF_IMPL_BASIC_FUNC(ValueType)                                                 \
-  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(copy.val_) {}           \
-  Local<ValueType>::Local(Local<ValueType>&& from) noexcept : val_(from.val_) {        \
-    from.val_.Clear();                                                                 \
-  }                                                                                    \
-  Local<ValueType>::~Local() {                                                         \
-    assert(val_.IsEmpty() || EngineScope::currentEngine() != nullptr);                 \
-  }                                                                                    \
-  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                   \
-    if (&from != this) {                                                               \
-      val_ = from.val_;                                                                \
-    }                                                                                  \
-    return *this;                                                                      \
-  }                                                                                    \
-  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {               \
-    if (&move != this) {                                                               \
-      val_ = move.val_;                                                                \
-      move.val_.Clear();                                                               \
-    }                                                                                  \
-    return *this;                                                                      \
-  }                                                                                    \
-  void Local<ValueType>::swap(Local& rhs) noexcept {                                   \
-    if (&rhs != this) {                                                                \
-      std::swap(val_, rhs.val_);                                                       \
-    }                                                                                  \
-  }                                                                                    \
-  bool Local<ValueType>::operator==(const script::Local<script::Value>& other) const { \
-    return val_->StrictEquals(other.val_);                                             \
+#define REF_IMPL_BASIC_FUNC(ValueType)                                          \
+  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(copy.val_) {}    \
+  Local<ValueType>::Local(Local<ValueType>&& from) noexcept : val_(from.val_) { \
+    from.val_.Clear();                                                          \
+  }                                                                             \
+  Local<ValueType>::~Local() {                                                  \
+    assert(val_.IsEmpty() || EngineScope::currentEngine() != nullptr);          \
+  }                                                                             \
+  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {            \
+    if (&from != this) {                                                        \
+      val_ = from.val_;                                                         \
+    }                                                                           \
+    return *this;                                                               \
+  }                                                                             \
+  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {        \
+    if (&move != this) {                                                        \
+      val_ = move.val_;                                                         \
+      move.val_.Clear();                                                        \
+    }                                                                           \
+    return *this;                                                               \
+  }                                                                             \
+  void Local<ValueType>::swap(Local& rhs) noexcept {                            \
+    if (&rhs != this) {                                                         \
+      std::swap(val_, rhs.val_);                                                \
+    }                                                                           \
   }
 
 // if Local is created with null ref, it's an error
-#define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                             \
-  Local<ValueType>::Local(InternalLocalRef v8Local) : val_(v8Local) {                   \
-    if (val_.IsEmpty() || val_->IsNullOrUndefined()) throw Exception("null reference"); \
-  }                                                                                     \
-  Local<String> Local<ValueType>::describe() const { return asValue().describe(); }     \
-  std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
+#define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                               \
+  Local<ValueType>::Local(InternalLocalRef v8Local) : val_(v8Local) {                     \
+    if (val_.IsEmpty() || val_->IsNullOrUndefined()) throw Exception("null reference");   \
+  }                                                                                       \
+  Local<String> Local<ValueType>::describe() const { return asValue().describe(); }       \
+  std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); } \
+  bool Local<ValueType>::operator==(const script::Local<script::Value>& other) const {    \
+    if (other.isNull()) return false;                                                     \
+    return val_->StrictEquals(other.val_);                                                \
+  }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
   Local<Value> Local<ValueType>::asValue() const { return Local<Value>(val_.As<v8::Value>()); }
@@ -131,6 +132,11 @@ ValueKind Local<Value>::getKind() const {
   } else {
     return ValueKind::kUnsupported;
   }
+}
+
+bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
+  if (isNull()) return other.isNull();
+  return val_->StrictEquals(other.val_);
 }
 
 bool Local<Value>::isObject() const { return !isNull() && val_->IsObject(); }
