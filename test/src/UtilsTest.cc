@@ -35,6 +35,12 @@ TEST_F(UtilsTest, Log) {
   Logger::log("hello");
   EXPECT_EQ(l.message, "hello");
 
+  Logger::log(std::string("hello"));
+  EXPECT_EQ(l.message, "hello");
+
+  Logger::log(std::string_view("hello"));
+  EXPECT_EQ(l.message, "hello");
+
   Logger() << "hello " << 1;
   EXPECT_EQ(l.message, "hello 1");
 

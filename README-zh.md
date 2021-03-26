@@ -4,7 +4,7 @@
 <p>全能的脚本引擎抽象层</p>
 
 ---
-[![README-English](https://img.shields.io/badge/README-english-lightgreen)](README.md) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://www.apache.org/licenses/LICENSE-2.0) [![UnitTests](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml)  ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/tencent/ScriptX) ![Lines of code](https://img.shields.io/tokei/lines/github/tencent/ScriptX) ![GitHub top language](https://img.shields.io/github/languages/top/tencent/ScriptX)
+[![README-English](https://img.shields.io/badge/README-english-lightgreen)](README.md) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://www.apache.org/licenses/LICENSE-2.0) [![UnitTests](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/Tencent/ScriptX/actions/workflows/unit_tests.yml)  ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/tencent/ScriptX) ![Lines of code](https://img.shields.io/tokei/lines/github/tencent/ScriptX) ![GitHub top language](https://img.shields.io/github/languages/top/tencent/ScriptX) [![Coverage Status](https://coveralls.io/repos/github/Tencent/ScriptX/badge.svg)](https://coveralls.io/github/Tencent/ScriptX)
 
 
 
@@ -128,7 +128,7 @@ ScriptX再提供引擎封装的同时，也提供了一套工具方法实现原�
 # 代码质量
 
 代码质量高标准要求
-1. 上百个测试用例，**单测覆盖率达 87%**
+1. 上百个测试用例，**单测覆盖率达 90+%**
 2.  **圈复杂度仅有 1.18**。
 3. 借助clang-format保证代码格式统一。
 4. 使用clang-tidy发现潜在问题。

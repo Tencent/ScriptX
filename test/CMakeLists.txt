@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/../VERSION SCRIPTX_VERSION)
 project(ScriptXUnitTests VERSION ${SCRIPTX_VERSION} LANGUAGES CXX)
 
-option(DEVOPS_ENABLE_COVERAGE "enable coverage" OFF)
+option(DEVOPS_ENABLE_COVERAGE "enable code coverage" OFF)
 enable_testing()
 
 add_executable(UnitTests)
@@ -31,7 +31,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     endif ()
 
     if (DEVOPS_ENABLE_COVERAGE)
-        # bk support gcov only
+        # devops support gcov only
         string(APPEND CMAKE_CXX_FLAGS_DEBUG " --coverage -g3")
     endif ()
 endif ()

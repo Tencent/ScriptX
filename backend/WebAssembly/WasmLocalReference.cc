@@ -199,6 +199,7 @@ Local<Unsupported> Local<Value>::asUnsupported() const {
 }
 
 bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
+  if (isNull()) return other.isNull();
   return wasm_backend::Stack::equals(val_, other.val_);
 }
 

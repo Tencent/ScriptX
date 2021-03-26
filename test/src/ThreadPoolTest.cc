@@ -39,7 +39,8 @@ TEST(ThreadPool, Run) {
     tp.postMessage(msg);
   }
 
-  tp.shutdown(true);
+  tp.shutdown(false);
+  tp.awaitTermination();
 
   EXPECT_EQ(max, i->load());
 }
@@ -49,7 +50,7 @@ TEST(ThreadPool, MultiThreadRun) {
   constexpr auto kProducerCount = 4;
   constexpr auto max = 1000;
 
-  ThreadPool tp(kWorkerCount, std::make_unique<MessageQueue>());
+  ThreadPool tp(kWorkerCount);
   EXPECT_EQ(kWorkerCount, tp.workerCount());
 
   auto i = std::make_unique<std::atomic_int64_t>();

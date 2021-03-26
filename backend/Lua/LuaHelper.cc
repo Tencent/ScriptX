@@ -28,9 +28,11 @@ namespace {
 
 int luaErrorMessageHandler(lua_State* L) {
   auto msg = LuaEngine::make<Local<Value>>(1);
-  auto error = Object::newObject();
-  // set message
-  error.set("message", msg);
+  auto error = msg.isObject() ? msg.asObject() : Object::newObject();
+  if (!msg.isObject() || error.has("message")) {
+    // set message
+    error.set("message", msg);
+  }
 
   // set stacktrace
   luaL_traceback(L, L, nullptr, 1);

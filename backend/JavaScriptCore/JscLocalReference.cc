@@ -319,6 +319,7 @@ Local<Unsupported> Local<Value>::asUnsupported() const {
 }
 
 bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
+  if (isNull()) return other.isNull();
   return JSValueIsStrictEqual(jsc_backend::currentEngineContextChecked(),
                               const_cast<JSValueRef>(val_), const_cast<JSValueRef>(other.val_));
 }

@@ -44,30 +44,9 @@ TEST_F(ByteBufferTest, Type) {
   EXPECT_EQ(ByteBuffer::newByteBuffer(ptr, 8).byteLength(), 8);
 }
 
-TEST_F(ByteBufferTest, Data) {
-  EngineScope engineScope(engine);
-  auto ret = engine->eval(TS().js(R"(
-        ab = new ArrayBuffer(8);
-        view = new Int8Array(ab);
-        view[0] = 1;
-        view[1] = 0;
-        view[2] = 2;
-        view[3] = 4;
-        ab;
-)")
-                              .lua(R"(
-view = ByteBuffer(8)
-view:writeInt8(1, 1)
-view:writeInt8(2, 0)
-view:writeInt8(3, 2)
-view:writeInt8(4, 4)
-return view
-
-)")
-                              .select());
-
-  ASSERT_TRUE(ret.isByteBuffer());
-  auto buffer = ret.asByteBuffer();
+void testByteBufferReadWrite(ScriptEngine* engine, const Local<Value>& buf) {
+  ASSERT_TRUE(buf.isByteBuffer());
+  auto buffer = buf.asByteBuffer();
   ASSERT_TRUE(buffer.byteLength() == 8);
   uint8_t* ptr = static_cast<uint8_t*>(buffer.getRawBytes());
   ASSERT_TRUE(ptr != nullptr);
@@ -92,7 +71,81 @@ return view:readInt8(5) == 2 and view:readInt8(6) == 0 and view:readInt8(7) == 4
                        .select());
   ASSERT_TRUE(success.isBoolean()) << success.describeUtf8();
   ASSERT_TRUE(success.asBoolean().value());
+
+#ifdef SCRIPTX_BACKEND_LUA
+  // out of index
+  EXPECT_THROW({ engine->eval("view:readInt8(10)"); }, Exception);
+  EXPECT_THROW({ engine->eval("view:writeInt8(10, 0)"); }, Exception);
+
+  // unaligned access
+  EXPECT_THROW({ engine->eval("view:readInt32(2)"); }, Exception);
+  EXPECT_THROW({ engine->eval("view:writeInt32(2, 0)"); }, Exception);
+
+  // bad param
+  EXPECT_THROW({ engine->eval("ByteBuffer(-1)"); }, Exception);
+#endif
 }
+
+TEST_F(ByteBufferTest, Data) {
+  EngineScope engineScope(engine);
+  auto ret = engine->eval(TS().js(R"(
+        ab = new ArrayBuffer(8);
+        view = new Int8Array(ab);
+        view[0] = 1;
+        view[1] = 0;
+        view[2] = 2;
+        view[3] = 4;
+        ab;
+)")
+                              .lua(R"(
+view = ByteBuffer(8)
+view:writeInt8(1, 1)
+view:writeInt8(2, 0)
+view:writeInt8(3, 2)
+view:writeInt8(4, 4)
+return view
+
+)")
+                              .select());
+  testByteBufferReadWrite(engine, ret);
+}
+
+#ifdef SCRIPTX_LANG_JAVASCRIPT
+
+TEST_F(ByteBufferTest, DataView) {
+  for (auto&& type : std::initializer_list<std::pair<const char*, ByteBuffer::Type>>{
+           {"Int8Array", ByteBuffer::Type::kInt8},
+           {"Int16Array", ByteBuffer::Type::kInt16},
+           {"Int32Array", ByteBuffer::Type::kInt32},
+#ifdef SCRIPTX_BACKEND_V8
+           {"BigInt64Array", ByteBuffer::Type::kInt64},
+#endif
+           {"Float32Array", ByteBuffer::Type::KFloat32},
+           {"Float64Array", ByteBuffer::Type::kFloat64},
+           {"DataView", ByteBuffer::Type::kUnspecified}}) {
+    std::ostringstream code;
+    code << R"(
+        ab = new ArrayBuffer(8);
+        view = new Int8Array(ab);
+        view[0] = 1;
+        view[1] = 0;
+        view[2] = 2;
+        view[3] = 4;
+    )";
+    code << "new " << type.first << "(ab);";
+
+    EngineScope engineScope(engine);
+    try {
+      auto ret = engine->eval(code.str()).asByteBuffer();
+      EXPECT_EQ(ret.getType(), type.second);
+      testByteBufferReadWrite(engine, ret);
+    } catch (const Exception& e) {
+      FAIL() << e;
+    }
+  }
+}
+
+#endif
 
 TEST_F(ByteBufferTest, CreateShared) {
   EngineScope engineScope(engine);
