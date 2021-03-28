@@ -644,11 +644,14 @@ TEST_F(ValueTest, Kinds) {
 TEST_F(ValueTest, Unsupported) {
   EngineScope engineScope(engine);
 #ifdef SCRIPTX_LANG_JAVASCRIPT
-  auto strange = engine->eval("BigInt('9007199254740991')");
+  auto strange = engine->eval("Symbol('x')");
 #elif defined(SCRIPTX_LANG_LUA)
   auto lua = lua_interop::currentEngineLua();
   lua_newuserdata(lua, 4);
   auto strange = lua_interop::makeLocal<Value>(lua_gettop(lua));
+#else
+  FAIL() << "add test here";
+  auto strange = Local<Value>();
 #endif
 
   EXPECT_EQ(strange.getKind(), ValueKind::kUnsupported);
