@@ -787,6 +787,54 @@ TEST_F(NativeTest, TypedAPIClassDefineTest) {
   EXPECT_THROW({ engine->getNativeInstance<BaseClassScriptWrapper>(ins); }, Exception);
 }
 
+TEST_F(NativeTest, MissMatchedType) {
+  class Instance : public ScriptClass {
+   public:
+    using ScriptClass::ScriptClass;
+
+    std::string name;
+
+    static int getAge() { return 0; }
+    static void setAge(int) {}
+
+    void fun(int) {}
+
+    static void sfun(int) {}
+  };
+
+  EngineScope scope(engine);
+
+  auto def = defineClass<Instance>("Instance")
+                 .constructor()
+                 .function("sfun", &Instance::sfun)
+                 .instanceFunction("fun", &Instance::fun)
+                 .build();
+  engine->registerNativeClass(def);
+
+  auto sfun =
+      engine->eval(TS().js("Instance.sfun;").lua("return Instance.sfun").select()).asFunction();
+  auto ins = engine->newNativeClass<Instance>();
+  auto fun = ins.get("fun").asFunction();
+
+#ifdef SCRIPTX_NO_EXCEPTION_ON_BIND_FUNCTION
+  ASSERT_TRUE(sfun.call().isNull());
+  ASSERT_TRUE(sfun.call({}, "empty").isNull());
+  ASSERT_TRUE(sfun.call({}, 0, 0).isNull());
+  ASSERT_TRUE(fun.call().isNull());
+  ASSERT_TRUE(fun.call(ins).isNull());
+  ASSERT_TRUE(fun.call(ins, "empty").isNull());
+  ASSERT_TRUE(fun.call(ins, 0, 0).isNull());
+#else
+  EXPECT_THROW({ sfun.call(); }, Exception);
+  EXPECT_THROW({ sfun.call({}, "empty"); }, Exception);
+  EXPECT_THROW({ sfun.call({}, 0, 0); }, Exception);
+  EXPECT_THROW({ fun.call(); }, Exception);
+  EXPECT_THROW({ fun.call(ins); }, Exception);
+  EXPECT_THROW({ fun.call(ins, "empty"); }, Exception);
+  EXPECT_THROW({ fun.call(ins, 0, 0); }, Exception);
+#endif
+}
+
 namespace {
 
 static const bool gender = true;
@@ -973,6 +1021,48 @@ TEST_F(NativeTest, NativeFounction) {
   EXPECT_THROW({ func.call(); }, Exception);
   EXPECT_THROW({ func.call({}, 1, 2); }, Exception);
   EXPECT_THROW({ func.call({}, ""); }, Exception);
+
+  class Instance : public ScriptClass {
+   public:
+    using ScriptClass::ScriptClass;
+  };
+
+  auto def = defineClass<Instance>("Instance")
+                 .constructor()
+                 .instanceFunction("f", [](Instance*, int) {})
+                 .build();
+  engine->registerNativeClass(def);
+  auto ins = engine->newNativeClass<Instance>();
+  auto insFunc = ins.get("f");
+
+  func.call({}, 0);
+  EXPECT_THROW({ func.call(ins); }, Exception);
+  EXPECT_THROW({ func.call(ins, 1, 2); }, Exception);
+  EXPECT_THROW({ func.call(ins, ""); }, Exception);
+}
+
+TEST_F(NativeTest, OverloadedFunction) {
+  EngineScope scope(engine);
+  auto func1 = [](int) { return 1; };
+  auto func2 = [](const std::string&) { return 2; };
+  auto func3 = [](int, int) { return 3; };
+
+  auto overloaded = script::adaptOverLoadedFunction(func1, func2, func3);
+  auto fun = Function::newFunction(overloaded);
+
+  auto ret = fun.call({}, 0);
+  EXPECT_EQ(ret.asNumber().toInt32(), 1);
+
+  ret = fun.call({}, 3.14);
+  EXPECT_EQ(ret.asNumber().toInt32(), 1);
+
+  ret = fun.call({}, "hello");
+  EXPECT_EQ(ret.asNumber().toInt32(), 2);
+
+  ret = fun.call({}, 1, 2);
+  EXPECT_EQ(ret.asNumber().toInt32(), 3);
+
+  EXPECT_THROW({ fun.call({}, false); }, Exception);
 }
 
 TEST_F(NativeTest, SelectOverloadedFunction) {
