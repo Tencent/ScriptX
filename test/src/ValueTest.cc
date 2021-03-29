@@ -636,6 +636,28 @@ TEST_F(ValueTest, Kinds) {
   test(Function::newFunction([]() {}));
   test(Array::newArray());
   test(ByteBuffer::newByteBuffer(0));
+
+  EXPECT_THROW({Number::newNumber(0).asValue().asObject();}, Exception);
+  EXPECT_THROW({String::newString("hello").asValue().asArray();}, Exception);
+}
+
+TEST_F(ValueTest, Unsupported) {
+  EngineScope engineScope(engine);
+#ifdef SCRIPTX_LANG_JAVASCRIPT
+  auto strange = engine->eval("Symbol('x')");
+#elif defined(SCRIPTX_LANG_LUA)
+  auto lua = lua_interop::currentEngineLua();
+  lua_newuserdata(lua, 4);
+  auto strange = lua_interop::makeLocal<Value>(lua_gettop(lua));
+#else
+  FAIL() << "add test here";
+  auto strange = Local<Value>();
+#endif
+
+  EXPECT_EQ(strange.getKind(), ValueKind::kUnsupported);
+  strange.asUnsupported();
+
+  EXPECT_THROW({Number::newNumber(0).asValue().asUnsupported();}, Exception);
 }
 
 TEST_F(ValueTest, KindNames) {

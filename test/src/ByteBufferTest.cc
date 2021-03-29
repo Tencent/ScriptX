@@ -49,7 +49,16 @@ void testByteBufferReadWrite(ScriptEngine* engine, const Local<Value>& buf) {
   auto buffer = buf.asByteBuffer();
   ASSERT_TRUE(buffer.byteLength() == 8);
   uint8_t* ptr = static_cast<uint8_t*>(buffer.getRawBytes());
+
+  ASSERT_EQ(ptr, buffer.getRawBytesShared().get());
   ASSERT_TRUE(ptr != nullptr);
+#if defined(SCRIPTX_BACKEND_V8) || defined(SCRIPTX_BACKEND_JAVASCRIPTCORE) || defined(SCRIPTX_BACKEND_LUA)
+  ASSERT_EQ(buffer.isShared(), true);
+#endif
+
+  // if buffer is in shared mode
+  // copy data from script into buffer
+  buffer.sync();
 
   EXPECT_EQ(ptr[0], 1);
   EXPECT_EQ(ptr[1], 0);
@@ -61,6 +70,8 @@ void testByteBufferReadWrite(ScriptEngine* engine, const Local<Value>& buf) {
   ptr[6] = 4;
   ptr[7] = 8;
 
+  // if buffer is in shared mode
+  // copy data from buffer into script
   buffer.commit();
 
   auto success =
@@ -115,10 +126,14 @@ return view
 TEST_F(ByteBufferTest, DataView) {
   for (auto&& type : std::initializer_list<std::pair<const char*, ByteBuffer::Type>>{
            {"Int8Array", ByteBuffer::Type::kInt8},
+           {"Uint8Array", ByteBuffer::Type::kUint8},
            {"Int16Array", ByteBuffer::Type::kInt16},
+           {"Uint16Array", ByteBuffer::Type::kUint16},
            {"Int32Array", ByteBuffer::Type::kInt32},
+           {"Uint32Array", ByteBuffer::Type::kUint32},
 #ifdef SCRIPTX_BACKEND_V8
            {"BigInt64Array", ByteBuffer::Type::kInt64},
+           {"BigUint64Array", ByteBuffer::Type::kUint64},
 #endif
            {"Float32Array", ByteBuffer::Type::KFloat32},
            {"Float64Array", ByteBuffer::Type::kFloat64},
