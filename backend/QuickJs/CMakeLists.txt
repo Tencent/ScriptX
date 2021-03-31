@@ -1,1 +1,11 @@
-message(FATAL_ERROR "${SCRIPTX_BACKEND} is to be implemented.")
+target_sources(ScriptX PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/QjsEngine.cc
+        ${CMAKE_CURRENT_LIST_DIR}/QjsEngine.h
+        ${CMAKE_CURRENT_LIST_DIR}/QjsException.cc
+        ${CMAKE_CURRENT_LIST_DIR}/QjsLocalReference.cc
+        ${CMAKE_CURRENT_LIST_DIR}/QjsNative.cc
+        ${CMAKE_CURRENT_LIST_DIR}/QjsNative.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/QjsReference.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/QjsUtils.cc
+        ${CMAKE_CURRENT_LIST_DIR}/QjsValue.cc
+        )

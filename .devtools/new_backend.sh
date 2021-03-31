@@ -5,7 +5,8 @@ BACKEND_NAMESPACE=$2
 BACKEND_PREFIX=$3
 
 if [[ -z $BACKEND_NAME || -z $BACKEND_NAMESPACE || -z $BACKEND_PREFIX ]]; then
-  echo "usage $0 <backend name> <backend cpp namespace> <class prefix>"
+  echo "create new backend from Template"
+  echo "usage: $0 <backend name> <backend cpp namespace> <class prefix>"
   echo "ScriptX/backend/<backend name>"
   echo "namespace script::<backend cpp namespace>"
   echo "<class prefix>Engine"
