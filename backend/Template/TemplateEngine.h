@@ -85,7 +85,30 @@ class TemplateEngine : public ScriptEngine {
   }
 
  private:
+  template <typename T>
+  friend class ::script::Local;
+
+  template <typename T>
+  friend class ::script::Global;
+
+  template <typename T>
+  friend class ::script::Weak;
+
+  friend class ::script::Object;
+
+  friend class ::script::Array;
+
+  friend class ::script::Function;
+
+  friend class ::script::ByteBuffer;
+
   friend class ::script::ScriptEngine;
+
+  friend class ::script::Exception;
+
+  friend class ::script::Arguments;
+
+  friend class ::script::ScriptClass;
 };
 
 }  // namespace script::template_backend

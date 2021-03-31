@@ -23,15 +23,22 @@ Arguments::Arguments(InternalCallbackInfoType callbackInfo) : callbackInfo_(call
 
 Arguments::~Arguments() = default;
 
-Local<Object> Arguments::thiz() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Object> Arguments::thiz() const {
+  return qjs_interop::makeLocal<Value>(qjs_backend::dupValue(callbackInfo_.thiz_)).asObject();
+}
 
-bool Arguments::hasThiz() const { TEMPLATE_NOT_IMPLEMENTED(); }
+bool Arguments::hasThiz() const { return JS_IsObject(callbackInfo_.thiz_); }
 
-size_t Arguments::size() const { TEMPLATE_NOT_IMPLEMENTED(); }
+size_t Arguments::size() const { return callbackInfo_.argc_; }
 
-Local<Value> Arguments::operator[](size_t i) const { return {}; }
+Local<Value> Arguments::operator[](size_t i) const {
+  if (i >= callbackInfo_.argc_) {
+    return {};
+  }
+  return qjs_interop::makeLocal<Value>(qjs_backend::dupValue(callbackInfo_.argv_[i]));
+}
 
-ScriptEngine* Arguments::engine() const { return nullptr; }
+ScriptEngine* Arguments::engine() const { return callbackInfo_.engine_; }
 
 ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
   TEMPLATE_NOT_IMPLEMENTED();

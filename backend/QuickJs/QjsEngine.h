@@ -17,18 +17,37 @@
 
 #pragma once
 
+#include <functional>
+#include <type_traits>
+
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
 #include "../../src/utils/MessageQueue.h"
+#include "QjsHelper.h"
 
 namespace script::qjs_backend {
 
 class QjsEngine : public ScriptEngine {
- protected:
- public:
-  QjsEngine(std::shared_ptr<::script::utils::MessageQueue> queue);
+ private:
+  static JSClassID kPointerClassId;
+  /**
+   * for Function::newFunction
+   *
+   */
+  static JSClassID kFunctionDataClassId;
 
-  QjsEngine();
+  std::shared_ptr<::script::utils::MessageQueue> queue_;
+  JSRuntime* runtime_ = nullptr;
+  JSContext* context_ = nullptr;
+
+  JSAtom lengthAtom_ = {};
+
+ public:
+  using QjsFactory = std::function<std::pair<JSRuntime*, JSContext*>()>;
+
+ public:
+  explicit QjsEngine(std::shared_ptr<::script::utils::MessageQueue> queue = nullptr,
+                     const QjsFactory& factory = nullptr);
 
   SCRIPTX_DISALLOW_COPY_AND_MOVE(QjsEngine);
 
@@ -39,6 +58,8 @@ class QjsEngine : public ScriptEngine {
   Local<Value> get(const Local<String>& key) override;
 
   void set(const Local<String>& key, const Local<Value>& value) override;
+
+  Local<Object> getGlobal() const;
 
   Local<Value> eval(const Local<String>& script, const Local<Value>& sourceFile);
   Local<Value> eval(const Local<String>& script, const Local<String>& sourceFile) override;
@@ -84,8 +105,37 @@ class QjsEngine : public ScriptEngine {
     return nullptr;
   }
 
+  void initEngineResource();
+
  private:
+  template <typename T>
+  friend class ::script::Local;
+
+  template <typename T>
+  friend class ::script::Global;
+
+  template <typename T>
+  friend class ::script::Weak;
+
+  friend class ::script::Object;
+
+  friend class ::script::Array;
+
+  friend class ::script::Function;
+
+  friend class ::script::ByteBuffer;
+
   friend class ::script::ScriptEngine;
+
+  friend class ::script::Exception;
+
+  friend class ::script::Arguments;
+
+  friend class ::script::ScriptClass;
+
+  friend JSContext* qjs_backend::currentContext();
+  friend JSRuntime* qjs_backend::currentRuntime();
+  friend JSValue qjs_backend::throwException(const Exception&, QjsEngine*);
 };
 
 }  // namespace script::qjs_backend

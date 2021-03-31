@@ -506,7 +506,10 @@ TEST_F(ValueTest, Array) {
   EXPECT_EQ(arr.asValue().getKind(), ValueKind::kObject);
 #endif
 
-  // EXPECT_EQ(arr.size(), 4);
+#ifndef SCRIPTX_BACKEND_LUA
+  EXPECT_EQ(arr.size(), 4);
+#endif
+
   EXPECT_TRUE(arr.get(0).isNull());
   EXPECT_TRUE(arr.get(1).isNull());
   EXPECT_TRUE(arr.get(2).isNull());
@@ -637,8 +640,8 @@ TEST_F(ValueTest, Kinds) {
   test(Array::newArray());
   test(ByteBuffer::newByteBuffer(0));
 
-  EXPECT_THROW({Number::newNumber(0).asValue().asObject();}, Exception);
-  EXPECT_THROW({String::newString("hello").asValue().asArray();}, Exception);
+  EXPECT_THROW({ Number::newNumber(0).asValue().asObject(); }, Exception);
+  EXPECT_THROW({ String::newString("hello").asValue().asArray(); }, Exception);
 }
 
 TEST_F(ValueTest, Unsupported) {
@@ -657,7 +660,7 @@ TEST_F(ValueTest, Unsupported) {
   EXPECT_EQ(strange.getKind(), ValueKind::kUnsupported);
   strange.asUnsupported();
 
-  EXPECT_THROW({Number::newNumber(0).asValue().asUnsupported();}, Exception);
+  EXPECT_THROW({ Number::newNumber(0).asValue().asUnsupported(); }, Exception);
 }
 
 TEST_F(ValueTest, KindNames) {

@@ -16,19 +16,22 @@
  */
 
 #pragma once
+#include "../QjsHelper.h"
 
 namespace script {
 
 namespace qjs_backend {
 
 struct ArgumentsData {
-  int stackBase;
-  size_t size;
+  QjsEngine* engine_;
+  JSValue thiz_;
+  size_t argc_;
+  JSValue* argv_;
 };
 
 struct JscScriptClassState {
-  ScriptEngine* scriptEngine_ = nullptr;
-  Weak<Object> weakRef_;
+  QjsEngine* engine = nullptr;
+  JSValue weakRef_;
 };
 
 }  // namespace qjs_backend

@@ -16,12 +16,37 @@
  */
 
 #pragma once
+#include "../../src/foundation.h"
+#include "../../src/types.h"
 
-#include "../QjsEngine.h"
-#include "../QjsHelper.hpp"
-#include "../QjsNative.hpp"
-#include "../QjsReference.hpp"
+SCRIPTX_BEGIN_INCLUDE_LIBRARY
+#include <quickjs.h>
+SCRIPTX_END_INCLUDE_LIBRARY
 
-// global marco
-#define SCRIPTX_BACKEND_QUICKJS
-#define SCRIPTX_LANG_JAVASCRIPT
+namespace script::qjs_backend {
+class QjsEngine;
+
+JSContext* currentContext();
+
+JSRuntime* currentRuntime();
+
+QjsEngine& currentEngine();
+
+/**
+ * @param value  owned
+ */
+void checkException(JSValueConst value);
+
+/**
+ * throw if ret < 0
+ * @param ret
+ */
+void checkException(int ret, const char* message = "unknown error");
+
+JSValue throwException(const Exception& e, QjsEngine* engine = nullptr);
+
+JSValue dupValue(JSValueConst val);
+
+void freeValue(JSValueConst val);
+
+}  // namespace script::qjs_backend

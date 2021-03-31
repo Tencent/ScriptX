@@ -19,21 +19,33 @@
 #include "../../src/Reference.h"
 #include "../../src/Scope.h"
 #include "../../src/Value.h"
+#include "QjsEngine.h"
+#include "QjsHelper.hpp"
 
 namespace script {
 
-Local<Object> Object::newObject() { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Object> Object::newObject() {
+  auto obj = JS_NewObject(qjs_backend::currentContext());
+  qjs_backend::checkException(obj);
+  return qjs_interop::makeLocal<Object>(obj);
+}
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
   TEMPLATE_NOT_IMPLEMENTED();
 }
 
-Local<String> String::newString(const char* utf8) { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<String> String::newString(const char* utf8) { return newString(std::string_view(utf8)); }
 
-Local<String> String::newString(std::string_view utf8) { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<String> String::newString(std::string_view utf8) {
+  auto str = JS_NewStringLen(qjs_backend::currentContext(), utf8.data(), utf8.length());
+  qjs_backend::checkException(str);
+  return qjs_interop::makeLocal<String>(str);
+}
 
-Local<String> String::newString(const std::string& utf8) { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<String> String::newString(const std::string& utf8) {
+  return newString(std::string_view(utf8));
+}
 
 #if defined(__cpp_char8_t)
 
@@ -51,22 +63,75 @@ Local<String> String::newString(const std::u8string& utf8) { return newString(ut
 
 Local<Number> Number::newNumber(float value) { return newNumber(static_cast<double>(value)); }
 
-Local<Number> Number::newNumber(double value) { TEMPLATE_NOT_IMPLEMENTED(); }
-
-Local<Number> Number::newNumber(int32_t value) { return newNumber(static_cast<double>(value)); }
-
-Local<Number> Number::newNumber(int64_t value) { return newNumber(static_cast<double>(value)); }
-
-Local<Boolean> Boolean::newBoolean(bool value) { TEMPLATE_NOT_IMPLEMENTED(); }
-
-Local<Function> Function::newFunction(script::FunctionCallback callback) {
-  TEMPLATE_NOT_IMPLEMENTED();
+Local<Number> Number::newNumber(double value) {
+  return qjs_interop::makeLocal<Number>(JS_NewFloat64(qjs_backend::currentContext(), value));
 }
 
-Local<Array> Array::newArray(size_t size) { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Number> Number::newNumber(int32_t value) {
+  return qjs_interop::makeLocal<Number>(JS_NewInt32(qjs_backend::currentContext(), value));
+}
+
+Local<Number> Number::newNumber(int64_t value) {
+  return qjs_interop::makeLocal<Number>(JS_NewInt64(qjs_backend::currentContext(), value));
+}
+
+Local<Boolean> Boolean::newBoolean(bool value) {
+  return qjs_interop::makeLocal<Boolean>(JS_NewBool(qjs_backend::currentContext(), value));
+}
+
+Local<Function> Function::newFunction(script::FunctionCallback callback) {
+  auto ptr = std::make_unique<script::FunctionCallback>(std::move(callback));
+
+  JSContext* context = qjs_backend::currentContext();
+  auto funData = JS_NewObjectClass(context, qjs_backend::QjsEngine::kFunctionDataClassId);
+  qjs_backend::checkException(funData);
+  JS_SetOpaque(funData, ptr.release());
+  auto fun = JS_NewCFunctionData(
+      context,
+      [](JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int /*magic*/,
+         JSValue* func_data) {
+        auto callback = static_cast<FunctionCallback*>(
+            JS_GetOpaque(*func_data, qjs_backend::QjsEngine::kFunctionDataClassId));
+        auto engine = static_cast<qjs_backend::QjsEngine*>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
+
+        try {
+          auto args = qjs_interop::makeArguments(engine, this_val, argc, argv);
+          auto ret = (*callback)(args);
+          return qjs_interop::getLocal(ret);
+        } catch (const Exception& e) {
+          return qjs_backend::throwException(e, engine);
+        }
+      },
+      0, 0, 1, &funData);
+  qjs_backend::checkException(fun);
+  JS_FreeValue(context, funData);
+
+  return Local<Function>{fun};
+}
+
+Local<Array> Array::newArray(size_t size) {
+  auto& engine = qjs_backend::currentEngine();
+  auto array = JS_NewArray(engine.context_);
+  qjs_backend::checkException(array);
+  // TODO(landerl): size
+  if (size != 0) {
+    auto number = JS_NewUint32(engine.context_, static_cast<uint32_t>(size));
+    qjs_backend::checkException(JS_SetProperty(engine.context_, array, engine.lengthAtom_, number));
+  }
+  return qjs_interop::makeLocal<Array>(array);
+}
 
 Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  auto array = JS_NewArray(qjs_backend::currentContext());
+  qjs_backend::checkException(array);
+
+  auto context = qjs_backend::currentContext();
+  for (size_t i = 0; i < size; ++i) {
+    qjs_backend::checkException(JS_SetPropertyInt64(context, array, static_cast<int64_t>(i),
+                                                    qjs_interop::getLocal(args[i])));
+  }
+
+  return qjs_interop::makeLocal<Array>(array);
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) { TEMPLATE_NOT_IMPLEMENTED(); }

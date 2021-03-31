@@ -15,22 +15,72 @@
  * limitations under the License.
  */
 
-#include "QjsEngine.h"
-#include "../../src/Utils.h"
+#include <ScriptX/ScriptX.h>
 
 namespace script::qjs_backend {
 
-QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue) {}
+JSClassID QjsEngine::kPointerClassId = 0;
+JSClassID QjsEngine::kFunctionDataClassId = 0;
+static std::once_flag kGlobalQjsClass;
 
-QjsEngine::QjsEngine() : QjsEngine(std::shared_ptr<utils::MessageQueue>{}) {}
+QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue, const QjsFactory& factory)
+    : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
+  std::call_once(kGlobalQjsClass, []() { JS_NewClassID(&kPointerClassId); });
+
+  if (factory) {
+    std::tie(runtime_, context_) = factory();
+    assert(runtime_);
+    assert(context_);
+  } else {
+    runtime_ = JS_NewRuntime();
+    assert(runtime_);
+    context_ = JS_NewContext(runtime_);
+    assert(context_);
+  }
+
+  initEngineResource();
+}
+
+void QjsEngine::initEngineResource() {
+  JS_SetRuntimeOpaque(runtime_, this);
+
+  JSClassDef pointer{};
+  pointer.class_name = "RawPointer";
+  JS_NewClass(runtime_, kPointerClassId, &pointer);
+
+  JSClassDef function{};
+  function.class_name = "RawFunction";
+  function.finalizer = [](JSRuntime* /*rt*/, JSValue val) {
+    auto ptr = JS_GetOpaque(val, kFunctionDataClassId);
+    if (ptr) {
+      delete static_cast<FunctionCallback*>(ptr);
+    }
+  };
+  JS_NewClass(runtime_, kFunctionDataClassId, &function);
+
+  lengthAtom_ = JS_NewAtom(context_, "length");
+}
 
 QjsEngine::~QjsEngine() = default;
 
-void QjsEngine::destroy() noexcept {}
+void QjsEngine::destroy() noexcept {
+  ScriptEngine::destroyUserData();
+
+  JS_FreeAtom(context_, lengthAtom_);
+  JS_RunGC(runtime_);
+  JS_FreeContext(context_);
+  JS_FreeRuntime(runtime_);
+}
 
 Local<Value> QjsEngine::get(const Local<String>& key) { return Local<Value>(); }
 
 void QjsEngine::set(const Local<String>& key, const Local<Value>& value) {}
+
+Local<Object> QjsEngine::getGlobal() const {
+  auto global = JS_GetGlobalObject(context_);
+  qjs_backend::checkException(global);
+  return qjs_interop::makeLocal<Object>(global);
+}
 
 Local<Value> QjsEngine::eval(const Local<String>& script) { return eval(script, Local<Value>()); }
 

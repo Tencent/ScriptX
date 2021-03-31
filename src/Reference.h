@@ -24,6 +24,7 @@
 #include "types.h"
 #include SCRIPTX_BACKEND(Reference.h)
 #include SCRIPTX_BACKEND(Engine.h)
+#include SCRIPTX_BACKEND(Utils.h)
 
 namespace script {
 
@@ -239,6 +240,8 @@ class Local<String>;
                                                                                   \
   friend class ScriptEngine;                                                      \
   friend typename internal::ImplType<ScriptEngine>::type;                         \
+                                                                                  \
+  friend typename internal::ImplType<internal::interop>::type;                    \
                                                                                   \
   friend class ValueType;                                                         \
                                                                                   \
