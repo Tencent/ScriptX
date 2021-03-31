@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include "V8Helper.hpp"
 #include "V8Engine.h"
 
 namespace script::v8_backend {

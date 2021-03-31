@@ -19,7 +19,6 @@
 #include "../../src/Reference.h"
 #include "../../src/Utils.h"
 #include "V8Engine.h"
-#include "V8Helper.h"
 #include "V8Helper.hpp"
 
 namespace script {
