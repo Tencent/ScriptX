@@ -294,6 +294,10 @@ size_t Local<ByteBuffer>::byteLength() const { return 0; }
 
 void* Local<ByteBuffer>::getRawBytes() const { return nullptr; }
 
-std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return {}; }
+std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const {
+  return std::shared_ptr<void>(
+      getRawBytes(), [val = qjs_backend::dupValue(val_), context = qjs_backend::currentContext()](
+                         void* ptr) { JS_FreeValue(context, val); });
+}
 
 }  // namespace script

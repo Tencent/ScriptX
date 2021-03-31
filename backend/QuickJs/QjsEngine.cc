@@ -66,6 +66,8 @@ QjsEngine::~QjsEngine() = default;
 void QjsEngine::destroy() noexcept {
   ScriptEngine::destroyUserData();
 
+  queue_->removeMessageByTag(static_cast<ScriptEngine*>(this));
+
   JS_FreeAtom(context_, lengthAtom_);
   JS_RunGC(runtime_);
   JS_FreeContext(context_);
@@ -89,12 +91,22 @@ Local<Value> QjsEngine::eval(const Local<String>& script, const Local<String>& s
 }
 
 Local<Value> QjsEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  return Local<Value>();
+  Tracer trace(this, "QjsEngine::eval");
+  JSValue ret = JS_UNDEFINED;
+  StringHolder sh(script);
+
+  if (sourceFile.isString()) {
+    StringHolder source(sourceFile.asString());
+    ret = JS_Eval(context_, sh.c_str(), sh.length(), source.c_str(), JS_EVAL_TYPE_GLOBAL);
+  } else {
+    ret = JS_Eval(context_, sh.c_str(), sh.length(), "<unknown>", JS_EVAL_TYPE_GLOBAL);
+  }
+  qjs_backend::checkException(ret);
+
+  return Local<Value>(qjs_backend::dupValue(ret));
 }
 
-std::shared_ptr<utils::MessageQueue> QjsEngine::messageQueue() {
-  return std::shared_ptr<utils::MessageQueue>();
-}
+std::shared_ptr<utils::MessageQueue> QjsEngine::messageQueue() { return queue_; }
 
 void QjsEngine::gc() {}
 

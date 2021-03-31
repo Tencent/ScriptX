@@ -41,7 +41,7 @@ void checkException(JSValueConst value);
  * throw if ret < 0
  * @param ret
  */
-void checkException(int ret, const char* message = "unknown error");
+void checkException(int ret, const char* message = "Unknown Error");
 
 JSValue throwException(const Exception& e, QjsEngine* engine = nullptr);
 

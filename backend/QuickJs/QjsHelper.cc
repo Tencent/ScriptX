@@ -38,13 +38,21 @@ QjsEngine& currentEngine() { return EngineScope::currentEngineCheckedAs<qjs_back
 
 void checkException(JSValue value) {
   if (JS_IsException(value)) {
-    JS_Throw(currentContext(), value);
+    checkException(-1);
   }
 }
 
 void checkException(int ret, const char* message) {
   if (ret < 0) {
-    JS_ThrowTypeError(currentContext(), "%s", message);
+    auto context = currentContext();
+    auto pending = JS_GetException(currentContext());
+
+    if (JS_IsObject(pending)) {
+      throw Exception(qjs_interop::makeLocal<Value>(pending));
+    } else {
+      JS_FreeValue(context, pending);
+      throw Exception(std::string(message));
+    }
   }
 }
 
@@ -53,7 +61,8 @@ JSValue dupValue(JSValue val) { return JS_DupValue(currentContext(), val); }
 void freeValue(JSValue val) { JS_FreeValue(currentContext(), val); }
 
 JSValue throwException(const Exception& e, QjsEngine* engine) {
-  JS_Throw(engine->context_, qjs_interop::getLocal(e.exception()));
+  JSContext* context = engine ? engine->context_ : currentContext();
+  JS_Throw(context, qjs_interop::getLocal(e.exception()));
   return JS_UNDEFINED;
 }
 

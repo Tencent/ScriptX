@@ -113,7 +113,6 @@ Local<Array> Array::newArray(size_t size) {
   auto& engine = qjs_backend::currentEngine();
   auto array = JS_NewArray(engine.context_);
   qjs_backend::checkException(array);
-  // TODO(landerl): size
   if (size != 0) {
     auto number = JS_NewUint32(engine.context_, static_cast<uint32_t>(size));
     qjs_backend::checkException(JS_SetProperty(engine.context_, array, engine.lengthAtom_, number));
@@ -134,14 +133,26 @@ Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
   return qjs_interop::makeLocal<Array>(array);
 }
 
-Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) { return newByteBuffer(nullptr, size); }
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  auto ab = JS_NewArrayBufferCopy(qjs_backend::currentContext(),
+                                  static_cast<uint8_t*>(nativeBuffer), size);
+  qjs_backend::checkException(ab);
+  return qjs_interop::makeLocal<ByteBuffer>(ab);
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(std::shared_ptr<void> nativeBuffer, size_t size) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  auto ptr = nativeBuffer.get();
+  auto sharedPtrPtr = std::make_unique<std::shared_ptr<void>>(std::move(nativeBuffer));
+
+  auto ab = JS_NewArrayBuffer(
+      qjs_backend::currentContext(), static_cast<uint8_t*>(ptr), size,
+      [](JSRuntime*, void* opaque, void* ptr) {}, sharedPtrPtr->get(), false);
+  qjs_backend::checkException(ab);
+
+  sharedPtrPtr.release();  // NOLINT(bugprone-unused-return-value)
+  return qjs_interop::makeLocal<ByteBuffer>(ab);
 }
 
 }  // namespace script
