@@ -199,17 +199,6 @@ TEST_F(ValueTest, U8String) {
 
 #endif
 
-namespace {
-
-class InstanceOfTest : public ScriptClass {
- public:
-  using ScriptClass::ScriptClass;
-};
-
-auto define = defineClass<InstanceOfTest>("InstanceOfTest").constructor().build();
-
-}  // namespace
-
 TEST_F(ValueTest, InstanceOf) {
   EngineScope engineScope(engine);
   try {
@@ -227,26 +216,6 @@ TEST_F(ValueTest, InstanceOf) {
   } catch (const Exception& e) {
     FAIL() << e;
   }
-}
-
-TEST_F(ValueTest, NativeClassInstanceOf) {
-  EngineScope engineScope(engine);
-
-  engine->registerNativeClass(define);
-  auto x = engine->newNativeClass<InstanceOfTest>();
-  engine->set("x", x);
-  auto isInstance = engine->eval(TS().js("x instanceof InstanceOfTest")
-                                     .lua("return ScriptX.isInstanceOf(x, InstanceOfTest)")
-                                     .select());
-
-  ASSERT_TRUE(isInstance.isBoolean());
-  EXPECT_TRUE(isInstance.asBoolean().value());
-
-  auto classInstanceOfTest =
-      engine->eval(TS().js("InstanceOfTest").lua("return InstanceOfTest").select());
-
-  EXPECT_TRUE(classInstanceOfTest.isObject());
-  EXPECT_TRUE(x.instanceOf(classInstanceOfTest));
 }
 
 namespace {

@@ -41,6 +41,7 @@ class QjsEngine : public ScriptEngine {
   JSContext* context_ = nullptr;
 
   JSAtom lengthAtom_ = {};
+  JSValue strictEqualFunction_ = {};
 
  public:
   using QjsFactory = std::function<std::pair<JSRuntime*, JSContext*>()>;

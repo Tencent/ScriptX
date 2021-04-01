@@ -59,6 +59,12 @@ void QjsEngine::initEngineResource() {
   JS_NewClass(runtime_, kFunctionDataClassId, &function);
 
   lengthAtom_ = JS_NewAtom(context_, "length");
+
+  {
+    EngineScope scope(this);
+    auto ret = static_cast<ScriptEngine*>(this)->eval("(function(a, b) {return a === b;})");
+    strictEqualFunction_ = qjs_interop::getLocal(ret);
+  }
 }
 
 QjsEngine::~QjsEngine() = default;
@@ -69,6 +75,7 @@ void QjsEngine::destroy() noexcept {
   queue_->removeMessageByTag(static_cast<ScriptEngine*>(this));
 
   JS_FreeAtom(context_, lengthAtom_);
+  JS_FreeValue(context_, strictEqualFunction_);
   JS_RunGC(runtime_);
   JS_FreeContext(context_);
   JS_FreeRuntime(runtime_);

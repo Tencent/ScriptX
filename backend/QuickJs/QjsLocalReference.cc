@@ -194,8 +194,13 @@ Local<Object> Local<Value>::asObject() const {
 
 bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
   if (isNull()) return other.isNull();
-  TEMPLATE_NOT_IMPLEMENTED();
-  return false;
+
+  auto& engine = qjs_backend::currentEngine();
+  auto context = engine.context_;
+
+  auto fun =
+      qjs_interop::makeLocal<Function>(qjs_backend::dupValue(engine.strictEqualFunction_, context));
+  return fun.call({}, *this, other).asBoolean().value();
 }
 
 Local<String> Local<Value>::describe() const {
