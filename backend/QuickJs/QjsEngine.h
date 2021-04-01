@@ -27,6 +27,9 @@
 
 namespace script::qjs_backend {
 
+using RawFunctionCallback = Local<Value> (*)(const Arguments& args, void* func_data,
+                                             bool isConstructorCall);
+
 class QjsEngine : public ScriptEngine {
  private:
   static JSClassID kPointerClassId;
@@ -35,10 +38,17 @@ class QjsEngine : public ScriptEngine {
    *
    */
   static JSClassID kFunctionDataClassId;
+  static JSClassID kInstanceClassId;
 
   std::shared_ptr<::script::utils::MessageQueue> queue_;
   JSRuntime* runtime_ = nullptr;
   JSContext* context_ = nullptr;
+
+  /**
+   * key: ClassDefine
+   * value: prototype
+   */
+  std::unordered_map<const void*, JSValue> nativeInstanceRegistry_;
 
   JSAtom lengthAtom_ = {};
   // QuickJs C API is not enough, we have to use some js helper code.
@@ -87,13 +97,17 @@ class QjsEngine : public ScriptEngine {
 
  private:
   template <typename T>
-  bool registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    return false;
-  }
+  void registerNativeClassImpl(const ClassDefine<T>* classDefine);
 
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace) {
-    TEMPLATE_NOT_IMPLEMENTED();
-  }
+  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
+
+  void registerNativeStatic(const Local<Object>& module, const internal::StaticDefine& def);
+
+  template <typename T>
+  Local<Object> newConstructor(const ClassDefine<T>& define) const;
+
+  template <typename T>
+  Local<Object> newPrototype(const ClassDefine<T>& define) const;
 
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
@@ -141,9 +155,10 @@ class QjsEngine : public ScriptEngine {
 
   friend struct ByteBufferState;
 
-  friend JSContext* qjs_backend::currentContext();
-  friend JSRuntime* qjs_backend::currentRuntime();
-  friend JSValue qjs_backend::throwException(const Exception&, QjsEngine*);
+  friend JSContext* currentContext();
+  friend JSRuntime* currentRuntime();
+  friend JSValue throwException(const Exception&, QjsEngine*);
+  friend Local<Function> newRawFunction(JSContext* context, void* data, RawFunctionCallback);
 };
 
 }  // namespace script::qjs_backend

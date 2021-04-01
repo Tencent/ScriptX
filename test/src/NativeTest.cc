@@ -391,18 +391,15 @@ ClassDefine<void> gns =
 TEST_F(NativeTest, GetNoSet) {
   script::EngineScope engineScope(engine);
 
-  engine->registerNativeClass(gns);
-
-  engine->eval(u8"GnS.src = 'x';");
-
   try {
+    engine->registerNativeClass(gns);
+    engine->eval(u8"GnS.src = 'x';");
     engine->eval(TS().js("if (GnS.src !== 'hello') throw new Error(GnS.src);")
                      .lua("if GnS.src ~= 'hello' then error(GnS.src) end")
                      .select());
   } catch (const Exception& e) {
     FAIL() << e;
   }
-  engine->set(u8"Gns", {});
 }
 
 namespace {

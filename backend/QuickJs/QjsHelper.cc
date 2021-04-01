@@ -26,6 +26,8 @@
  * </pre>
  */
 #include "QjsHelper.h"
+#include "QjsEngine.h"
+
 #include <ScriptX/ScriptX.h>
 
 namespace script::qjs_backend {
@@ -68,6 +70,44 @@ JSValue throwException(const Exception& e, QjsEngine* engine) {
   JSContext* context = engine ? engine->context_ : currentContext();
   JS_Throw(context, qjs_interop::getLocal(e.exception()));
   return JS_EXCEPTION;
+}
+
+Local<Function> newRawFunction(JSContext* context, void* data, RawFunctionCallback callback) {
+  auto funData = JS_NewObjectClass(context, qjs_backend::QjsEngine::kPointerClassId);
+  qjs_backend::checkException(funData);
+  JS_SetOpaque(funData, data);
+
+  auto funCallback = JS_NewObjectClass(context, qjs_backend::QjsEngine::kPointerClassId);
+  qjs_backend::checkException(funCallback);
+  JS_SetOpaque(funCallback, reinterpret_cast<void*>(callback));
+
+  JSValue funDataList[2]{funData, funCallback};
+  auto fun = JS_NewCFunctionData(
+      context,
+      [](JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic,
+         JSValue* func_data) {
+        auto data = JS_GetOpaque(func_data[0], qjs_backend::QjsEngine::kPointerClassId);
+        auto callback = reinterpret_cast<RawFunctionCallback>(
+            JS_GetOpaque(func_data[1], qjs_backend::QjsEngine::kPointerClassId));
+        auto engine = static_cast<qjs_backend::QjsEngine*>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
+
+        try {
+          auto args = qjs_interop::makeArguments(engine, this_val, argc, argv);
+
+          auto ret = callback(args, data, (magic & JS_CALL_FLAG_CONSTRUCTOR) != 0);
+          return qjs_interop::getLocal(ret);
+        } catch (const Exception& e) {
+          return qjs_backend::throwException(e, engine);
+        }
+      },
+      0, 0, 2, funDataList);
+
+  JS_FreeValue(context, funData);
+  JS_FreeValue(context, funCallback);
+
+  qjs_backend::checkException(fun);
+
+  return qjs_interop::makeLocal<Function>(fun);
 }
 
 }  // namespace script::qjs_backend

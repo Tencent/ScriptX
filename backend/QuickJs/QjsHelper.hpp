@@ -84,4 +84,10 @@ struct qjs_interop {
   }
 };
 
+namespace qjs_backend {
+
+Local<Function> newRawFunction(JSContext* context, void* data, RawFunctionCallback);
+
+}  // namespace qjs_backend
+
 }  // namespace script

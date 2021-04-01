@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
+#include "QjsEngine.h"
 #include <ScriptX/ScriptX.h>
 
 namespace script::qjs_backend {
 
 JSClassID QjsEngine::kPointerClassId = 0;
+JSClassID QjsEngine::kInstanceClassId = 0;
 JSClassID QjsEngine::kFunctionDataClassId = 0;
 static std::once_flag kGlobalQjsClass;
 
@@ -78,7 +80,11 @@ constexpr auto kGetByteBufferInfo = R"(
 
 QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue, const QjsFactory& factory)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
-  std::call_once(kGlobalQjsClass, []() { JS_NewClassID(&kPointerClassId); });
+  std::call_once(kGlobalQjsClass, []() {
+    JS_NewClassID(&kPointerClassId);
+    JS_NewClassID(&kInstanceClassId);
+    JS_NewClassID(&kFunctionDataClassId);
+  });
 
   if (factory) {
     std::tie(runtime_, context_) = factory();
@@ -110,6 +116,16 @@ void QjsEngine::initEngineResource() {
     }
   };
   JS_NewClass(runtime_, kFunctionDataClassId, &function);
+
+  JSClassDef instance{};
+  instance.class_name = "ScriptXInstance";
+  instance.finalizer = [](JSRuntime* /*rt*/, JSValue val) {
+    auto ptr = JS_GetOpaque(val, kInstanceClassId);
+    if (ptr) {
+      delete static_cast<ScriptClass*>(ptr);
+    }
+  };
+  JS_NewClass(runtime_, kInstanceClassId, &instance);
 
   lengthAtom_ = JS_NewAtom(context_, "length");
 
@@ -145,6 +161,11 @@ void QjsEngine::destroy() noexcept {
   JS_FreeValue(context_, helperFunctionStrictEqual_);
   JS_FreeValue(context_, helperFunctionIsByteBuffer_);
   JS_FreeValue(context_, helperFunctionGetByteBufferInfo_);
+
+  for (auto&& [key, v] : nativeInstanceRegistry_) {
+    JS_FreeValue(context_, v);
+  }
+  nativeInstanceRegistry_.clear();
 
   JS_RunGC(runtime_);
   JS_FreeContext(context_);
@@ -202,5 +223,66 @@ ScriptLanguage QjsEngine::getLanguageType() { return ScriptLanguage::kJavaScript
 std::string QjsEngine::getEngineVersion() { return "QuickJS"; }
 
 bool QjsEngine::isDestroying() const { return false; }
+
+void QjsEngine::registerNativeStatic(const Local<Object>& module,
+                                     const internal::StaticDefine& def) {
+  for (auto&& f : def.functions) {
+    auto ptr = &f.callback;
+
+    auto fun = newRawFunction(context_, const_cast<FunctionCallback*>(ptr),
+                              [](const Arguments& args, void* func_data, bool) {
+                                return (*static_cast<FunctionCallback*>(func_data))(args);
+                              });
+    module.set(f.name, fun);
+  }
+
+  for (auto&& prop : def.properties) {
+    auto getterFun = newRawFunction(context_, const_cast<GetterCallback*>(&prop.getter),
+                                    [](const Arguments& args, void* data, bool) {
+                                      return (*static_cast<GetterCallback*>(data))();
+                                    });
+
+    auto setterFun = newRawFunction(context_, const_cast<SetterCallback*>(&prop.setter),
+                                    [](const Arguments& args, void* data, bool) {
+                                      (*static_cast<SetterCallback*>(data))(args[0]);
+                                      return Local<Value>();
+                                    });
+
+    auto atom = JS_NewAtomLen(context_, prop.name.c_str(), prop.name.length());
+
+    // TODO: flags
+    auto ret = JS_DefinePropertyGetSet(context_, qjs_interop::peekLocal(module), atom,
+                                       qjs_interop::getLocal(getterFun),
+                                       qjs_interop::getLocal(setterFun), 0);
+    JS_FreeAtom(context_, atom);
+    qjs_backend::checkException(ret);
+  }
+}
+
+Local<Object> QjsEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
+  Local<Object> nameSpaceObj = getGlobal();
+  if (!nameSpace.empty()) {
+    std::size_t begin = 0;
+    while (begin < nameSpace.size()) {
+      auto index = nameSpace.find('.', begin);
+      if (index == std::string::npos) {
+        index = nameSpace.size();
+      }
+      auto key = String::newString(nameSpace.substr(begin, index - begin));
+      auto obj = nameSpaceObj.get(key);
+      if (obj.isNull()) {
+        // new plain object
+        obj = Object::newObject();
+        nameSpaceObj.set(key, obj);
+      } else if (!obj.isObject()) {
+        throw Exception("invalid namespace");
+      }
+
+      nameSpaceObj = obj.asObject();
+      begin = index + 1;
+    }
+  }
+  return nameSpaceObj;
+}
 
 }  // namespace script::qjs_backend

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "../QjsEngine.h"
+#include "../QjsEngine.hpp"
 #include "../QjsHelper.hpp"
 #include "../QjsNative.hpp"
 #include "../QjsReference.hpp"

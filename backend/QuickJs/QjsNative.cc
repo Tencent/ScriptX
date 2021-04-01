@@ -41,14 +41,26 @@ Local<Value> Arguments::operator[](size_t i) const {
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine_; }
 
 ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
-  TEMPLATE_NOT_IMPLEMENTED();
+  internalState_.engine = &qjs_backend::currentEngine();
+  // don't inc reference count, to pretend to be a weak ref
+  // while they are not exactly weak ref are defined.
+  // BUT, QuickJs calls finalize immediately, we can clear it there.
+  internalState_.weakRef_ = qjs_interop::peekLocal(scriptObject);
 }
 
-Local<Object> ScriptClass::getScriptObject() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Object> ScriptClass::getScriptObject() const {
+  if (JS_IsObject(internalState_.weakRef_)) {
+    return qjs_interop::makeLocal<Object>(
+        qjs_backend::dupValue(internalState_.weakRef_, internalState_.engine->context_));
+  }
+  // TODO: to be or not to be???
+  throw Exception("can't getScriptObject in finalizer");
+}
 
 Local<Array> ScriptClass::getInternalStore() const { TEMPLATE_NOT_IMPLEMENTED(); }
 
-ScriptEngine* ScriptClass::getScriptEngine() const { TEMPLATE_NOT_IMPLEMENTED(); }
+ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
 ScriptClass::~ScriptClass() = default;
+
 }  // namespace script
