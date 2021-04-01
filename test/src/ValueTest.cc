@@ -71,7 +71,10 @@ f;
       Object::newObject(func, {String::newString("Jenny"), Number::newNumber(5)}),
       // variadic helper
       Object::newObject(func, String::newString("Jenny"), Number::newNumber(5)),
-      Object::newObject(func, "Jenny", 5), Object::newObject(func, String::newString("Jenny"), 5)};
+      // C++ types
+      Object::newObject(func, "Jenny", 5),
+      // mixed
+      Object::newObject(func, String::newString("Jenny"), 5)};
 
   for (auto& jenny : jennyList) {
     auto name = jenny.get(String::newString(u8"name"));
@@ -436,7 +439,10 @@ TEST_F(ValueTest, FunctionHasThiz) {
       [](const Arguments& args) { return Boolean::newBoolean(args.hasThiz()); });
 
   engine->set("func", func);
-  auto hasThiz = engine->eval(TS().js("func()").lua("return func()").select()).asBoolean().value();
+  auto hasThiz =
+      engine->eval(TS().js("var x = {func: func}; x.func()").lua("return func()").select())
+          .asBoolean()
+          .value();
 
 #ifdef SCRIPTX_LANG_JAVASCRIPT
   EXPECT_TRUE(hasThiz);

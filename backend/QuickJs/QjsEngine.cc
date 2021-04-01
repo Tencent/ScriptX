@@ -74,9 +74,11 @@ void QjsEngine::destroy() noexcept {
   JS_FreeRuntime(runtime_);
 }
 
-Local<Value> QjsEngine::get(const Local<String>& key) { return Local<Value>(); }
+Local<Value> QjsEngine::get(const Local<String>& key) { return getGlobal().get(key); }
 
-void QjsEngine::set(const Local<String>& key, const Local<Value>& value) {}
+void QjsEngine::set(const Local<String>& key, const Local<Value>& value) {
+  getGlobal().set(key, value);
+}
 
 Local<Object> QjsEngine::getGlobal() const {
   auto global = JS_GetGlobalObject(context_);
@@ -103,18 +105,18 @@ Local<Value> QjsEngine::eval(const Local<String>& script, const Local<Value>& so
   }
   qjs_backend::checkException(ret);
 
-  return Local<Value>(qjs_backend::dupValue(ret));
+  return Local<Value>(ret);
 }
 
 std::shared_ptr<utils::MessageQueue> QjsEngine::messageQueue() { return queue_; }
 
-void QjsEngine::gc() {}
+void QjsEngine::gc() { JS_RunGC(runtime_); }
 
 void QjsEngine::adjustAssociatedMemory(int64_t count) {}
 
 ScriptLanguage QjsEngine::getLanguageType() { return ScriptLanguage::kJavaScript; }
 
-std::string QjsEngine::getEngineVersion() { return ""; }
+std::string QjsEngine::getEngineVersion() { return "QuickJS"; }
 
 bool QjsEngine::isDestroying() const { return false; }
 

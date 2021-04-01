@@ -19,6 +19,7 @@
 #include "../../src/Reference.h"
 #include "../../src/Scope.h"
 #include "../../src/Value.h"
+#include "../../src/utils/Helper.hpp"
 #include "QjsEngine.h"
 #include "QjsHelper.hpp"
 
@@ -32,7 +33,20 @@ Local<Object> Object::newObject() {
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  auto& engine = qjs_backend::currentEngine();
+  auto context = engine.context_;
+  JSValue ret = JS_UNDEFINED;
+
+  internal::withNArray<JSValue>(size, [context, &type, &ret, size, args](JSValue* array) {
+    for (size_t i = 0; i < size; ++i) {
+      array[i] = qjs_interop::peekLocal(args[i]);
+    }
+
+    ret = JS_CallConstructor(context, qjs_interop::peekLocal(type), static_cast<int>(size), array);
+    qjs_backend::checkException(ret);
+  });
+
+  return qjs_interop::makeLocal<Object>(ret);
 }
 
 Local<String> String::newString(const char* utf8) { return newString(std::string_view(utf8)); }

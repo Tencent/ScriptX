@@ -27,7 +27,10 @@ Exception::Exception(const script::Local<script::String>& message)
     : std::exception(), exception_() {}
 
 Exception::Exception(const script::Local<script::Value>& exception)
-    : std::exception(), exception_({}) {}
+    : std::exception(), exception_({}) {
+  // TODO:
+  exception_.message_ = exception.describeUtf8();
+}
 
 Local<Value> Exception::exception() const { return {}; }
 

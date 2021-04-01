@@ -56,9 +56,13 @@ void checkException(int ret, const char* message) {
   }
 }
 
-JSValue dupValue(JSValue val) { return JS_DupValue(currentContext(), val); }
+JSValue dupValue(JSValue val, JSContext* context) {
+  return JS_DupValue(context ? context : currentContext(), val);
+}
 
-void freeValue(JSValue val) { JS_FreeValue(currentContext(), val); }
+void freeValue(JSValue val, JSContext* context) {
+  JS_FreeValue(context ? context : currentContext(), val);
+}
 
 JSValue throwException(const Exception& e, QjsEngine* engine) {
   JSContext* context = engine ? engine->context_ : currentContext();

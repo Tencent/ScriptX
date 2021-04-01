@@ -16,6 +16,7 @@
  */
 
 #include <ScriptX/ScriptX.h>
+#include "../../src/utils/Helper.hpp"
 
 namespace script {
 
@@ -143,7 +144,7 @@ bool Local<Value>::isFunction() const { return JS_IsFunction(qjs_backend::curren
 bool Local<Value>::isArray() const { return JS_IsArray(qjs_backend::currentContext(), val_); }
 
 bool Local<Value>::isByteBuffer() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  // TODO(landerl): TEMPLATE_NOT_IMPLEMENTED();
   return false;
 }
 
@@ -203,17 +204,77 @@ Local<String> Local<Value>::describe() const {
   return Local<String>(ret);
 }
 
-Local<Value> Local<Object>::get(const script::Local<script::String>& key) const { return {}; }
+Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
+  auto sh = key.toStringHolder();
+  auto ret = JS_GetPropertyStr(qjs_backend::currentContext(), val_, sh.c_str());
+  qjs_backend::checkException(ret);
+  return qjs_interop::makeLocal<Value>(ret);
+}
 
 void Local<Object>::set(const script::Local<script::String>& key,
-                        const script::Local<script::Value>& value) const {}
+                        const script::Local<script::Value>& value) const {
+  auto ksh = key.toStringHolder();
+  qjs_backend::checkException(JS_SetPropertyStr(qjs_backend::currentContext(), val_, ksh.c_str(),
+                                                qjs_interop::getLocal(value)));
+}
 
-void Local<Object>::remove(const Local<class script::String>& key) const {}
-bool Local<Object>::has(const Local<class script::String>& key) const { return true; }
+void Local<Object>::remove(const Local<class script::String>& key) const {
+  auto context = qjs_backend::currentContext();
+  auto ksh = key.toStringHolder();
+  auto atom = JS_NewAtomLen(context, ksh.c_str(), ksh.length());
 
-bool Local<Object>::instanceOf(const Local<class script::Value>& type) const { return false; }
+  auto ret = JS_DeleteProperty(context, val_, atom, 0);
+  JS_FreeAtom(context, atom);
 
-std::vector<Local<String>> Local<Object>::getKeys() const { return {}; }
+  qjs_backend::checkException(ret);
+}
+
+bool Local<Object>::has(const Local<class script::String>& key) const {
+  auto context = qjs_backend::currentContext();
+  auto ksh = key.toStringHolder();
+  auto atom = JS_NewAtomLen(context, ksh.c_str(), ksh.length());
+
+  auto ret = JS_HasProperty(context, val_, atom);
+  JS_FreeAtom(context, atom);
+
+  qjs_backend::checkException(ret);
+  return ret != 0;
+}
+
+bool Local<Object>::instanceOf(const Local<class script::Value>& type) const {
+  if (type.isObject()) return false;
+  auto ret = JS_IsInstanceOf(qjs_backend::currentContext(), val_, qjs_interop::peekLocal(type));
+
+  qjs_backend::checkException(ret);
+
+  return ret != 0;
+}
+
+std::vector<Local<String>> Local<Object>::getKeys() const {
+  auto context = qjs_backend::currentContext();
+  JSPropertyEnum* list = nullptr;
+  uint32_t listLen = 0;
+
+  try {
+    qjs_backend::checkException(
+        JS_GetOwnPropertyNames(context, &list, &listLen, val_,
+                               JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_PRIVATE_MASK));
+
+    std::vector<Local<String>> ret;
+    ret.reserve(listLen);
+
+    for (uint32_t i = 0; i < listLen; ++i) {
+      ret.push_back(qjs_interop::makeLocal<String>(JS_AtomToString(context, list[i].atom)));
+      JS_FreeAtom(context, list[i].atom);
+    }
+    return ret;
+  } catch (...) {
+    if (list) {
+      js_free(context, list);
+    }
+    throw;
+  }
+}
 
 float Local<Number>::toFloat() const { return static_cast<float>(toDouble()); }
 
@@ -239,7 +300,23 @@ bool Local<Boolean>::value() const { return JS_ToBool(qjs_backend::currentContex
 
 Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
-  return {};
+  auto& engine = qjs_backend::currentEngine();
+  auto context = engine.context_;
+  JSValue ret = JS_UNDEFINED;
+
+  internal::withNArray<JSValue>(
+      size, [this, &engine, context, &ret, &thiz, size, args](JSValue* array) {
+        for (size_t i = 0; i < size; ++i) {
+          array[i] = qjs_interop::peekLocal(args[i]);
+        }
+
+        ret = JS_Call(context, val_,
+                      thiz.isObject() ? thiz.val_ : qjs_interop::peekLocal(engine.getGlobal()),
+                      static_cast<int>(size), array);
+        qjs_backend::checkException(ret);
+      });
+
+  return qjs_interop::makeLocal<Value>(ret);
 }
 
 size_t Local<Array>::size() const {
