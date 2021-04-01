@@ -189,6 +189,12 @@ std::shared_ptr<utils::MessageQueue> QjsEngine::messageQueue() { return queue_; 
 
 void QjsEngine::gc() { JS_RunGC(runtime_); }
 
+size_t QjsEngine::getHeapSize() {
+  JSMemoryUsage usage{};
+  JS_ComputeMemoryUsage(runtime_, &usage);
+  return usage.memory_used_size;
+}
+
 void QjsEngine::adjustAssociatedMemory(int64_t count) {}
 
 ScriptLanguage QjsEngine::getLanguageType() { return ScriptLanguage::kJavaScript; }

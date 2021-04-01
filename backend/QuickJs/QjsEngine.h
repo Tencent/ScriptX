@@ -74,6 +74,8 @@ class QjsEngine : public ScriptEngine {
 
   void gc() override;
 
+  size_t getHeapSize() override;
+
   void adjustAssociatedMemory(int64_t count) override;
 
   ScriptLanguage getLanguageType() override;
