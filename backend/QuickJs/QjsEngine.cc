@@ -163,7 +163,8 @@ void QjsEngine::destroy() noexcept {
   JS_FreeValue(context_, helperFunctionGetByteBufferInfo_);
 
   for (auto&& [key, v] : nativeInstanceRegistry_) {
-    JS_FreeValue(context_, v);
+    JS_FreeValue(context_, v.first);
+    JS_FreeValue(context_, v.second);
   }
   nativeInstanceRegistry_.clear();
 

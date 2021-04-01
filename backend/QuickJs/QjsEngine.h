@@ -46,9 +46,9 @@ class QjsEngine : public ScriptEngine {
 
   /**
    * key: ClassDefine
-   * value: prototype
+   * value: prototype, constructor
    */
-  std::unordered_map<const void*, JSValue> nativeInstanceRegistry_;
+  std::unordered_map<const void*, std::pair<JSValue, JSValue>> nativeInstanceRegistry_;
 
   JSAtom lengthAtom_ = {};
   // QuickJs C API is not enough, we have to use some js helper code.
@@ -116,14 +116,10 @@ class QjsEngine : public ScriptEngine {
   }
 
   template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return false;
-  }
+  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
 
   template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return nullptr;
-  }
+  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
 
   void initEngineResource();
 

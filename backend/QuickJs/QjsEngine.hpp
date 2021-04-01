@@ -34,7 +34,10 @@ void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 
   if (hasInstance) {
     auto proto = newPrototype(*classDefine);
-    nativeInstanceRegistry_.template emplace(classDefine, qjs_interop::getLocal(proto, context_));
+    nativeInstanceRegistry_.template emplace(
+        classDefine,
+        std::pair{qjs_interop::getLocal(proto, context_), qjs_interop::getLocal(module, context_)});
+    module.set("prototype", proto);
   }
   ns.set(classDefine->className, module);
 }
@@ -51,12 +54,12 @@ Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) const
 
         auto classDefine = static_cast<const ClassDefine<T>*>(data);
         auto engine = args.template engineAs<QjsEngine>();
-        auto proto = engine->nativeInstanceRegistry_.find(classDefine);
-        assert(proto != engine->nativeInstanceRegistry_.end());
+        auto registry = engine->nativeInstanceRegistry_.find(classDefine);
+        assert(registry != engine->nativeInstanceRegistry_.end());
 
         auto obj = JS_NewObjectClass(engine->context_, kInstanceClassId);
         auto ret = JS_SetPrototype(engine->context_, obj,
-                                   qjs_backend::dupValue(proto->second, engine->context_));
+                                   qjs_backend::dupValue(registry->second.first, engine->context_));
         checkException(ret);
 
         auto callbackInfo = args.callbackInfo_;
@@ -133,6 +136,28 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
     qjs_backend::checkException(ret);
   }
   return proto;
+}
+
+template <typename T>
+bool QjsEngine::isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
+  if (!value.isObject()) return false;
+
+  auto it = nativeInstanceRegistry_.find(classDefine);
+  if (it != nativeInstanceRegistry_.end()) {
+    return value.asObject().instanceOf(
+        qjs_interop::makeLocal<Value>(qjs_backend::dupValue(it->second.second, context_)));
+  }
+
+  return false;
+}
+
+template <typename T>
+T* QjsEngine::getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
+  if (!isInstanceOfImpl(value, classDefine)) {
+    return nullptr;
+  }
+
+  return static_cast<T*>(JS_GetOpaque(qjs_interop::peekLocal(value), kInstanceClassId));
 }
 
 }  // namespace script::qjs_backend
