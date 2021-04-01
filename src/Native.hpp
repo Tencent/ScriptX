@@ -46,7 +46,7 @@ struct TupleTrait<std::tuple<HeadT, TailT...>> {
   static constexpr size_t count = 1 + sizeof...(TailT);
 
   template <size_t i>
-  using Arg = decltype(std::get<i>(std::declval<std::tuple<HeadT, TailT...>>()));
+  using Arg = typename std::tuple_element_t<i, std::tuple<HeadT, TailT...>>;
 };
 
 template <>
