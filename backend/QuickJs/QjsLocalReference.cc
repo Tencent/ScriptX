@@ -242,7 +242,7 @@ bool Local<Object>::has(const Local<class script::String>& key) const {
 }
 
 bool Local<Object>::instanceOf(const Local<class script::Value>& type) const {
-  if (type.isObject()) return false;
+  if (!type.isObject()) return false;
   auto ret = JS_IsInstanceOf(qjs_backend::currentContext(), val_, qjs_interop::peekLocal(type));
 
   qjs_backend::checkException(ret);

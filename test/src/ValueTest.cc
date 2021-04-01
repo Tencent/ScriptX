@@ -224,25 +224,29 @@ TEST_F(ValueTest, InstanceOf) {
 #else
     FAIL() << "add test impl here";
 #endif
-
-    engine->registerNativeClass(define);
-    auto x = engine->newNativeClass<InstanceOfTest>();
-    engine->set("x", x);
-    auto isInstance = engine->eval(TS().js("x instanceof InstanceOfTest")
-                                       .lua("return ScriptX.isInstanceOf(x, InstanceOfTest)")
-                                       .select());
-
-    ASSERT_TRUE(isInstance.isBoolean());
-    EXPECT_TRUE(isInstance.asBoolean().value());
-
-    auto classInstanceOfTest =
-        engine->eval(TS().js("InstanceOfTest").lua("return InstanceOfTest").select());
-
-    EXPECT_TRUE(classInstanceOfTest.isObject());
-    EXPECT_TRUE(x.instanceOf(classInstanceOfTest));
   } catch (const Exception& e) {
     FAIL() << e;
   }
+}
+
+TEST_F(ValueTest, NativeClassInstanceOf) {
+  EngineScope engineScope(engine);
+
+  engine->registerNativeClass(define);
+  auto x = engine->newNativeClass<InstanceOfTest>();
+  engine->set("x", x);
+  auto isInstance = engine->eval(TS().js("x instanceof InstanceOfTest")
+                                     .lua("return ScriptX.isInstanceOf(x, InstanceOfTest)")
+                                     .select());
+
+  ASSERT_TRUE(isInstance.isBoolean());
+  EXPECT_TRUE(isInstance.asBoolean().value());
+
+  auto classInstanceOfTest =
+      engine->eval(TS().js("InstanceOfTest").lua("return InstanceOfTest").select());
+
+  EXPECT_TRUE(classInstanceOfTest.isObject());
+  EXPECT_TRUE(x.instanceOf(classInstanceOfTest));
 }
 
 namespace {
