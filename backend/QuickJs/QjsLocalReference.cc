@@ -144,8 +144,14 @@ bool Local<Value>::isFunction() const { return JS_IsFunction(qjs_backend::curren
 bool Local<Value>::isArray() const { return JS_IsArray(qjs_backend::currentContext(), val_); }
 
 bool Local<Value>::isByteBuffer() const {
-  // TODO(landerl): TEMPLATE_NOT_IMPLEMENTED();
-  return false;
+  if (!isObject()) return false;
+
+  auto& engine = qjs_backend::currentEngine();
+  auto context = engine.context_;
+
+  auto fun = qjs_interop::makeLocal<Function>(
+      qjs_backend::dupValue(engine.helperFunctionIsByteBuffer_, context));
+  return fun.call({}, *this).asBoolean().value();
 }
 
 bool Local<Value>::isObject() const { return JS_IsObject(val_); }
@@ -198,8 +204,8 @@ bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
   auto& engine = qjs_backend::currentEngine();
   auto context = engine.context_;
 
-  auto fun =
-      qjs_interop::makeLocal<Function>(qjs_backend::dupValue(engine.strictEqualFunction_, context));
+  auto fun = qjs_interop::makeLocal<Function>(
+      qjs_backend::dupValue(engine.helperFunctionStrictEqual_, context));
   return fun.call({}, *this, other).asBoolean().value();
 }
 

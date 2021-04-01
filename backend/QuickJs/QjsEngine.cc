@@ -62,8 +62,17 @@ void QjsEngine::initEngineResource() {
 
   {
     EngineScope scope(this);
-    auto ret = static_cast<ScriptEngine*>(this)->eval("(function(a, b) {return a === b;})");
-    strictEqualFunction_ = qjs_interop::getLocal(ret);
+    {
+      auto ret = static_cast<ScriptEngine*>(this)->eval("(function(a, b) {return a === b;})");
+      helperFunctionStrictEqual_ = qjs_interop::getLocal(ret);
+    }
+
+    {
+      auto ret = static_cast<ScriptEngine*>(this)->eval(
+          "(function(b) { return b instanceof ArrayBuffer || b instanceof SharedArrayBuffer || "
+          "ArrayBuffer.isView(b);})");
+      helperFunctionIsByteBuffer_ = qjs_interop::getLocal(ret);
+    }
   }
 }
 
@@ -75,7 +84,9 @@ void QjsEngine::destroy() noexcept {
   queue_->removeMessageByTag(static_cast<ScriptEngine*>(this));
 
   JS_FreeAtom(context_, lengthAtom_);
-  JS_FreeValue(context_, strictEqualFunction_);
+  JS_FreeValue(context_, helperFunctionStrictEqual_);
+  JS_FreeValue(context_, helperFunctionIsByteBuffer_);
+
   JS_RunGC(runtime_);
   JS_FreeContext(context_);
   JS_FreeRuntime(runtime_);
