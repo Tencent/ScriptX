@@ -22,11 +22,56 @@
 #include "../../src/types.h"
 #include "../QjsHelper.h"
 
-namespace script::internal {
+namespace script {
+
+namespace qjs_backend {
+
+// this class acts like a plain JSValue
+struct ByteBufferState {
+  static constexpr size_t kNoSize = static_cast<size_t>(-1);
+  mutable JSValue val_ = JS_UNDEFINED;
+  mutable size_t size_ = kNoSize;
+  mutable ByteBuffer::Type type_ = ByteBuffer::Type::kUnspecified;
+  mutable uint8_t* pointer_ = nullptr;
+
+  /**
+   * constructor to create ByteBuffer wrapping ArrayBuffer of SharedByteBuffer
+   * @param val
+   */
+  explicit ByteBufferState(JSValue val);  // NOLINT
+
+  ByteBufferState(ByteBufferState&& move) noexcept;
+
+  ByteBufferState(const ByteBufferState&);
+
+  ByteBufferState* operator=(ByteBufferState&) = delete;
+  ByteBufferState* operator=(ByteBufferState&&) = delete;
+
+  ByteBufferState& operator=(JSValue);
+
+  operator JSValue() const;  // NOLINT
+
+  void reset() const;
+
+  void fillTypeAndSize() const;
+
+  friend void swap(ByteBufferState& lhs, ByteBufferState& rhs);
+};
+
+void swap(ByteBufferState& lhs, ByteBufferState& rhs);
+
+}  // namespace qjs_backend
+
+namespace internal {
 
 template <typename T>
 struct ImplType<Local<T>> {
   using type = JSValue;
+};
+
+template <>
+struct ImplType<Local<ByteBuffer>> {
+  using type = qjs_backend::ByteBufferState;
 };
 
 template <typename T>
@@ -39,4 +84,5 @@ struct ImplType<Weak<T>> {
   using type = JSValue;
 };
 
-}  // namespace script::internal
+}  // namespace internal
+}  // namespace script

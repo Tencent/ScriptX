@@ -23,6 +23,59 @@ JSClassID QjsEngine::kPointerClassId = 0;
 JSClassID QjsEngine::kFunctionDataClassId = 0;
 static std::once_flag kGlobalQjsClass;
 
+constexpr auto kGetByteBufferInfo = R"(
+(function (val) {
+  // NOTE: KEEP SYNC WITH CPP
+  const kUnspecified = 0x1;
+  const kInt8 = 0x101;
+  const kUint8 = 0x201;
+  const kInt16 = 0x302;
+  const kUint16 = 0x402;
+  const kInt32 = 0x504;
+  const kUint32 = 0x604;
+  const kInt64 = 0x708;
+  const kUint64 = 0x808;
+  const KFloat32 = 0x904;
+  const kFloat64 = 0xa08;
+
+  let byteBuffer = val;
+  let length = val.byteLength;
+  let offset = 0;
+  let type = kUnspecified;
+
+  if (ArrayBuffer.isView(val)) {
+    byteBuffer = val.buffer;
+    offset = val.byteOffset;
+
+    if (val instanceof Int8Array) {
+      type = kInt8;
+    } else if (val instanceof Uint8Array || val instanceof Uint8ClampedArray) {
+      type = kUint8;
+    } else if (val instanceof Int16Array) {
+      type = kInt16;
+    } else if (val instanceof Uint16Array) {
+      type = kUint16;
+    } else if (val instanceof Int16Array) {
+      type = kUint16;
+    } else if (val instanceof Int32Array) {
+      type = kInt32;
+    } else if (val instanceof Uint32Array) {
+      type = kUint32;
+    } else if (val instanceof Float32Array) {
+      type = KFloat32;
+    } else if (val instanceof Float64Array) {
+      type = kFloat64;
+    } else if (val instanceof BigInt64Array) {
+      type = kInt64;
+    } else if (val instanceof BigUint64Array) {
+      type = kUint64;
+    }
+  }
+
+  return [byteBuffer, length, offset, type];
+})
+)";
+
 QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue, const QjsFactory& factory)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   std::call_once(kGlobalQjsClass, []() { JS_NewClassID(&kPointerClassId); });
@@ -73,6 +126,11 @@ void QjsEngine::initEngineResource() {
           "ArrayBuffer.isView(b);})");
       helperFunctionIsByteBuffer_ = qjs_interop::getLocal(ret);
     }
+
+    {
+      auto ret = static_cast<ScriptEngine*>(this)->eval(kGetByteBufferInfo);
+      helperFunctionGetByteBufferInfo_ = qjs_interop::getLocal(ret);
+    }
   }
 }
 
@@ -86,6 +144,7 @@ void QjsEngine::destroy() noexcept {
   JS_FreeAtom(context_, lengthAtom_);
   JS_FreeValue(context_, helperFunctionStrictEqual_);
   JS_FreeValue(context_, helperFunctionIsByteBuffer_);
+  JS_FreeValue(context_, helperFunctionGetByteBufferInfo_);
 
   JS_RunGC(runtime_);
   JS_FreeContext(context_);

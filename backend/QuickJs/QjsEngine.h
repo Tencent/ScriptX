@@ -41,8 +41,10 @@ class QjsEngine : public ScriptEngine {
   JSContext* context_ = nullptr;
 
   JSAtom lengthAtom_ = {};
+  // QuickJs C API is not enough, we have to use some js helper code.
   JSValue helperFunctionStrictEqual_ = {};
   JSValue helperFunctionIsByteBuffer_ = {};
+  JSValue helperFunctionGetByteBufferInfo_ = {};
 
  public:
   using QjsFactory = std::function<std::pair<JSRuntime*, JSContext*>()>;
@@ -134,6 +136,8 @@ class QjsEngine : public ScriptEngine {
   friend class ::script::Arguments;
 
   friend class ::script::ScriptClass;
+
+  friend struct ByteBufferState;
 
   friend JSContext* qjs_backend::currentContext();
   friend JSRuntime* qjs_backend::currentRuntime();

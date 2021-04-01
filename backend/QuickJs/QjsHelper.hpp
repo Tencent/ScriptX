@@ -23,6 +23,20 @@
 namespace script {
 
 struct qjs_interop {
+ private:
+  qjs_interop() = default;
+
+  template <typename T>
+  Local<T> makeLocalInternal(JSValue value) {
+    return Local<T>(value);
+  }
+
+  template <>
+  Local<ByteBuffer> makeLocalInternal(JSValue value) {
+    return Local<ByteBuffer>(qjs_backend::ByteBufferState(value));
+  }
+
+ public:
   /**
    * @tparam T
    * @param value owned(passing ownership)
@@ -30,7 +44,9 @@ struct qjs_interop {
    */
   template <typename T>
   static Local<T> makeLocal(JSValue value) {
-    return Local<T>(value);
+    // workaround that C++ don't support specialize static member function
+    // https://stackoverflow.com/questions/29041775/explicit-template-specialization-cannot-have-a-storage-class-member-method-spe
+    return qjs_interop().template makeLocalInternal<T>(value);
   }
 
   /**
@@ -51,8 +67,8 @@ struct qjs_interop {
    * @return owned
    */
   template <typename T>
-  static JSValue getLocal(const Local<T>& ref) {
-    return qjs_backend::dupValue(ref.val_);
+  static JSValue getLocal(const Local<T>& ref, JSContext* context = nullptr) {
+    return qjs_backend::dupValue(ref.val_, context);
   }
 
   /**

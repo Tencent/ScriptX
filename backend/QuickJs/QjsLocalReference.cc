@@ -17,26 +17,30 @@
 
 #include <ScriptX/ScriptX.h>
 #include "../../src/utils/Helper.hpp"
+#include "trait/TraitReference.h"
 
 namespace script {
 
-#define REF_IMPL_BASIC_FUNC(ValueType)                                          \
-  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(copy.val_) {     \
-    qjs_backend::dupValue(val_);                                                \
-  }                                                                             \
-  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) { \
-    move.val_ = JS_UNDEFINED;                                                   \
-  }                                                                             \
-  Local<ValueType>::~Local() { qjs_backend::freeValue(val_); }                  \
-  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {            \
-    Local(from).swap(*this);                                                    \
-    return *this;                                                               \
-  }                                                                             \
-  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {        \
-    Local(std::move(move)).swap(*this);                                         \
-    return *this;                                                               \
-  }                                                                             \
-  void Local<ValueType>::swap(Local& rhs) noexcept { std::swap(val_, rhs.val_); }
+#define REF_IMPL_BASIC_FUNC(ValueType)                                                     \
+  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(copy.val_) {                \
+    qjs_backend::dupValue(val_);                                                           \
+  }                                                                                        \
+  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(std::move(move.val_)) { \
+    move.val_ = JS_UNDEFINED;                                                              \
+  }                                                                                        \
+  Local<ValueType>::~Local() { qjs_backend::freeValue(val_); }                             \
+  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                       \
+    Local(from).swap(*this);                                                               \
+    return *this;                                                                          \
+  }                                                                                        \
+  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {                   \
+    Local(std::move(move)).swap(*this);                                                    \
+    return *this;                                                                          \
+  }                                                                                        \
+  void Local<ValueType>::swap(Local& rhs) noexcept {                                       \
+    using std::swap;                                                                       \
+    swap(val_, rhs.val_);                                                                  \
+  }
 
 #define REF_IMPL_BASIC_EQUALS(ValueType)                                               \
   bool Local<ValueType>::operator==(const script::Local<script::Value>& other) const { \
@@ -44,7 +48,7 @@ namespace script {
   }
 
 #define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                         \
-  Local<ValueType>::Local(InternalLocalRef val) : val_(val) {}                      \
+  Local<ValueType>::Local(InternalLocalRef val) : val_(std::move(val)) {}           \
   Local<String> Local<ValueType>::describe() const { return asValue().describe(); } \
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
@@ -189,7 +193,7 @@ Local<Array> Local<Value>::asArray() const {
 }
 
 Local<ByteBuffer> Local<Value>::asByteBuffer() const {
-  if (isByteBuffer()) return Local<ByteBuffer>(qjs_backend::dupValue(val_));
+  if (isByteBuffer()) return qjs_interop::makeLocal<ByteBuffer>(qjs_backend::dupValue(val_));
   throw Exception("can't cast value as ByteBuffer");
 }
 
@@ -370,7 +374,90 @@ void Local<Array>::clear() const {
   qjs_backend::checkException(JS_SetProperty(engine.context_, val_, engine.lengthAtom_, number));
 }
 
-ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::KFloat32; }
+namespace qjs_backend {
+
+ByteBufferState::ByteBufferState(JSValue val) : val_(val) {}
+
+ByteBufferState::ByteBufferState(const ByteBufferState& copy) {
+  if (JS_IsObject(copy.val_)) {
+    qjs_backend::dupValue(copy.val_);
+  }
+  val_ = copy.val_;
+  size_ = copy.size_;
+  type_ = copy.type_;
+  pointer_ = copy.pointer_;
+}
+
+ByteBufferState::ByteBufferState(ByteBufferState&& move) noexcept {
+  val_ = move.val_;
+  size_ = move.size_;
+  type_ = move.type_;
+  pointer_ = move.pointer_;
+
+  move.val_ = JS_UNDEFINED;
+  move.reset();
+}
+
+ByteBufferState::operator JSValue() const { return val_; }
+
+void ByteBufferState::reset() const {
+  if (JS_IsObject(val_)) {
+    qjs_backend::freeValue(val_);
+  }
+  val_ = JS_UNDEFINED;
+  size_ = kNoSize;
+  type_ = ByteBuffer::Type::kUnspecified;
+  pointer_ = nullptr;
+}
+
+ByteBufferState& ByteBufferState::operator=(JSValue what) {
+  reset();
+  val_ = what;
+  return *this;
+}
+
+void ByteBufferState::fillTypeAndSize() const {
+  if (size_ == kNoSize) {
+    auto& engine = qjs_backend::currentEngine();
+    auto context = engine.context_;
+
+    auto fun = qjs_interop::makeLocal<Function>(
+        qjs_backend::dupValue(engine.helperFunctionGetByteBufferInfo_, context));
+
+    // ret: [byteBuffer, length, offset, type];
+    auto ret =
+        fun.call({}, qjs_interop::makeLocal<Value>(qjs_backend::dupValue(val_, context))).asArray();
+    auto bufferRef = ret.get(0);
+    auto buffer = qjs_interop::peekLocal(bufferRef);
+    auto length = ret.get(1).asNumber().toInt64();
+    auto offset = ret.get(2).asNumber().toInt64();
+    type_ = static_cast<ByteBuffer::Type>(ret.get(3).asNumber().toInt32());
+
+    size_t size;
+    auto ptr = JS_GetArrayBuffer(context, &size, buffer);
+    if (ptr == nullptr) {
+      throw Exception("can't get ArrayBuffer pointer");
+    }
+
+    pointer_ = ptr + offset;
+    size_ = length;
+  }
+}
+
+void swap(ByteBufferState& lhs, ByteBufferState& rhs) {
+  using std::swap;
+  swap(lhs.val_, rhs.val_);
+  swap(lhs.size_, rhs.size_);
+  swap(lhs.type_, rhs.type_);
+  swap(lhs.pointer_, rhs.pointer_);
+}
+
+}  // namespace qjs_backend
+
+ByteBuffer::Type Local<ByteBuffer>::getType() const {
+  val_.fillTypeAndSize();
+  return val_.type_;
+}
 
 bool Local<ByteBuffer>::isShared() const { return true; }
 
@@ -378,11 +465,18 @@ void Local<ByteBuffer>::commit() const {}
 
 void Local<ByteBuffer>::sync() const {}
 
-size_t Local<ByteBuffer>::byteLength() const { return 0; }
+size_t Local<ByteBuffer>::byteLength() const {
+  val_.fillTypeAndSize();
+  return val_.size_;
+}
 
-void* Local<ByteBuffer>::getRawBytes() const { return nullptr; }
+void* Local<ByteBuffer>::getRawBytes() const {
+  val_.fillTypeAndSize();
+  return val_.pointer_;
+}
 
 std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const {
+  // TODO(landerl): ref to a Global
   return std::shared_ptr<void>(
       getRawBytes(), [val = qjs_backend::dupValue(val_), context = qjs_backend::currentContext()](
                          void* ptr) { JS_FreeValue(context, val); });
