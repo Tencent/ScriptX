@@ -27,7 +27,7 @@ ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState
 
 template <typename T>
 T* Arguments::engineAs() const {
-  return nullptr;
+  return script::internal::scriptDynamicCast<T*>(callbackInfo_.engine_);
 }
 
 }  // namespace script

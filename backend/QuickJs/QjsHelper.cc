@@ -67,7 +67,7 @@ void freeValue(JSValue val, JSContext* context) {
 JSValue throwException(const Exception& e, QjsEngine* engine) {
   JSContext* context = engine ? engine->context_ : currentContext();
   JS_Throw(context, qjs_interop::getLocal(e.exception()));
-  return JS_UNDEFINED;
+  return JS_EXCEPTION;
 }
 
 }  // namespace script::qjs_backend

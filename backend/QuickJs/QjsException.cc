@@ -32,7 +32,12 @@ Exception::Exception(const script::Local<script::Value>& exception)
   exception_.message_ = exception.describeUtf8();
 }
 
-Local<Value> Exception::exception() const { return {}; }
+Local<Value> Exception::exception() const {
+  // TODO:
+  auto context = qjs_backend::currentContext();
+  JS_ThrowReferenceError(context, "%s", message().c_str());
+  return qjs_interop::makeLocal<Value>(JS_GetException(context));
+}
 
 std::string Exception::message() const noexcept { return exception_.message_; }
 
