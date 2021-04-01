@@ -34,43 +34,46 @@ void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 
   if (hasInstance) {
     auto proto = newPrototype(*classDefine);
-    nativeInstanceRegistry_.template emplace(&classDefine, qjs_interop::getLocal(proto, context_));
+    nativeInstanceRegistry_.template emplace(classDefine, qjs_interop::getLocal(proto, context_));
   }
   ns.set(classDefine->className, module);
 }
 
 template <typename T>
 Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) const {
-  return newRawFunction(
-             context_, const_cast<ClassDefine<T>*>(&classDefine),
-             [](const Arguments& args, void* data, bool isConstructorCall) {
-               if (!isConstructorCall) {
-                 throw Exception(u8"constructor can't be called as function");
-               }
+  auto ret = newRawFunction(
+      context_, const_cast<ClassDefine<T>*>(&classDefine),
+      [](const Arguments& args, void* data, bool isConstructorCall) {
+        if (!isConstructorCall) {
+          //          throw Exception(u8"constructor can't be called as
+          //          function");
+        }
 
-               auto classDefine = static_cast<const ClassDefine<T>*>(data);
-               auto engine = args.template engineAs<QjsEngine>();
-               auto proto = engine->nativeInstanceRegistry_.find(classDefine);
-               assert(proto != engine->nativeInstanceRegistry_.end());
+        auto classDefine = static_cast<const ClassDefine<T>*>(data);
+        auto engine = args.template engineAs<QjsEngine>();
+        auto proto = engine->nativeInstanceRegistry_.find(classDefine);
+        assert(proto != engine->nativeInstanceRegistry_.end());
 
-               auto obj = JS_NewObjectClass(engine->context_, kInstanceClassId);
-               auto ret = JS_SetPrototype(engine->context_, obj,
-                                          qjs_backend::dupValue(proto->second, engine->context_));
-               checkException(ret);
+        auto obj = JS_NewObjectClass(engine->context_, kInstanceClassId);
+        auto ret = JS_SetPrototype(engine->context_, obj,
+                                   qjs_backend::dupValue(proto->second, engine->context_));
+        checkException(ret);
 
-               auto callbackInfo = args.callbackInfo_;
-               callbackInfo.thiz_ = obj;
+        auto callbackInfo = args.callbackInfo_;
+        callbackInfo.thiz_ = obj;
 
-               auto ptr = classDefine->instanceDefine.constructor(Arguments(callbackInfo));
-               if (ptr == nullptr) {
-                 throw Exception("can't create class " + classDefine->className);
-               }
-               JS_SetOpaque(obj, ptr);
+        auto ptr = classDefine->instanceDefine.constructor(Arguments(callbackInfo));
+        if (ptr == nullptr) {
+          throw Exception("can't create class " + classDefine->className);
+        }
+        JS_SetOpaque(obj, ptr);
 
-               return qjs_interop::makeLocal<Value>(obj);
-             })
-      .asValue()
-      .asObject();
+        return qjs_interop::makeLocal<Value>(obj);
+      });
+
+  auto obj = qjs_interop::getLocal(ret);
+  qjs_backend::checkException(JS_SetConstructorBit(context_, obj, true));
+  return qjs_interop::makeLocal<Object>(obj);
 }
 
 template <typename T>
@@ -96,20 +99,29 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
     using GCT = typename IDT::PropertyDefine::GetterCallback;
     using SCT = typename IDT::PropertyDefine::SetterCallback;
 
-    auto getterFun = newRawFunction(
-        context_, const_cast<GCT*>(&prop.getter), [](const Arguments& args, void* data, bool) {
-          auto ptr =
-              static_cast<T*>(JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
-          return (*static_cast<GCT*>(data))(ptr);
-        });
+    Local<Value> getterFun;
+    Local<Value> setterFun;
 
-    auto setterFun = newRawFunction(
-        context_, const_cast<SCT*>(&prop.setter), [](const Arguments& args, void* data, bool) {
-          auto ptr =
-              static_cast<T*>(JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
-          (*static_cast<SCT*>(data))(ptr, args[0]);
-          return Local<Value>();
-        });
+    if (prop.getter) {
+      getterFun = newRawFunction(context_, const_cast<GCT*>(&prop.getter),
+                                 [](const Arguments& args, void* data, bool) {
+                                   auto ptr = static_cast<T*>(JS_GetOpaque(
+                                       qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+                                   return (*static_cast<GCT*>(data))(ptr);
+                                 })
+                      .asValue();
+    }
+
+    if (prop.setter) {
+      setterFun = newRawFunction(context_, const_cast<SCT*>(&prop.setter),
+                                 [](const Arguments& args, void* data, bool) {
+                                   auto ptr = static_cast<T*>(JS_GetOpaque(
+                                       qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+                                   (*static_cast<SCT*>(data))(ptr, args[0]);
+                                   return Local<Value>();
+                                 })
+                      .asValue();
+    }
 
     auto atom = JS_NewAtomLen(context_, prop.name.c_str(), prop.name.length());
 

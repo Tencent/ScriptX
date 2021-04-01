@@ -237,16 +237,23 @@ void QjsEngine::registerNativeStatic(const Local<Object>& module,
   }
 
   for (auto&& prop : def.properties) {
-    auto getterFun = newRawFunction(context_, const_cast<GetterCallback*>(&prop.getter),
-                                    [](const Arguments& args, void* data, bool) {
-                                      return (*static_cast<GetterCallback*>(data))();
-                                    });
+    Local<Value> getterFun;
+    Local<Value> setterFun;
+    if (prop.getter) {
+      getterFun = newRawFunction(context_, const_cast<GetterCallback*>(&prop.getter),
+                                 [](const Arguments& args, void* data, bool) {
+                                   return (*static_cast<GetterCallback*>(data))();
+                                 })
+                      .asValue();
+    }
 
-    auto setterFun = newRawFunction(context_, const_cast<SetterCallback*>(&prop.setter),
-                                    [](const Arguments& args, void* data, bool) {
-                                      (*static_cast<SetterCallback*>(data))(args[0]);
-                                      return Local<Value>();
-                                    });
+    if (prop.setter) {
+      setterFun = newRawFunction(context_, const_cast<SetterCallback*>(&prop.setter),
+                                 [](const Arguments& args, void* data, bool) {
+                                   (*static_cast<SetterCallback*>(data))(args[0]);
+                                   return Local<Value>();
+                                 });
+    }
 
     auto atom = JS_NewAtomLen(context_, prop.name.c_str(), prop.name.length());
 
