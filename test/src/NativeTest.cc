@@ -364,10 +364,11 @@ TEST_F(NativeTest, SanityCheck) {
   EXPECT_THROW(
       {
         // can't call as function
-        engine->eval(u8"script.engine.test.TestClass()");
+        engine->eval(u8"script.engine.test.TestClass();  new script.engine.test.TestClass();");
       },
       Exception);
 #endif
+  return;
 
   EXPECT_THROW(
       {

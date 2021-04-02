@@ -62,13 +62,15 @@ Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) const
   auto ret = newRawFunction(
       context_, const_cast<ClassDefine<T>*>(&classDefine), nullptr,
       [](const Arguments& args, void* data, void*, bool isConstructorCall) {
-        if (!isConstructorCall) {
-          //          throw Exception(u8"constructor can't be called as
-          //          function");
-        }
-
         auto classDefine = static_cast<const ClassDefine<T>*>(data);
         auto engine = args.template engineAs<QjsEngine>();
+
+        // for Constructor this this_val is new.target, which must be the constructor
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target
+        if (!JS_IsConstructor(engine->context_, args.callbackInfo_.thiz_)) {
+          throw Exception(u8"constructor can't be called as function");
+        }
+
         auto registry = engine->nativeInstanceRegistry_.find(classDefine);
         assert(registry != engine->nativeInstanceRegistry_.end());
 
