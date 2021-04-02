@@ -15,16 +15,6 @@
  * limitations under the License.
  */
 
-// Copyright 2021 taylorcyang@tencent.com
-
-/**
- * <pre>
- * Author: taylorcyang@tencent.com
- * Date:   2021-04-02
- * Time:   18:38
- * Life with Passion, Code with Creativity.
- * </pre>
- */
 #include "QjsEngine.hpp"
 #include "trait/TraitScope.h"
 

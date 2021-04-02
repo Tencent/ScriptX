@@ -29,9 +29,9 @@ struct ArgumentsData {
   JSValueConst* argv_;
 };
 
-struct JscScriptClassState {
+struct QjsScriptClassState {
   QjsEngine* engine = nullptr;
-  JSValueConst weakRef_;
+  JSValueConst weakRef_ = JS_UNDEFINED;
 };
 
 }  // namespace qjs_backend
@@ -43,7 +43,7 @@ struct internal::ImplType<::script::Arguments> {
 
 template <>
 struct internal::ImplType<::script::ScriptClass> {
-  using type = qjs_backend::JscScriptClassState;
+  using type = qjs_backend::QjsScriptClassState;
 };
 
 }  // namespace script
