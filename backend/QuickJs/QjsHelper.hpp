@@ -86,7 +86,7 @@ struct qjs_interop {
 
 namespace qjs_backend {
 
-Local<Function> newRawFunction(JSContext* context, void* data, RawFunctionCallback);
+Local<Function> newRawFunction(JSContext* context, void* data1, void* data2, RawFunctionCallback);
 
 }  // namespace qjs_backend
 

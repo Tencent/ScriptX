@@ -29,6 +29,7 @@
 #include "QjsEngine.h"
 
 #include <ScriptX/ScriptX.h>
+#include <array>
 
 namespace script::qjs_backend {
 
@@ -72,38 +73,46 @@ JSValue throwException(const Exception& e, QjsEngine* engine) {
   return JS_EXCEPTION;
 }
 
-Local<Function> newRawFunction(JSContext* context, void* data, RawFunctionCallback callback) {
-  auto funData = JS_NewObjectClass(context, qjs_backend::QjsEngine::kPointerClassId);
-  qjs_backend::checkException(funData);
-  JS_SetOpaque(funData, data);
+Local<Function> newRawFunction(JSContext* context, void* data1, void* data2,
+                               RawFunctionCallback callback) {
+  auto newPointer = [](JSContext* context, void* data) -> JSValue {
+    if (!data) return JS_UNDEFINED;
+    auto funData = JS_NewObjectClass(context, qjs_backend::QjsEngine::kPointerClassId);
+    qjs_backend::checkException(funData);
+    JS_SetOpaque(funData, data);
+    return funData;
+  };
 
-  auto funCallback = JS_NewObjectClass(context, qjs_backend::QjsEngine::kPointerClassId);
-  qjs_backend::checkException(funCallback);
-  JS_SetOpaque(funCallback, reinterpret_cast<void*>(callback));
+  auto funData1 = newPointer(context, data1);
+  auto funData2 = newPointer(context, data2);
+  auto funCallback = newPointer(context, reinterpret_cast<void*>(callback));
 
-  JSValue funDataList[2]{funData, funCallback};
+  std::array<JSValue, 3> funDataArray{funData1, funData2, funCallback};
+
   auto fun = JS_NewCFunctionData(
       context,
       [](JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic,
          JSValue* func_data) {
-        auto data = JS_GetOpaque(func_data[0], qjs_backend::QjsEngine::kPointerClassId);
+        auto data_1 = JS_GetOpaque(func_data[0], qjs_backend::QjsEngine::kPointerClassId);
+        auto data_2 = JS_GetOpaque(func_data[1], qjs_backend::QjsEngine::kPointerClassId);
         auto callback = reinterpret_cast<RawFunctionCallback>(
-            JS_GetOpaque(func_data[1], qjs_backend::QjsEngine::kPointerClassId));
+            JS_GetOpaque(func_data[2], qjs_backend::QjsEngine::kPointerClassId));
         auto engine = static_cast<qjs_backend::QjsEngine*>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
 
         try {
           auto args = qjs_interop::makeArguments(engine, this_val, argc, argv);
 
-          auto ret = callback(args, data, (magic & JS_CALL_FLAG_CONSTRUCTOR) != 0);
+          auto ret = callback(args, data_1, data_2, (magic & JS_CALL_FLAG_CONSTRUCTOR) != 0);
           return qjs_interop::getLocal(ret, engine->context_);
         } catch (const Exception& e) {
           return qjs_backend::throwException(e, engine);
         }
       },
-      0, 0, 2, funDataList);
+      0, 0, funDataArray.size(), funDataArray.data());
 
-  JS_FreeValue(context, funData);
-  JS_FreeValue(context, funCallback);
+  for (auto v : funDataArray) {
+    JS_FreeValue(context, v);
+  }
 
   qjs_backend::checkException(fun);
 

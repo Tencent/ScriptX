@@ -27,7 +27,7 @@
 
 namespace script::qjs_backend {
 
-using RawFunctionCallback = Local<Value> (*)(const Arguments& args, void* func_data,
+using RawFunctionCallback = Local<Value> (*)(const Arguments& args, void* data1, void* data2,
                                              bool isConstructorCall);
 
 class QjsEngine : public ScriptEngine {
@@ -101,7 +101,7 @@ class QjsEngine : public ScriptEngine {
 
   Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
 
-  void registerNativeStatic(const Local<Object>& module, const internal::StaticDefine& def);
+  void registerNativeStatic(const Local<Object>& module, const internal::StaticDefine& data1);
 
   template <typename T>
   Local<Object> newConstructor(const ClassDefine<T>& define) const;
@@ -154,7 +154,8 @@ class QjsEngine : public ScriptEngine {
   friend JSContext* currentContext();
   friend JSRuntime* currentRuntime();
   friend JSValue throwException(const Exception&, QjsEngine*);
-  friend Local<Function> newRawFunction(JSContext* context, void* data, RawFunctionCallback);
+  friend Local<Function> newRawFunction(JSContext* context, void* data1, void* data2,
+                                        RawFunctionCallback);
 };
 
 }  // namespace script::qjs_backend

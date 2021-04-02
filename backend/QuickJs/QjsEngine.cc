@@ -122,7 +122,9 @@ void QjsEngine::initEngineResource() {
   instance.finalizer = [](JSRuntime* /*rt*/, JSValue val) {
     auto ptr = JS_GetOpaque(val, kInstanceClassId);
     if (ptr) {
-      delete static_cast<ScriptClass*>(ptr);
+      auto opaque = static_cast<InstanceClassOpaque*>(ptr);
+      delete opaque->scriptClassPointer;
+      delete opaque;
     }
   };
   JS_NewClass(runtime_, kInstanceClassId, &instance);
@@ -230,9 +232,9 @@ void QjsEngine::registerNativeStatic(const Local<Object>& module,
   for (auto&& f : def.functions) {
     auto ptr = &f.callback;
 
-    auto fun = newRawFunction(context_, const_cast<FunctionCallback*>(ptr),
-                              [](const Arguments& args, void* func_data, bool) {
-                                return (*static_cast<FunctionCallback*>(func_data))(args);
+    auto fun = newRawFunction(context_, const_cast<FunctionCallback*>(ptr), nullptr,
+                              [](const Arguments& args, void* data1, void*, bool) {
+                                return (*static_cast<FunctionCallback*>(data1))(args);
                               });
     module.set(f.name, fun);
   }
@@ -241,16 +243,16 @@ void QjsEngine::registerNativeStatic(const Local<Object>& module,
     Local<Value> getterFun;
     Local<Value> setterFun;
     if (prop.getter) {
-      getterFun = newRawFunction(context_, const_cast<GetterCallback*>(&prop.getter),
-                                 [](const Arguments& args, void* data, bool) {
+      getterFun = newRawFunction(context_, const_cast<GetterCallback*>(&prop.getter), nullptr,
+                                 [](const Arguments& args, void* data, void*, bool) {
                                    return (*static_cast<GetterCallback*>(data))();
                                  })
                       .asValue();
     }
 
     if (prop.setter) {
-      setterFun = newRawFunction(context_, const_cast<SetterCallback*>(&prop.setter),
-                                 [](const Arguments& args, void* data, bool) {
+      setterFun = newRawFunction(context_, const_cast<SetterCallback*>(&prop.setter), nullptr,
+                                 [](const Arguments& args, void* data, void*, bool) {
                                    (*static_cast<SetterCallback*>(data))(args[0]);
                                    return Local<Value>();
                                  });
