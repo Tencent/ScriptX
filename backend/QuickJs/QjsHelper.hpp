@@ -36,6 +36,13 @@ struct qjs_interop {
   }
 
  public:
+  static qjs_backend::QjsEngine& currentEngine() { return qjs_backend::currentEngine(); }
+  static JSContext* currentContext() { return qjs_backend::currentContext(); }
+  static JSRuntime* currentRuntime() { return qjs_backend::currentRuntime(); }
+
+  static JSContext* getContext(qjs_backend::QjsEngine* engine) { return engine->context_; }
+  static JSRuntime* getRuntime(qjs_backend::QjsEngine* engine) { return engine->runtime_; }
+
   /**
    * @tparam T
    * @param value owned(passing ownership)
@@ -55,7 +62,7 @@ struct qjs_interop {
    * @return not owned
    */
   template <typename T>
-  static JSValue peekLocal(const Local<T>& ref) {
+  static JSValueConst peekLocal(const Local<T>& ref) {
     auto val = ref.val_;
     if (JS_IsNull(val)) {
       return JS_UNDEFINED;
@@ -81,8 +88,8 @@ struct qjs_interop {
    * @param argv not own
    * @return
    */
-  static script::Arguments makeArguments(qjs_backend::QjsEngine* engine, JSValue thiz, size_t argc,
-                                         JSValue* argv) {
+  static script::Arguments makeArguments(qjs_backend::QjsEngine* engine, JSValueConst thiz,
+                                         size_t argc, JSValueConst* argv) {
     return script::Arguments(qjs_backend::ArgumentsData{engine, thiz, argc, argv});
   }
 };

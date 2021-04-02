@@ -177,6 +177,8 @@ class QjsEngine : public ScriptEngine {
   friend class EngineScopeImpl;
   friend class ExitEngineScopeImpl;
 
+  friend struct ::script::qjs_interop;
+
   friend JSContext* currentContext();
   friend JSRuntime* currentRuntime();
   friend JSValue throwException(const Exception&, QjsEngine*);
