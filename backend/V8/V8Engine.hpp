@@ -96,7 +96,7 @@ v8::Local<v8::FunctionTemplate> V8Engine::newConstructor(const ClassDefine<T>* c
               args[0]->StrictEquals(engine->constructorMarkSymbol_.Get(args.GetIsolate())) &&
               args[1]->IsExternal()) {
             // this logic is for
-            // ScriptClass::ScriptClass(const ClassDefine<T> &define)
+            // ScriptClass::ScriptClass(ConstructFromCpp<T>)
             ret = static_cast<T*>(args[1].As<v8::External>()->Value());
           } else {
             // this logic is for

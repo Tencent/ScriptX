@@ -59,38 +59,53 @@ void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 
 template <typename T>
 Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) const {
-  auto ret =
-      newRawFunction(context_, const_cast<ClassDefine<T>*>(&classDefine), nullptr,
-                     [](const Arguments& args, void* data, void*, bool isConstructorCall) {
-                       if (!isConstructorCall) {
-                         //          throw Exception(u8"constructor can't be called as
-                         //          function");
-                       }
+  auto ret = newRawFunction(
+      context_, const_cast<ClassDefine<T>*>(&classDefine), nullptr,
+      [](const Arguments& args, void* data, void*, bool isConstructorCall) {
+        if (!isConstructorCall) {
+          //          throw Exception(u8"constructor can't be called as
+          //          function");
+        }
 
-                       auto classDefine = static_cast<const ClassDefine<T>*>(data);
-                       auto engine = args.template engineAs<QjsEngine>();
-                       auto registry = engine->nativeInstanceRegistry_.find(classDefine);
-                       assert(registry != engine->nativeInstanceRegistry_.end());
+        auto classDefine = static_cast<const ClassDefine<T>*>(data);
+        auto engine = args.template engineAs<QjsEngine>();
+        auto registry = engine->nativeInstanceRegistry_.find(classDefine);
+        assert(registry != engine->nativeInstanceRegistry_.end());
 
-                       auto obj = JS_NewObjectClass(engine->context_, kInstanceClassId);
-                       auto ret = JS_SetPrototype(engine->context_, obj, registry->second.first);
-                       checkException(ret);
+        auto obj = JS_NewObjectClass(engine->context_, kInstanceClassId);
+        auto ret = JS_SetPrototype(engine->context_, obj, registry->second.first);
+        checkException(ret);
 
-                       auto callbackInfo = args.callbackInfo_;
-                       callbackInfo.thiz_ = obj;
+        T* instance = nullptr;
+        if (args.size() == 1) {
+          auto ptr = JS_GetOpaque(qjs_interop::peekLocal(args[0]), kPointerClassId);
+          if (ptr != nullptr) {
+            // this logic is for
+            // ScriptClass::ScriptClass(ConstructFromCpp<T>)
+            instance = static_cast<T*>(ptr);
+          }
+        }
 
-                       auto ptr = classDefine->instanceDefine.constructor(Arguments(callbackInfo));
-                       if (ptr == nullptr) {
-                         throw Exception("can't create class " + classDefine->className);
-                       }
-                       auto opaque = new InstanceClassOpaque();
-                       opaque->scriptClassPolymorphicPointer = ptr;
-                       opaque->scriptClassPointer = static_cast<ScriptClass*>(ptr);
-                       opaque->classDefine = classDefine;
-                       JS_SetOpaque(obj, opaque);
+        if (instance == nullptr) {
+          // this logic is for
+          // ScriptClass::ScriptClass(const Local<Object>& thiz)
+          auto callbackInfo = args.callbackInfo_;
+          callbackInfo.thiz_ = obj;
 
-                       return qjs_interop::makeLocal<Value>(obj);
-                     });
+          instance = classDefine->instanceDefine.constructor(Arguments(callbackInfo));
+          if (instance == nullptr) {
+            throw Exception("can't create class " + classDefine->className);
+          }
+        }
+
+        auto opaque = new InstanceClassOpaque();
+        opaque->scriptClassPolymorphicPointer = instance;
+        opaque->scriptClassPointer = static_cast<ScriptClass*>(instance);
+        opaque->classDefine = classDefine;
+        JS_SetOpaque(obj, opaque);
+
+        return qjs_interop::makeLocal<Value>(obj);
+      });
 
   auto obj = qjs_interop::getLocal(ret);
   qjs_backend::checkException(JS_SetConstructorBit(context_, obj, true));

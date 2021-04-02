@@ -24,7 +24,35 @@ namespace script {
 
 template <typename T>
 ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {
-  TEMPLATE_NOT_IMPLEMENTED();
+  auto& engine = qjs_backend::currentEngine();
+  internalState_.engine = &engine;
+
+  auto pointer = JS_NewObjectClass(engine.context_, qjs_backend::QjsEngine::kPointerClassId);
+  qjs_backend::checkException(pointer);
+  JS_SetOpaque(pointer, this);
+
+  auto ret = engine.template newNativeClass<T>({qjs_interop::makeLocal<Value>(pointer)});
+  auto ref = qjs_interop::getLocal(ret);
+
+  internalState_.weakRef_ = ref;
+
+  // schedule -> JS_Free(ref)
+  class ExtendLifeTime {
+    JSValue ref;
+    qjs_backend::QjsEngine* engine;
+
+   public:
+    explicit ExtendLifeTime(JSValue val, qjs_backend::QjsEngine* engine)
+        : ref(val), engine(engine) {}
+    ~ExtendLifeTime() { JS_FreeValue(engine->context_, ref); }
+  };
+
+  auto mq = engine.messageQueue();
+  auto msg = mq->obtainInplaceMessage([](utils::InplaceMessage& msg) {});
+  msg->template inplaceObject<ExtendLifeTime>(ref, &engine);
+  msg->tag = &engine;
+
+  mq->template postMessage(msg);
 }
 
 template <typename T>
