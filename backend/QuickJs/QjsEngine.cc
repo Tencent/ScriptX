@@ -124,6 +124,7 @@ void QjsEngine::initEngineResource() {
     if (ptr) {
       auto opaque = static_cast<InstanceClassOpaque*>(ptr);
       // reset the weak reference
+      PauseGc pauseGc(opaque->scriptClassPointer->internalState_.engine);
       opaque->scriptClassPointer->internalState_.weakRef_ = JS_UNDEFINED;
       delete opaque->scriptClassPointer;
       delete opaque;
@@ -165,6 +166,7 @@ void QjsEngine::initEngineResource() {
 QjsEngine::~QjsEngine() = default;
 
 void QjsEngine::destroy() noexcept {
+  isDestroying_ = true;
   ScriptEngine::destroyUserData();
 
   queue_->removeMessageByTag(static_cast<ScriptEngine*>(this));
@@ -184,6 +186,26 @@ void QjsEngine::destroy() noexcept {
   JS_RunGC(runtime_);
   JS_FreeContext(context_);
   JS_FreeRuntime(runtime_);
+}
+
+void QjsEngine::scheduleTick() {
+  bool no = false;
+  if (tickScheduled_.compare_exchange_strong(no, true)) {
+    utils::Message tick(
+        [](auto& m) {
+          auto eng = static_cast<QjsEngine*>(m.ptr0);
+          JSContext* ctx = eng->context_;
+          while (JS_ExecutePendingJob(eng->runtime_, &ctx) > 0) {
+          }
+          eng->tickScheduled_ = false;
+        },
+        [](auto& m) {
+
+        });
+    tick.ptr0 = this;
+    tick.tag = this;
+    queue_->postMessage(tick);
+  }
 }
 
 Local<Value> QjsEngine::get(const Local<String>& key) { return getGlobal().get(key); }
@@ -217,12 +239,17 @@ Local<Value> QjsEngine::eval(const Local<String>& script, const Local<Value>& so
   }
   qjs_backend::checkException(ret);
 
+  scheduleTick();
+
   return Local<Value>(ret);
 }
 
 std::shared_ptr<utils::MessageQueue> QjsEngine::messageQueue() { return queue_; }
 
-void QjsEngine::gc() { JS_RunGC(runtime_); }
+void QjsEngine::gc() {
+  if (isDestroying() || pauseGcCount_ != 0) return;
+  JS_RunGC(runtime_);
+}
 
 size_t QjsEngine::getHeapSize() {
   JSMemoryUsage usage{};
@@ -236,7 +263,7 @@ ScriptLanguage QjsEngine::getLanguageType() { return ScriptLanguage::kJavaScript
 
 std::string QjsEngine::getEngineVersion() { return "QuickJS"; }
 
-bool QjsEngine::isDestroying() const { return false; }
+bool QjsEngine::isDestroying() const { return isDestroying_; }
 
 void QjsEngine::registerNativeStatic(const Local<Object>& module,
                                      const internal::StaticDefine& def) {

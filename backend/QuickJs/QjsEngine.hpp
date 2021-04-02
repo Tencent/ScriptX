@@ -28,6 +28,15 @@ struct InstanceClassOpaque {
   const void* classDefine;
 };
 
+class PauseGc {
+  SCRIPTX_DISALLOW_COPY_AND_MOVE(PauseGc);
+  QjsEngine* engine_;
+
+ public:
+  explicit PauseGc(QjsEngine* engine) : engine_(engine) { engine_->pauseGcCount_++; }
+  ~PauseGc() { engine_->pauseGcCount_--; }
+};
+
 template <typename T>
 void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
   auto ns = getNamespaceForRegister(classDefine->getNameSpace());

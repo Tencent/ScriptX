@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <type_traits>
 
@@ -43,6 +44,11 @@ class QjsEngine : public ScriptEngine {
   std::shared_ptr<::script::utils::MessageQueue> queue_;
   JSRuntime* runtime_ = nullptr;
   JSContext* context_ = nullptr;
+
+  // state
+  int pauseGcCount_ = 0;
+  bool isDestroying_ = false;
+  std::atomic_bool tickScheduled_ = false;
 
   /**
    * key: ClassDefine
@@ -122,6 +128,11 @@ class QjsEngine : public ScriptEngine {
 
   void initEngineResource();
 
+  /**
+   * similar to js_std_loop
+   */
+  void scheduleTick();
+
  private:
   template <typename T>
   friend class ::script::Local;
@@ -149,6 +160,8 @@ class QjsEngine : public ScriptEngine {
   friend class ::script::ScriptClass;
 
   friend struct ByteBufferState;
+
+  friend class PauseGc;
 
   friend JSContext* currentContext();
   friend JSRuntime* currentRuntime();
