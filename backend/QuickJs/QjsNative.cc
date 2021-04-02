@@ -57,7 +57,6 @@ Local<Object> ScriptClass::getScriptObject() const {
     return qjs_interop::makeLocal<Object>(
         qjs_backend::dupValue(internalState_.weakRef_, internalState_.engine->context_));
   }
-  // TODO: to be or not to be???
   throw Exception("can't getScriptObject in finalizer");
 }
 

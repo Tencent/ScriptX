@@ -477,10 +477,7 @@ void* Local<ByteBuffer>::getRawBytes() const {
 }
 
 std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const {
-  // TODO(landerl): ref to a Global
-  return std::shared_ptr<void>(
-      getRawBytes(), [val = qjs_backend::dupValue(val_), context = qjs_backend::currentContext()](
-                         void* ptr) { JS_FreeValue(context, val); });
+  return std::shared_ptr<void>(getRawBytes(), [global = Global<ByteBuffer>(*this)](void* ptr) {});
 }
 
 }  // namespace script
