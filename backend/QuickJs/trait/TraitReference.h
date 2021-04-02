@@ -60,6 +60,9 @@ struct ByteBufferState {
 
 void swap(ByteBufferState& lhs, ByteBufferState& rhs);
 
+struct GlobalRefState;
+struct WeakRefState;
+
 }  // namespace qjs_backend
 
 namespace internal {
@@ -76,12 +79,12 @@ struct ImplType<Local<ByteBuffer>> {
 
 template <typename T>
 struct ImplType<Global<T>> {
-  using type = JSValue;
+  using type = qjs_backend::GlobalRefState;
 };
 
 template <typename T>
 struct ImplType<Weak<T>> {
-  using type = JSValue;
+  using type = qjs_backend::WeakRefState;
 };
 
 }  // namespace internal

@@ -23,6 +23,7 @@
 
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
+#include "../../src/utils/GlobalWeakBookkeeping.hpp"
 #include "../../src/utils/MessageQueue.h"
 #include "QjsHelper.h"
 
@@ -55,6 +56,8 @@ class QjsEngine : public ScriptEngine {
    * value: prototype, constructor
    */
   std::unordered_map<const void*, std::pair<JSValue, JSValue>> nativeInstanceRegistry_;
+
+  internal::GlobalWeakBookkeeping globalWeakBookkeeping_{};
 
   JSAtom lengthAtom_ = {};
   // QuickJs C API is not enough, we have to use some js helper code.
@@ -103,6 +106,9 @@ class QjsEngine : public ScriptEngine {
   ~QjsEngine() override;
 
  private:
+  struct BookKeepFetcher;
+  friend struct QjsBookKeepFetcher;
+
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine);
 

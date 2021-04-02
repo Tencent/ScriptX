@@ -17,41 +17,114 @@
 
 #pragma once
 #include <utility>
+#include "QjsHelper.hpp"
 
 namespace script {
+
+namespace qjs_backend {
+
+struct GlobalRefState {
+  JSValue ref_ = JS_UNDEFINED;
+  QjsEngine* engine_ = nullptr;
+  internal::GlobalWeakBookkeeping::HandleType handle_{};
+};
+
+struct WeakRefState : GlobalRefState {};
+
+struct QjsEngine::BookKeepFetcher {
+  template <typename T>
+  static ::script::internal::GlobalWeakBookkeeping* get(const T* ref) {
+    if (!ref) return nullptr;
+    auto& val = ref->val_;
+    if (!val.engine_) return nullptr;
+    return &val.engine_->globalWeakBookkeeping_;
+  }
+
+  template <typename T>
+  static ::script::internal::GlobalWeakBookkeeping::HandleType& handle(const T* ref) {
+    auto& val = const_cast<T*>(ref)->val_;
+    return val.handle_;
+  }
+};
+
+struct QjsBookKeepFetcher : QjsEngine::BookKeepFetcher {};
+
+using BookKeep = ::script::internal::GlobalWeakBookkeeping::Helper<QjsBookKeepFetcher>;
+
+}  // namespace qjs_backend
 
 template <typename T>
 Global<T>::Global() noexcept : val_() {}
 
 template <typename T>
-Global<T>::Global(const script::Local<T>& localReference) {}
+Global<T>::Global(const script::Local<T>& localReference) {
+  if (!localReference.isNull()) {
+    val_.ref_ = localReference.val_;
+    val_.engine_ = &qjs_backend::currentEngine();
+    qjs_backend::dupValue(val_.ref_, val_.engine_->context_);
+
+    qjs_backend::BookKeep::keep(this);
+  }
+}
 
 template <typename T>
 Global<T>::Global(const script::Weak<T>& weak) {}
 
 template <typename T>
-Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {}
+Global<T>::Global(const script::Global<T>& copy) : val_() {
+  *this = copy;
+}
 
 template <typename T>
-Global<T>::Global(script::Global<T>&& move) noexcept : val_(move.val_) {}
+Global<T>::Global(script::Global<T>&& move) noexcept : val_() {
+  *this = std::move(move);
+}
 
 template <typename T>
-Global<T>::~Global() {}
+Global<T>::~Global() {
+  if (!isEmpty()) {
+    EngineScope scope(val_.engine_);
+    reset();
+  }
+}
 
 template <typename T>
 Global<T>& Global<T>::operator=(const script::Global<T>& assign) {
-  Global(assign).swap(*this);
+  bool wasEmpty = isEmpty();
+  if (!wasEmpty) {
+    qjs_backend::freeValue(val_.ref_, val_.engine_->context_);
+  }
+
+  val_.ref_ = assign.val_.ref_;
+  val_.engine_ = assign.val_.engine_;
+  if (val_.engine_) qjs_backend::dupValue(val_.ref_, val_.engine_->context_);
+
+  qjs_backend::BookKeep::afterCopy(wasEmpty, this, &assign);
   return *this;
 }
 
 template <typename T>
 Global<T>& Global<T>::operator=(script::Global<T>&& move) noexcept {
-  Global(std::move(move)).swap(*this);
+  bool wasEmpty = isEmpty();
+  if (!wasEmpty) {
+    qjs_backend::freeValue(val_.ref_, val_.engine_->context_);
+  }
+
+  val_.ref_ = move.val_.ref_;
+  val_.engine_ = move.val_.engine_;
+  move.val_.ref_ = JS_UNDEFINED;
+  move.val_.engine_ = nullptr;
+
+  qjs_backend::BookKeep::afterMove(wasEmpty, this, &move);
   return *this;
 }
 
 template <typename T>
-void Global<T>::swap(Global& rhs) noexcept {}
+void Global<T>::swap(Global& rhs) noexcept {
+  std::swap(val_.ref_, rhs.val_.ref_);
+  std::swap(val_.engine_, rhs.val_.engine_);
+  qjs_backend::BookKeep::afterSwap(this, &rhs);
+}
 
 template <typename T>
 Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
@@ -61,21 +134,30 @@ Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
 
 template <typename T>
 Local<T> Global<T>::get() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  if (isEmpty()) throw Exception("get on empty Global");
+  return qjs_interop::makeLocal<T>(qjs_backend::dupValue(val_.ref_, val_.engine_->context_));
 }
 
 template <typename T>
 Local<Value> Global<T>::getValue() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  if (isEmpty()) return {};
+  return qjs_interop::makeLocal<Value>(qjs_backend::dupValue(val_.ref_, val_.engine_->context_));
 }
 
 template <typename T>
 bool Global<T>::isEmpty() const {
-  return false;
+  return val_.engine_ == nullptr;
 }
 
 template <typename T>
-void Global<T>::reset() {}
+void Global<T>::reset() {
+  if (!isEmpty()) {
+    qjs_backend::freeValue(val_.ref_, val_.engine_->context_);
+    qjs_backend::BookKeep::remove(this);
+    val_.ref_ = JS_UNDEFINED;
+    val_.engine_ = nullptr;
+  }
+}
 
 // == Weak ==
 
