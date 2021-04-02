@@ -24,36 +24,31 @@ namespace script {
 namespace qjs_backend {
 
 class EngineScopeImpl {
- public:
-  explicit EngineScopeImpl(QjsEngine &) {
-    // enter engine;
-  }
+  QjsEngine *previous_;
+  QjsEngine *current_;
 
-  ~EngineScopeImpl() {
-    // exit engine;
-  }
+ public:
+  explicit EngineScopeImpl(QjsEngine &);
+
+  ~EngineScopeImpl();
 };
 
 class ExitEngineScopeImpl {
- public:
-  explicit ExitEngineScopeImpl(QjsEngine &) {
-    // exit current entered engine
-  }
+  QjsEngine *current_;
 
-  ~ExitEngineScopeImpl() {
-    // reenter engine;
-  }
+ public:
+  explicit ExitEngineScopeImpl(QjsEngine &);
+
+  ~ExitEngineScopeImpl();
 };
 
 class StackFrameScopeImpl {
  public:
-  explicit StackFrameScopeImpl(QjsEngine &) {
-    // enter stack;
-  }
+  // enter stack;
+  explicit StackFrameScopeImpl(QjsEngine &){};
 
-  ~StackFrameScopeImpl() {
-    // exit stack;
-  }
+  // exit stack;
+  ~StackFrameScopeImpl() = default;
 
   template <typename T>
   Local<T> returnValue(const Local<T> &localRef) {

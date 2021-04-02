@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <functional>
+#include <mutex>
 #include <type_traits>
 
 #include "../../src/Engine.h"
@@ -45,6 +46,8 @@ class QjsEngine : public ScriptEngine {
   std::shared_ptr<::script::utils::MessageQueue> queue_;
   JSRuntime* runtime_ = nullptr;
   JSContext* context_ = nullptr;
+
+  std::recursive_mutex runtimeLock_{};
 
   // state
   int pauseGcCount_ = 0;
@@ -170,6 +173,9 @@ class QjsEngine : public ScriptEngine {
   friend struct ByteBufferState;
 
   friend class PauseGc;
+
+  friend class EngineScopeImpl;
+  friend class ExitEngineScopeImpl;
 
   friend JSContext* currentContext();
   friend JSRuntime* currentRuntime();

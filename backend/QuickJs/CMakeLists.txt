@@ -10,6 +10,7 @@ target_sources(ScriptX PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/QjsNative.cc
         ${CMAKE_CURRENT_LIST_DIR}/QjsNative.hpp
         ${CMAKE_CURRENT_LIST_DIR}/QjsReference.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/QjsScope.cc
         ${CMAKE_CURRENT_LIST_DIR}/QjsUtils.cc
         ${CMAKE_CURRENT_LIST_DIR}/QjsValue.cc
         )
