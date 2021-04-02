@@ -344,12 +344,21 @@ TEST_F(NativeTest, ScriptClassConverter) {
 
 namespace {
 auto SanityCheckDef = TestClassDefAll;
-}
+
+class SanityCheck2 : public script::ScriptClass {
+ public:
+  using ScriptClass::ScriptClass;
+};
+
+auto SanityCheck2Def = defineClass<SanityCheck2>("SanityCheck2").constructor().build();
+
+}  // namespace
 
 TEST_F(NativeTest, SanityCheck) {
   script::EngineScope engineScope(engine);
 
   engine->registerNativeClass<TestClass>(SanityCheckDef);
+  engine->registerNativeClass<SanityCheck2>(SanityCheck2Def);
 
 #ifdef SCRIPTX_LANG_JAVASCRIPT
   EXPECT_THROW(
@@ -375,6 +384,28 @@ TEST_F(NativeTest, SanityCheck) {
                          .lua(R"(
 local t = script.engine.test.TestClass()
 local obj = {}
+obj.g = t.greet
+obj.g()
+)")
+                         .select());
+      },
+      Exception);
+
+  EXPECT_THROW(
+      {
+        // wrong receiver
+        engine->eval(TS().js(
+                             R"(
+(function() {
+    const t = new script.engine.test.TestClass();
+    const obj = new SanityCheck2();
+    obj.g = t.greet;
+    obj.g();
+})()
+)")
+                         .lua(R"(
+local t = script.engine.test.TestClass()
+local obj = SanityCheck2()
 obj.g = t.greet
 obj.g()
 )")

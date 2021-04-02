@@ -23,7 +23,9 @@
 namespace script {
 
 template <typename T>
-ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {}
+ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {
+  TEMPLATE_NOT_IMPLEMENTED();
+}
 
 template <typename T>
 T* Arguments::engineAs() const {

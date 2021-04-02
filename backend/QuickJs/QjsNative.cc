@@ -48,14 +48,14 @@ ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : in
   // don't inc reference count, to pretend to be a weak ref
   // while they are not exactly weak ref are defined.
   // BUT, QuickJs calls finalize immediately, we can clear it there.
-  //  internalState_.weakRef_ = qjs_interop::peekLocal(scriptObject);
+  internalState_.weakRef_ = qjs_interop::peekLocal(scriptObject);
 }
 
 Local<Object> ScriptClass::getScriptObject() const {
-  //  if (JS_IsObject(internalState_.weakRef_)) {
-  //    return qjs_interop::makeLocal<Object>(
-  //        qjs_backend::dupValue(internalState_.weakRef_, internalState_.engine->context_));
-  //  }
+  if (JS_IsObject(internalState_.weakRef_)) {
+    return qjs_interop::makeLocal<Object>(
+        qjs_backend::dupValue(internalState_.weakRef_, internalState_.engine->context_));
+  }
   // TODO: to be or not to be???
   throw Exception("can't getScriptObject in finalizer");
 }

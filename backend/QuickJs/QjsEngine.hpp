@@ -91,6 +91,7 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
         context_, const_cast<FCT*>(&f.callback), [](const Arguments& args, void* func_data, bool) {
           auto ptr =
               static_cast<T*>(JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+          // more strict check
           if (!ptr) throw Exception(u8"call function on wrong receiver");
           return (*static_cast<FCT*>(func_data))(ptr, args);
         });
