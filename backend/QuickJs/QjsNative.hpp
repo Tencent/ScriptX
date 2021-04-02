@@ -37,22 +37,7 @@ ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState
   internalState_.weakRef_ = ref;
 
   // schedule -> JS_Free(ref)
-  class ExtendLifeTime {
-    JSValue ref;
-    qjs_backend::QjsEngine* engine;
-
-   public:
-    explicit ExtendLifeTime(JSValue val, qjs_backend::QjsEngine* engine)
-        : ref(val), engine(engine) {}
-    ~ExtendLifeTime() { JS_FreeValue(engine->context_, ref); }
-  };
-
-  auto mq = engine.messageQueue();
-  auto msg = mq->obtainInplaceMessage([](utils::InplaceMessage& msg) {});
-  msg->template inplaceObject<ExtendLifeTime>(ref, &engine);
-  msg->tag = &engine;
-
-  mq->template postMessage(msg);
+  engine.extendLifeTimeToNextLoop(ref);
 }
 
 template <typename T>

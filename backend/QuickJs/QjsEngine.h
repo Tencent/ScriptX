@@ -133,6 +133,8 @@ class QjsEngine : public ScriptEngine {
    */
   void scheduleTick();
 
+  void extendLifeTimeToNextLoop(JSValue value);
+
  private:
   template <typename T>
   friend class ::script::Local;

@@ -208,6 +208,26 @@ void QjsEngine::scheduleTick() {
   }
 }
 
+void QjsEngine::extendLifeTimeToNextLoop(JSValue value) {
+  // schedule -> JS_Free(ref)
+  class ExtendLifeTime {
+    JSValue ref;
+    qjs_backend::QjsEngine* engine;
+
+   public:
+    explicit ExtendLifeTime(JSValue val, qjs_backend::QjsEngine* engine)
+        : ref(val), engine(engine) {}
+    ~ExtendLifeTime() { JS_FreeValue(engine->context_, ref); }
+  };
+
+  auto mq = messageQueue();
+  auto msg = mq->obtainInplaceMessage([](utils::InplaceMessage& msg) {});
+  msg->template inplaceObject<ExtendLifeTime>(value, this);
+  msg->tag = this;
+
+  mq->template postMessage(msg);
+}
+
 Local<Value> QjsEngine::get(const Local<String>& key) { return getGlobal().get(key); }
 
 void QjsEngine::set(const Local<String>& key, const Local<Value>& value) {
