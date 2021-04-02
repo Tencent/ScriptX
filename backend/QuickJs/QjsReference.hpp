@@ -23,14 +23,6 @@ namespace script {
 
 namespace qjs_backend {
 
-struct GlobalRefState {
-  JSValue ref_ = JS_UNDEFINED;
-  QjsEngine* engine_ = nullptr;
-  internal::GlobalWeakBookkeeping::HandleType handle_{};
-};
-
-struct WeakRefState : GlobalRefState {};
-
 struct QjsEngine::BookKeepFetcher {
   template <typename T>
   static ::script::internal::GlobalWeakBookkeeping* get(const T* ref) {
@@ -58,13 +50,11 @@ Global<T>::Global() noexcept : val_() {}
 
 template <typename T>
 Global<T>::Global(const script::Local<T>& localReference) {
-  if (!localReference.isNull()) {
-    val_.ref_ = localReference.val_;
-    val_.engine_ = &qjs_backend::currentEngine();
-    qjs_backend::dupValue(val_.ref_, val_.engine_->context_);
+  val_.ref_ = localReference.val_;
+  val_.engine_ = &qjs_backend::currentEngine();
+  qjs_backend::dupValue(val_.ref_, val_.engine_->context_);
 
-    qjs_backend::BookKeep::keep(this);
-  }
+  qjs_backend::BookKeep::keep(this);
 }
 
 template <typename T>

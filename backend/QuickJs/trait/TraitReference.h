@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <string>
 #include "../../src/types.h"
+#include "../../src/utils/GlobalWeakBookkeeping.hpp"
 #include "../QjsHelper.h"
 
 namespace script {
@@ -60,9 +61,13 @@ struct ByteBufferState {
 
 void swap(ByteBufferState& lhs, ByteBufferState& rhs);
 
-struct GlobalRefState;
-struct WeakRefState;
+struct GlobalRefState {
+  JSValue ref_ = JS_UNDEFINED;
+  QjsEngine* engine_ = nullptr;
+  internal::GlobalWeakBookkeeping::HandleType handle_{};
+};
 
+struct WeakRefState : GlobalRefState {};
 }  // namespace qjs_backend
 
 namespace internal {
