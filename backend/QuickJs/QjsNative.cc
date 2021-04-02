@@ -46,8 +46,9 @@ ScriptEngine* Arguments::engine() const { return callbackInfo_.engine_; }
 ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
   internalState_.engine = &qjs_backend::currentEngine();
   // don't inc reference count, to pretend to be a weak ref
-  // while they are not exactly weak ref are defined.
+  // while they are not exactly weak ref as defined.
   // BUT, QuickJs calls finalize immediately, we can clear it there.
+  // see QjsEngine::initEngineResource
   internalState_.weakRef_ = qjs_interop::peekLocal(scriptObject);
 }
 

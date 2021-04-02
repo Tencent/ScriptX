@@ -58,9 +58,9 @@ void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 }
 
 template <typename T>
-Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) const {
+Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) {
   auto ret = newRawFunction(
-      context_, const_cast<ClassDefine<T>*>(&classDefine), nullptr,
+      this, const_cast<ClassDefine<T>*>(&classDefine), nullptr,
       [](const Arguments& args, void* data, void*, bool isConstructorCall) {
         auto classDefine = static_cast<const ClassDefine<T>*>(data);
         auto engine = args.template engineAs<QjsEngine>();
@@ -115,7 +115,7 @@ Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) const
 }
 
 template <typename T>
-Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
+Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) {
   auto proto = Object::newObject();
   using IDT = internal::InstanceDefine<T>;
 
@@ -125,7 +125,7 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
   for (auto&& f : def.functions) {
     using FCT = typename IDT::FunctionDefine::FunctionCallback;
 
-    auto fun = newRawFunction(context_, const_cast<FCT*>(&f.callback), definePtr,
+    auto fun = newRawFunction(this, const_cast<FCT*>(&f.callback), definePtr,
                               [](const Arguments& args, void* data1, void* data2, bool) {
                                 auto ptr = static_cast<InstanceClassOpaque*>(JS_GetOpaque(
                                     qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
@@ -146,7 +146,7 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
     Local<Value> setterFun;
 
     if (prop.getter) {
-      getterFun = newRawFunction(context_, const_cast<GCT*>(&prop.getter), definePtr,
+      getterFun = newRawFunction(this, const_cast<GCT*>(&prop.getter), definePtr,
                                  [](const Arguments& args, void* data1, void* data2, bool) {
                                    auto ptr = static_cast<InstanceClassOpaque*>(JS_GetOpaque(
                                        qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
@@ -161,7 +161,7 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
 
     if (prop.setter) {
       setterFun =
-          newRawFunction(context_, const_cast<SCT*>(&prop.setter), definePtr,
+          newRawFunction(this, const_cast<SCT*>(&prop.setter), definePtr,
                          [](const Arguments& args, void* data1, void* data2, bool) {
                            auto ptr = static_cast<InstanceClassOpaque*>(
                                JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));

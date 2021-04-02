@@ -78,7 +78,7 @@ JSValue throwException(const Exception& e, QjsEngine* engine) {
   return JS_EXCEPTION;
 }
 
-Local<Function> newRawFunction(JSContext* context, void* data1, void* data2,
+Local<Function> newRawFunction(QjsEngine* engine, void* data1, void* data2,
                                RawFunctionCallback callback) {
   auto newPointer = [](JSContext* context, void* data) -> JSValue {
     if (!data) return JS_UNDEFINED;
@@ -88,11 +88,14 @@ Local<Function> newRawFunction(JSContext* context, void* data1, void* data2,
     return funData;
   };
 
+  auto context = engine->context_;
+
   auto funData1 = newPointer(context, data1);
   auto funData2 = newPointer(context, data2);
+  auto engineData = newPointer(context, engine);
   auto funCallback = newPointer(context, reinterpret_cast<void*>(callback));
 
-  std::array<JSValue, 3> funDataArray{funData1, funData2, funCallback};
+  std::array<JSValue, 4> funDataArray{funData1, funData2, engineData, funCallback};
 
   auto fun = JS_NewCFunctionData(
       context,
@@ -100,9 +103,10 @@ Local<Function> newRawFunction(JSContext* context, void* data1, void* data2,
          JSValue* func_data) {
         auto data_1 = JS_GetOpaque(func_data[0], qjs_backend::QjsEngine::kPointerClassId);
         auto data_2 = JS_GetOpaque(func_data[1], qjs_backend::QjsEngine::kPointerClassId);
-        auto callback = reinterpret_cast<RawFunctionCallback>(
+        auto engine = static_cast<QjsEngine*>(
             JS_GetOpaque(func_data[2], qjs_backend::QjsEngine::kPointerClassId));
-        auto engine = static_cast<qjs_backend::QjsEngine*>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
+        auto callback = reinterpret_cast<RawFunctionCallback>(
+            JS_GetOpaque(func_data[3], qjs_backend::QjsEngine::kPointerClassId));
 
         try {
           auto args = qjs_interop::makeArguments(engine, this_val, argc, argv);

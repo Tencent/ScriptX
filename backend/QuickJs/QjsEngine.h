@@ -111,10 +111,10 @@ class QjsEngine : public ScriptEngine {
   void registerNativeStatic(const Local<Object>& module, const internal::StaticDefine& data1);
 
   template <typename T>
-  Local<Object> newConstructor(const ClassDefine<T>& define) const;
+  Local<Object> newConstructor(const ClassDefine<T>& define);
 
   template <typename T>
-  Local<Object> newPrototype(const ClassDefine<T>& define) const;
+  Local<Object> newPrototype(const ClassDefine<T>& define);
 
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
@@ -168,7 +168,7 @@ class QjsEngine : public ScriptEngine {
   friend JSContext* currentContext();
   friend JSRuntime* currentRuntime();
   friend JSValue throwException(const Exception&, QjsEngine*);
-  friend Local<Function> newRawFunction(JSContext* context, void* data1, void* data2,
+  friend Local<Function> newRawFunction(QjsEngine* engine, void* data1, void* data2,
                                         RawFunctionCallback);
 };
 

@@ -101,8 +101,6 @@ QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue, const QjsFactor
 }
 
 void QjsEngine::initEngineResource() {
-  JS_SetRuntimeOpaque(runtime_, this);
-
   JSClassDef pointer{};
   pointer.class_name = "RawPointer";
   JS_NewClass(runtime_, kPointerClassId, &pointer);
@@ -290,7 +288,7 @@ void QjsEngine::registerNativeStatic(const Local<Object>& module,
   for (auto&& f : def.functions) {
     auto ptr = &f.callback;
 
-    auto fun = newRawFunction(context_, const_cast<FunctionCallback*>(ptr), nullptr,
+    auto fun = newRawFunction(this, const_cast<FunctionCallback*>(ptr), nullptr,
                               [](const Arguments& args, void* data1, void*, bool) {
                                 return (*static_cast<FunctionCallback*>(data1))(args);
                               });
@@ -301,7 +299,7 @@ void QjsEngine::registerNativeStatic(const Local<Object>& module,
     Local<Value> getterFun;
     Local<Value> setterFun;
     if (prop.getter) {
-      getterFun = newRawFunction(context_, const_cast<GetterCallback*>(&prop.getter), nullptr,
+      getterFun = newRawFunction(this, const_cast<GetterCallback*>(&prop.getter), nullptr,
                                  [](const Arguments& args, void* data, void*, bool) {
                                    return (*static_cast<GetterCallback*>(data))();
                                  })
@@ -309,7 +307,7 @@ void QjsEngine::registerNativeStatic(const Local<Object>& module,
     }
 
     if (prop.setter) {
-      setterFun = newRawFunction(context_, const_cast<SetterCallback*>(&prop.setter), nullptr,
+      setterFun = newRawFunction(this, const_cast<SetterCallback*>(&prop.setter), nullptr,
                                  [](const Arguments& args, void* data, void*, bool) {
                                    (*static_cast<SetterCallback*>(data))(args[0]);
                                    return Local<Value>();

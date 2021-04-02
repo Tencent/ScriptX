@@ -97,17 +97,27 @@ Local<Boolean> Boolean::newBoolean(bool value) {
 Local<Function> Function::newFunction(script::FunctionCallback callback) {
   auto ptr = std::make_unique<script::FunctionCallback>(std::move(callback));
 
-  JSContext* context = qjs_backend::currentContext();
+  auto& engine = qjs_backend::currentEngine();
+  JSContext* context = engine.context_;
+
   auto funData = JS_NewObjectClass(context, qjs_backend::QjsEngine::kFunctionDataClassId);
   qjs_backend::checkException(funData);
   JS_SetOpaque(funData, ptr.release());
+
+  auto engineData = JS_NewObjectClass(context, qjs_backend::QjsEngine::kPointerClassId);
+  qjs_backend::checkException(engineData);
+  JS_SetOpaque(engineData, &engine);
+
+  JSValue arr[2] = {funData, engineData};
+
   auto fun = JS_NewCFunctionData(
       context,
       [](JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int /*magic*/,
          JSValue* func_data) {
         auto callback = static_cast<FunctionCallback*>(
-            JS_GetOpaque(*func_data, qjs_backend::QjsEngine::kFunctionDataClassId));
-        auto engine = static_cast<qjs_backend::QjsEngine*>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
+            JS_GetOpaque(func_data[0], qjs_backend::QjsEngine::kFunctionDataClassId));
+        auto engine = static_cast<qjs_backend::QjsEngine*>(
+            JS_GetOpaque(func_data[1], qjs_backend::QjsEngine::kPointerClassId));
 
         try {
           auto args = qjs_interop::makeArguments(engine, this_val, argc, argv);
@@ -117,9 +127,10 @@ Local<Function> Function::newFunction(script::FunctionCallback callback) {
           return qjs_backend::throwException(e, engine);
         }
       },
-      0, 0, 1, &funData);
+      0, 0, 2, arr);
   qjs_backend::checkException(fun);
   JS_FreeValue(context, funData);
+  JS_FreeValue(context, engineData);
 
   return Local<Function>{fun};
 }
