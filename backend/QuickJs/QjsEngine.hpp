@@ -44,35 +44,34 @@ void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 
 template <typename T>
 Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) const {
-  auto ret = newRawFunction(
-      context_, const_cast<ClassDefine<T>*>(&classDefine),
-      [](const Arguments& args, void* data, bool isConstructorCall) {
-        if (!isConstructorCall) {
-          //          throw Exception(u8"constructor can't be called as
-          //          function");
-        }
+  auto ret =
+      newRawFunction(context_, const_cast<ClassDefine<T>*>(&classDefine),
+                     [](const Arguments& args, void* data, bool isConstructorCall) {
+                       if (!isConstructorCall) {
+                         //          throw Exception(u8"constructor can't be called as
+                         //          function");
+                       }
 
-        auto classDefine = static_cast<const ClassDefine<T>*>(data);
-        auto engine = args.template engineAs<QjsEngine>();
-        auto registry = engine->nativeInstanceRegistry_.find(classDefine);
-        assert(registry != engine->nativeInstanceRegistry_.end());
+                       auto classDefine = static_cast<const ClassDefine<T>*>(data);
+                       auto engine = args.template engineAs<QjsEngine>();
+                       auto registry = engine->nativeInstanceRegistry_.find(classDefine);
+                       assert(registry != engine->nativeInstanceRegistry_.end());
 
-        auto obj = JS_NewObjectClass(engine->context_, kInstanceClassId);
-        auto ret = JS_SetPrototype(engine->context_, obj,
-                                   qjs_backend::dupValue(registry->second.first, engine->context_));
-        checkException(ret);
+                       auto obj = JS_NewObjectClass(engine->context_, kInstanceClassId);
+                       auto ret = JS_SetPrototype(engine->context_, obj, registry->second.first);
+                       checkException(ret);
 
-        auto callbackInfo = args.callbackInfo_;
-        callbackInfo.thiz_ = obj;
+                       auto callbackInfo = args.callbackInfo_;
+                       callbackInfo.thiz_ = obj;
 
-        auto ptr = classDefine->instanceDefine.constructor(Arguments(callbackInfo));
-        if (ptr == nullptr) {
-          throw Exception("can't create class " + classDefine->className);
-        }
-        JS_SetOpaque(obj, ptr);
+                       auto ptr = classDefine->instanceDefine.constructor(Arguments(callbackInfo));
+                       if (ptr == nullptr) {
+                         throw Exception("can't create class " + classDefine->className);
+                       }
+                       JS_SetOpaque(obj, ptr);
 
-        return qjs_interop::makeLocal<Value>(obj);
-      });
+                       return qjs_interop::makeLocal<Value>(obj);
+                     });
 
   auto obj = qjs_interop::getLocal(ret);
   qjs_backend::checkException(JS_SetConstructorBit(context_, obj, true));
@@ -87,12 +86,12 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
   auto& def = define.instanceDefine;
   for (auto&& f : def.functions) {
     using FCT = typename IDT::FunctionDefine::FunctionCallback;
-    auto ptr = &f.callback;
 
     auto fun = newRawFunction(
         context_, const_cast<FCT*>(&f.callback), [](const Arguments& args, void* func_data, bool) {
           auto ptr =
               static_cast<T*>(JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+          if (!ptr) throw Exception(u8"call function on wrong receiver");
           return (*static_cast<FCT*>(func_data))(ptr, args);
         });
     proto.set(f.name, fun);
@@ -110,6 +109,7 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
                                  [](const Arguments& args, void* data, bool) {
                                    auto ptr = static_cast<T*>(JS_GetOpaque(
                                        qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+                                   if (!ptr) throw Exception(u8"call function on wrong receiver");
                                    return (*static_cast<GCT*>(data))(ptr);
                                  })
                       .asValue();
@@ -120,6 +120,7 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
                                  [](const Arguments& args, void* data, bool) {
                                    auto ptr = static_cast<T*>(JS_GetOpaque(
                                        qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+                                   if (!ptr) throw Exception(u8"call function on wrong receiver");
                                    (*static_cast<SCT*>(data))(ptr, args[0]);
                                    return Local<Value>();
                                  })

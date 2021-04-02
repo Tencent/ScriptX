@@ -95,7 +95,7 @@ Local<Function> newRawFunction(JSContext* context, void* data, RawFunctionCallba
           auto args = qjs_interop::makeArguments(engine, this_val, argc, argv);
 
           auto ret = callback(args, data, (magic & JS_CALL_FLAG_CONSTRUCTOR) != 0);
-          return qjs_interop::getLocal(ret);
+          return qjs_interop::getLocal(ret, engine->context_);
         } catch (const Exception& e) {
           return qjs_backend::throwException(e, engine);
         }

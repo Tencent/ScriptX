@@ -24,14 +24,14 @@ namespace qjs_backend {
 
 struct ArgumentsData {
   QjsEngine* engine_;
-  JSValue thiz_;
+  JSValueConst thiz_;
   size_t argc_;
-  JSValue* argv_;
+  JSValueConst* argv_;
 };
 
 struct JscScriptClassState {
   QjsEngine* engine = nullptr;
-  JSValue weakRef_;
+  JSValueConst weakRef_;
 };
 
 }  // namespace qjs_backend

@@ -24,7 +24,9 @@ Arguments::Arguments(InternalCallbackInfoType callbackInfo) : callbackInfo_(call
 Arguments::~Arguments() = default;
 
 Local<Object> Arguments::thiz() const {
-  return qjs_interop::makeLocal<Value>(qjs_backend::dupValue(callbackInfo_.thiz_)).asObject();
+  return qjs_interop::makeLocal<Value>(
+             qjs_backend::dupValue(callbackInfo_.thiz_, callbackInfo_.engine_->context_))
+      .asObject();
 }
 
 bool Arguments::hasThiz() const { return JS_IsObject(callbackInfo_.thiz_); }
@@ -35,7 +37,8 @@ Local<Value> Arguments::operator[](size_t i) const {
   if (i >= callbackInfo_.argc_) {
     return {};
   }
-  return qjs_interop::makeLocal<Value>(qjs_backend::dupValue(callbackInfo_.argv_[i]));
+  return qjs_interop::makeLocal<Value>(
+      qjs_backend::dupValue(callbackInfo_.argv_[i], callbackInfo_.engine_->context_));
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine_; }
@@ -45,14 +48,14 @@ ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : in
   // don't inc reference count, to pretend to be a weak ref
   // while they are not exactly weak ref are defined.
   // BUT, QuickJs calls finalize immediately, we can clear it there.
-  internalState_.weakRef_ = qjs_interop::peekLocal(scriptObject);
+  //  internalState_.weakRef_ = qjs_interop::peekLocal(scriptObject);
 }
 
 Local<Object> ScriptClass::getScriptObject() const {
-  if (JS_IsObject(internalState_.weakRef_)) {
-    return qjs_interop::makeLocal<Object>(
-        qjs_backend::dupValue(internalState_.weakRef_, internalState_.engine->context_));
-  }
+  //  if (JS_IsObject(internalState_.weakRef_)) {
+  //    return qjs_interop::makeLocal<Object>(
+  //        qjs_backend::dupValue(internalState_.weakRef_, internalState_.engine->context_));
+  //  }
   // TODO: to be or not to be???
   throw Exception("can't getScriptObject in finalizer");
 }
