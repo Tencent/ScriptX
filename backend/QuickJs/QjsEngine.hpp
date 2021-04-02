@@ -162,6 +162,19 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) const {
 }
 
 template <typename T>
+Local<Object> QjsEngine::newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
+                                            const Local<Value>* args) {
+  auto it = nativeInstanceRegistry_.find(classDefine);
+  if (it != nativeInstanceRegistry_.end()) {
+    auto ctor = it->second.second;
+    auto constructor = qjs_interop::makeLocal<Object>(qjs_backend::dupValue(ctor, context_));
+    return Object::newObjectImpl(constructor, size, args);
+  }
+
+  throw Exception("class define[" + classDefine->className + "] is not registered");
+}
+
+template <typename T>
 bool QjsEngine::isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
   if (!value.isObject()) return false;
 
