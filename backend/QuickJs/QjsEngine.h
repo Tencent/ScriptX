@@ -55,6 +55,7 @@ class QjsEngine : public ScriptEngine {
   JSValue helperFunctionStrictEqual_ = {};
   JSValue helperFunctionIsByteBuffer_ = {};
   JSValue helperFunctionGetByteBufferInfo_ = {};
+  JSAtom helperSymbolInternalStore_ = JS_ATOM_NULL;
 
  public:
   using QjsFactory = std::function<std::pair<JSRuntime*, JSContext*>()>;

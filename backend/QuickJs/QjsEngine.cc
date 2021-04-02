@@ -151,6 +151,14 @@ void QjsEngine::initEngineResource() {
       auto ret = static_cast<ScriptEngine*>(this)->eval(kGetByteBufferInfo);
       helperFunctionGetByteBufferInfo_ = qjs_interop::getLocal(ret);
     }
+
+    {
+      // TODO(landerl): can we create symbol through C-API???
+      auto ret = static_cast<ScriptEngine*>(this)->eval("(Symbol('ScriptX.InternalStore'))");
+      auto atom = JS_ValueToAtom(context_, qjs_interop::peekLocal(ret));
+      assert(atom != JS_ATOM_NULL);
+      helperSymbolInternalStore_ = atom;
+    }
   }
 }
 
@@ -165,6 +173,7 @@ void QjsEngine::destroy() noexcept {
   JS_FreeValue(context_, helperFunctionStrictEqual_);
   JS_FreeValue(context_, helperFunctionIsByteBuffer_);
   JS_FreeValue(context_, helperFunctionGetByteBufferInfo_);
+  JS_FreeAtom(context_, helperSymbolInternalStore_);
 
   for (auto&& [key, v] : nativeInstanceRegistry_) {
     JS_FreeValue(context_, v.first);

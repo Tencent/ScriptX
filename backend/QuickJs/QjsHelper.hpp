@@ -57,7 +57,11 @@ struct qjs_interop {
    */
   template <typename T>
   static JSValue peekLocal(const Local<T>& ref) {
-    return ref.val_;
+    auto val = ref.val_;
+    if (JS_IsNull(val)) {
+      return JS_UNDEFINED;
+    }
+    return val;
   }
 
   /**
@@ -68,7 +72,7 @@ struct qjs_interop {
    */
   template <typename T>
   static JSValue getLocal(const Local<T>& ref, JSContext* context = nullptr) {
-    return qjs_backend::dupValue(ref.val_, context);
+    return qjs_backend::dupValue(peekLocal(ref), context);
   }
 
   /**

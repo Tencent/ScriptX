@@ -60,11 +60,16 @@ void checkException(int ret, const char* message) {
 }
 
 JSValue dupValue(JSValue val, JSContext* context) {
-  return JS_DupValue(context ? context : currentContext(), val);
+  if (JS_VALUE_HAS_REF_COUNT(val)) {
+    return JS_DupValue(context ? context : currentContext(), val);
+  }
+  return val;
 }
 
 void freeValue(JSValue val, JSContext* context) {
-  JS_FreeValue(context ? context : currentContext(), val);
+  if (JS_VALUE_HAS_REF_COUNT(val)) {
+    JS_FreeValue(context ? context : currentContext(), val);
+  }
 }
 
 JSValue throwException(const Exception& e, QjsEngine* engine) {

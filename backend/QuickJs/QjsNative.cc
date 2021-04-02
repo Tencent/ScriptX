@@ -60,7 +60,24 @@ Local<Object> ScriptClass::getScriptObject() const {
   throw Exception("can't getScriptObject in finalizer");
 }
 
-Local<Array> ScriptClass::getInternalStore() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Array> ScriptClass::getInternalStore() const {
+  if (JS_IsObject(internalState_.weakRef_)) {
+    auto context = internalState_.engine->context_;
+    JSAtom symbol = internalState_.engine->helperSymbolInternalStore_;
+    auto obj = internalState_.weakRef_;
+    auto store = JS_GetProperty(context, obj, symbol);
+    qjs_backend::checkException(store);
+    if (!JS_IsArray(context, store)) {
+      JS_FreeValue(context, store);
+      store = JS_NewArray(context);
+      qjs_backend::checkException(store);
+      qjs_backend::checkException(
+          JS_SetProperty(context, obj, symbol, JS_DupValue(context, store)));
+    }
+    return qjs_interop::makeLocal<Array>(store);
+  }
+  throw Exception("can't getScriptObject in finalizer");
+}
 
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
