@@ -123,6 +123,8 @@ void QjsEngine::initEngineResource() {
     auto ptr = JS_GetOpaque(val, kInstanceClassId);
     if (ptr) {
       auto opaque = static_cast<InstanceClassOpaque*>(ptr);
+      // reset the weak reference
+      opaque->scriptClassPointer->internalState_.weakRef_ = JS_UNDEFINED;
       delete opaque->scriptClassPointer;
       delete opaque;
     }
