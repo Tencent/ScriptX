@@ -80,12 +80,6 @@ constexpr auto kGetByteBufferInfo = R"(
 
 QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue, const QjsFactory& factory)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
-  std::call_once(kGlobalQjsClass, []() {
-    JS_NewClassID(&kPointerClassId);
-    JS_NewClassID(&kInstanceClassId);
-    JS_NewClassID(&kFunctionDataClassId);
-  });
-
   if (factory) {
     std::tie(runtime_, context_) = factory();
     assert(runtime_);
@@ -101,6 +95,12 @@ QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue, const QjsFactor
 }
 
 void QjsEngine::initEngineResource() {
+  std::call_once(kGlobalQjsClass, []() {
+    JS_NewClassID(&kPointerClassId);
+    JS_NewClassID(&kInstanceClassId);
+    JS_NewClassID(&kFunctionDataClassId);
+  });
+
   JSClassDef pointer{};
   pointer.class_name = "RawPointer";
   JS_NewClass(runtime_, kPointerClassId, &pointer);
