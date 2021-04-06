@@ -371,4 +371,74 @@ TEST_F(ReferenceTest, LocalTypes) {
 #undef FN
 }
 
+#ifdef QUICK_JS_HAS_SCRIPTX_PATCH
+
+TEST_F(ReferenceTest, QuickJsPatchStrictEqual) {
+  EngineScope engineScope(engine);
+  auto context = qjs_interop::currentContext();
+  auto testEqual = [&](auto&& ref, auto&& ref2, bool eq = true) {
+    EXPECT_TRUE(
+        JS_StrictEqual(context, qjs_interop::peekLocal(ref), qjs_interop::peekLocal(ref2)) == eq);
+  };
+  auto str1 = String::newString("hello");
+  auto str2 = String::newString("hello");
+  auto str3 = String::newString("hello world");
+
+  testEqual(str1, str1);
+  testEqual(str1, str2);
+  testEqual(str1, str3, false);
+
+  auto obj1 = Object::newObject();
+  auto obj2 = Object::newObject();
+
+  testEqual(obj1, obj1);
+  testEqual(obj1, obj2, false);
+}
+
+TEST_F(ReferenceTest, QuickJsPatchWeakRef) {
+  EngineScope engineScope(engine);
+  auto context = qjs_interop::currentContext();
+
+  {
+    auto obj = Object::newObject();
+    auto weak = JS_NewWeakRef(context, qjs_interop::peekLocal(obj));
+    auto g = JS_GetWeakRef(context, weak);
+
+    EXPECT_TRUE(JS_StrictEqual(context, qjs_interop::peekLocal(obj), g));
+    JS_FreeValue(context, g);
+    JS_FreeValue(context, weak);
+  }
+
+  {
+    // only object is weak
+    JSValue weak;
+    {
+      auto obj = Object::newObject();
+      weak = JS_NewWeakRef(context, qjs_interop::peekLocal(obj));
+    }
+    auto g = JS_GetWeakRef(context, weak);
+
+    EXPECT_TRUE(JS_IsUndefined(g));
+    JS_FreeValue(context, g);
+    JS_FreeValue(context, weak);
+  }
+
+  {
+    // non-object is actually not weak
+    {
+      JSValue weak;
+      {
+        auto str = String::newString("");
+        weak = JS_NewWeakRef(context, qjs_interop::peekLocal(str));
+      }
+      auto g = JS_GetWeakRef(context, weak);
+
+      EXPECT_TRUE(!JS_IsUndefined(g));
+      JS_FreeValue(context, g);
+      JS_FreeValue(context, weak);
+    }
+  }
+}
+#endif
+
 }  // namespace script::test

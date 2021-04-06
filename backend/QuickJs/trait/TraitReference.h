@@ -65,9 +65,23 @@ struct GlobalRefState {
   JSValue ref_ = JS_UNDEFINED;
   QjsEngine* engine_ = nullptr;
   internal::GlobalWeakBookkeeping::HandleType handle_{};
+
+  GlobalRefState() = default;
+  GlobalRefState(const GlobalRefState& cp) = delete;
+  GlobalRefState(GlobalRefState&& mv) noexcept = delete;
+
+  GlobalRefState& operator=(const GlobalRefState& assign);
+  GlobalRefState& operator=(GlobalRefState&& move) noexcept;
+  bool isEmpty() const;
+  void swap(GlobalRefState& other);
+
+  template <typename GlobalOrWeak>
+  void reset(GlobalOrWeak* thiz);
+
+  template <typename GlobalOrWeak>
+  void dtor(GlobalOrWeak* thiz);
 };
 
-struct WeakRefState : GlobalRefState {};
 }  // namespace qjs_backend
 
 namespace internal {
@@ -89,7 +103,7 @@ struct ImplType<Global<T>> {
 
 template <typename T>
 struct ImplType<Weak<T>> {
-  using type = qjs_backend::WeakRefState;
+  using type = qjs_backend::GlobalRefState;
 };
 
 }  // namespace internal

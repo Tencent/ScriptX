@@ -176,6 +176,7 @@ class QjsEngine : public ScriptEngine {
 
   friend class EngineScopeImpl;
   friend class ExitEngineScopeImpl;
+  friend struct GlobalRefState;
 
   friend struct ::script::qjs_interop;
 

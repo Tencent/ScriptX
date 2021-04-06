@@ -207,10 +207,13 @@ bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
 
   auto& engine = qjs_backend::currentEngine();
   auto context = engine.context_;
-
+#ifdef QUICK_JS_HAS_SCRIPTX_PATCH
+  return JS_StrictEqual(context, val_, qjs_interop::peekLocal(other));
+#elif
   auto fun = qjs_interop::makeLocal<Function>(
       qjs_backend::dupValue(engine.helperFunctionStrictEqual_, context));
   return fun.call({}, *this, other).asBoolean().value();
+#endif
 }
 
 Local<String> Local<Value>::describe() const {
