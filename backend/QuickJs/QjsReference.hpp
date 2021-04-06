@@ -16,9 +16,9 @@
  */
 
 #pragma once
+#include <cassert>
 #include <utility>
 #include "QjsHelper.hpp"
-#include "trait/TraitReference.h"
 
 namespace script {
 
@@ -45,6 +45,7 @@ struct QjsBookKeepFetcher : QjsEngine::BookKeepFetcher {};
 using BookKeep = ::script::internal::GlobalWeakBookkeeping::Helper<QjsBookKeepFetcher>;
 
 inline GlobalRefState& GlobalRefState::operator=(const GlobalRefState& assign) {
+  assert(this != &assign);
   bool wasEmpty = isEmpty();
   if (!wasEmpty) {
     qjs_backend::freeValue(ref_, engine_->context_);
@@ -57,6 +58,7 @@ inline GlobalRefState& GlobalRefState::operator=(const GlobalRefState& assign) {
   return *this;
 }
 inline GlobalRefState& GlobalRefState::operator=(GlobalRefState&& move) noexcept {
+  assert(this != &move);
   bool wasEmpty = isEmpty();
   if (!wasEmpty) {
     qjs_backend::freeValue(ref_, engine_->context_);
