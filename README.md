@@ -195,38 +195,4 @@ Some important classes in ScriptX:
 4. `Local<Value>`, `Local<Null>`, `Local<Object>`, `Local<String>`, `Local<Number>`, `Local<Boolean>`, `Local<Function>` , `Local<Array>`, `Local<ByteBuffer>`, `Local<Unsupported>`
 5. `Global<T>`, `Weak<T>`
 
-Before officially using ScriptX, please spend half an hour **read carefully** the following documents, and be familiar with several concepts in ScriptX.
-
-1. [CMake project introduction guide](docs/en/ImportScriptX.md)
-2. [Basic Concepts](docs/en/Basics.md) This part is more important
-    1. Agreement
-    1. Predefined Macro
-    1. Engine and MessageQueue
-    1. Scope
-    1. Value
-    1. Local
-    1. Global / Weak
-3. [Exception Handling](docs/en/Exception.md)
-4. [C++ Binding](docs/en/NativeBinding.md)
-    1. Create a Native Function
-    2. defineClass
-    1. ScriptClass
-    3. Various operations
-    4. Binding C++ functions directly
-    5. converter
-    6. Binding of existing C++ classes
-    7. Tips: Choose overloaded functions
-    8. Tips: Differences in different languages
-5. [Interop with native engine API](docs/en/Interop.md)
-    1. `script::v8_interop`
-    1. `script::jsc_interop`
-    1. `script::lua_interop`
-6. [JavaScript language description](docs/en/JavaScript.md)
-    1. Type comparison table
-7. [Lua language description](docs/en/Lua.md)
-8. [WebAssemble Description](docs/en/WebAssembly.md)
-9. [node.js description](docs/en/NodeJs.md)
-9. [FAQ](docs/en/FAQ.md)
-10. [Quick Start Guide](docs/en/QuickStart.md)
-11. [Performance related](docs/en/Performance.md)
-12. [ScriptX at the 2020 Pure C++ Conference](docs/en/PureCpp2020.md)
+Before officially using ScriptX, please spend half an hour **read carefully** [the project documents](docs/en/TOC.md), and be familiar with several concepts in ScriptX.
