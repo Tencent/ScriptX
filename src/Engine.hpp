@@ -39,7 +39,7 @@ void ScriptEngine::registerNativeClass(const ClassDefine<T>& classDefine) {
   internal::scriptDynamicCast<RealEngine*>(this)->registerNativeClassImpl<T>(&classDefine);
 
   if (std::is_same_v<void, T>) {
-    staticClassDefineRegistry_.template emplace(&classDefine);
+    staticClassDefineRegistry_.emplace(&classDefine);
   } else {
     classDefineRegistry_.emplace(internal::typeIndexOf<T>(), &classDefine);
   }
