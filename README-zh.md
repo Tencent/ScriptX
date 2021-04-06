@@ -16,6 +16,21 @@ ScriptX不仅隔离了几种JavaScript引擎，甚至可以隔离不同脚本语
 
 ScriptX的术语中，"前端"指对外的C++ API，"后端"则指不同的底层引擎，目前已经实现的后端有：V8, node.js, JavaScriptCore, WebAssembly, Lua.
 
+# 状态
+
+| 后端 | 语言 | 版本 | 状态 |
+| :----: |  :----:  | :----:  | :----: |
+| V8 | JavaScript | 7.4+ | done |
+| JavaScriptCore | JavaScript | 7604.1.38.0.7+<br>（iOS 10+/macOS10.12+) | done |
+| Node.js | JavaScript | 14.x+ | done |
+| QuickJs | JavaScript | 2021-03-27 | done |
+| WebAssembly | JavaScript | Emscripten-2.0.5+ | done |
+| Lua | Lua | 5.4+ | done |
+| CPython | Python |  | todo |
+| YARV | Ruby |  | todo |
+| Mono | C# |  | todo |
+
+
 # 简介
 
 ScriptX 的接口使用现代C++特性。并且做到100%符合C++标准，完全跨平台。

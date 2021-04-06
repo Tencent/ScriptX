@@ -15,6 +15,20 @@ ScriptX not only isolates several JavaScript engines, but can even isolate diffe
 
 In ScriptX terminology, "front-end" refers to the external C++ API, and "back-end" refers to different underlying engines. The currently implemented back-ends include: V8, node.js, JavaScriptCore, WebAssembly, Lua.
 
+# States
+
+| backend | language | version | states |
+| :----: |  :----:  | :----:  | :----: |
+| V8 | JavaScript | 7.4+ | done |
+| JavaScriptCore | JavaScript | 7604.1.38.0.7+<br>（iOS 10+/macOS10.12+) | done |
+| Node.js | JavaScript | 14.x+ | done |
+| QuickJs | JavaScript | 2021-03-27 | done |
+| WebAssembly | JavaScript | Emscripten-2.0.5+ | done |
+| Lua | Lua | 5.4+ | done |
+| CPython | Python |  | todo |
+| YARV | Ruby |  | todo |
+| Mono | C# |  | todo |
+
 # Introduction
 
 The interface of ScriptX uses modern C++ features. And to be 100% in line with the C++ standard, completely cross-platform.
