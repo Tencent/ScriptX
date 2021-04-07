@@ -36,7 +36,7 @@ Use `ClassDefine<T>` to describe all the information of a class.
    Each time a script class instance is created, a new instance of T will be created in C++.
    When this class has only static methods (class methods) that we cannot create an instance, use void instead of T.
 2. className: the name of the class
-3. nameSpace: In which namespace this class is located. In JS, such as `nameSpace = "game.ui"; className="ImageView";` then the class will exist in `game.ui.ImageView` in the script, and use `new game.ui.ImageView()`.
+3. nameSpace: In which namespace this class is located. In JS, such as `nameSpace = "game.ui"; className="ImageView";` then the class will exist in `game.ui.ImageView` in the script, and use `new game.ui.ImageView()`. To cover different languages, the namespace separator char is always a single dot -- `.`.
 4. staticDefine: class static method + properties definition
 5. instanceDefine: instance method + properties definition of the class
 6. getNativeRegister: Since ClassDefine is a template class, it is quite difficult to be stored in a container. 

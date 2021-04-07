@@ -71,7 +71,10 @@ f;
       Object::newObject(func, {String::newString("Jenny"), Number::newNumber(5)}),
       // variadic helper
       Object::newObject(func, String::newString("Jenny"), Number::newNumber(5)),
-      Object::newObject(func, "Jenny", 5), Object::newObject(func, String::newString("Jenny"), 5)};
+      // C++ types
+      Object::newObject(func, "Jenny", 5),
+      // mixed
+      Object::newObject(func, String::newString("Jenny"), 5)};
 
   for (auto& jenny : jennyList) {
     auto name = jenny.get(String::newString(u8"name"));
@@ -196,17 +199,6 @@ TEST_F(ValueTest, U8String) {
 
 #endif
 
-namespace {
-
-class InstanceOfTest : public ScriptClass {
- public:
-  using ScriptClass::ScriptClass;
-};
-
-auto define = defineClass<InstanceOfTest>("InstanceOfTest").constructor().build();
-
-}  // namespace
-
 TEST_F(ValueTest, InstanceOf) {
   EngineScope engineScope(engine);
   try {
@@ -221,22 +213,6 @@ TEST_F(ValueTest, InstanceOf) {
 #else
     FAIL() << "add test impl here";
 #endif
-
-    engine->registerNativeClass(define);
-    auto x = engine->newNativeClass<InstanceOfTest>();
-    engine->set("x", x);
-    auto isInstance = engine->eval(TS().js("x instanceof InstanceOfTest")
-                                       .lua("return ScriptX.isInstanceOf(x, InstanceOfTest)")
-                                       .select());
-
-    ASSERT_TRUE(isInstance.isBoolean());
-    EXPECT_TRUE(isInstance.asBoolean().value());
-
-    auto classInstanceOfTest =
-        engine->eval(TS().js("InstanceOfTest").lua("return InstanceOfTest").select());
-
-    EXPECT_TRUE(classInstanceOfTest.isObject());
-    EXPECT_TRUE(x.instanceOf(classInstanceOfTest));
   } catch (const Exception& e) {
     FAIL() << e;
   }
@@ -436,7 +412,10 @@ TEST_F(ValueTest, FunctionHasThiz) {
       [](const Arguments& args) { return Boolean::newBoolean(args.hasThiz()); });
 
   engine->set("func", func);
-  auto hasThiz = engine->eval(TS().js("func()").lua("return func()").select()).asBoolean().value();
+  auto hasThiz =
+      engine->eval(TS().js("var x = {func: func}; x.func()").lua("return func()").select())
+          .asBoolean()
+          .value();
 
 #ifdef SCRIPTX_LANG_JAVASCRIPT
   EXPECT_TRUE(hasThiz);
@@ -506,7 +485,10 @@ TEST_F(ValueTest, Array) {
   EXPECT_EQ(arr.asValue().getKind(), ValueKind::kObject);
 #endif
 
-  // EXPECT_EQ(arr.size(), 4);
+#ifndef SCRIPTX_BACKEND_LUA
+  EXPECT_EQ(arr.size(), 4);
+#endif
+
   EXPECT_TRUE(arr.get(0).isNull());
   EXPECT_TRUE(arr.get(1).isNull());
   EXPECT_TRUE(arr.get(2).isNull());
@@ -637,8 +619,8 @@ TEST_F(ValueTest, Kinds) {
   test(Array::newArray());
   test(ByteBuffer::newByteBuffer(0));
 
-  EXPECT_THROW({Number::newNumber(0).asValue().asObject();}, Exception);
-  EXPECT_THROW({String::newString("hello").asValue().asArray();}, Exception);
+  EXPECT_THROW({ Number::newNumber(0).asValue().asObject(); }, Exception);
+  EXPECT_THROW({ String::newString("hello").asValue().asArray(); }, Exception);
 }
 
 TEST_F(ValueTest, Unsupported) {
@@ -657,7 +639,7 @@ TEST_F(ValueTest, Unsupported) {
   EXPECT_EQ(strange.getKind(), ValueKind::kUnsupported);
   strange.asUnsupported();
 
-  EXPECT_THROW({Number::newNumber(0).asValue().asUnsupported();}, Exception);
+  EXPECT_THROW({ Number::newNumber(0).asValue().asUnsupported(); }, Exception);
 }
 
 TEST_F(ValueTest, KindNames) {

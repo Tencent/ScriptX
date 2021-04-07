@@ -20,17 +20,6 @@
 #include <string>
 #include "../../../src/types.h"
 
-#ifdef __PRETTY_FUNCTION__
-
-#define TEMPLATE_NOT_IMPLEMENTED() \
-  throw Exception(std::string(__PRETTY_FUNCTION__) + " not implemented")
-
-#else
-
-#define TEMPLATE_NOT_IMPLEMENTED() throw Exception(std::string(__func__) + " not implemented");
-
-#endif
-
 namespace script {
 
 namespace wasm_backend {

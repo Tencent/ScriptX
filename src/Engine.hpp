@@ -29,7 +29,8 @@ namespace script {
 
 template <typename T>
 void ScriptEngine::registerNativeClass(const ClassDefine<T>& classDefine) {
-  if (!std::is_same_v<void, T> &&
+  if ((std::is_same_v<void, T> &&
+       staticClassDefineRegistry_.find(&classDefine) != staticClassDefineRegistry_.end()) ||
       classDefineRegistry_.find(internal::typeIndexOf<T>()) != classDefineRegistry_.end()) {
     throw Exception(std::string("already registered for " + classDefine.getClassName()));
   }
@@ -37,7 +38,9 @@ void ScriptEngine::registerNativeClass(const ClassDefine<T>& classDefine) {
 
   internal::scriptDynamicCast<RealEngine*>(this)->registerNativeClassImpl<T>(&classDefine);
 
-  if (!std::is_same_v<void, T>) {
+  if (std::is_same_v<void, T>) {
+    staticClassDefineRegistry_.emplace(&classDefine);
+  } else {
     classDefineRegistry_.emplace(internal::typeIndexOf<T>(), &classDefine);
   }
 }

@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        backends: [ V8, JavaScriptCore, QuickJs, Lua, Empty ]
         build_type:
           - Debug
           # mac runner seems to be slow and less
@@ -102,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        backends: [ V8, JavaScriptCore, QuickJs, Lua, Empty ]
         build_type:
           - Debug
           #- Release
@@ -137,7 +137,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        backends: [ V8, JavaScriptCore, QuickJs, Lua, Empty ]
         build_type:
           - Debug
           #- Release

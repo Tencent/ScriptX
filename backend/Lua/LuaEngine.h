@@ -144,8 +144,6 @@ class LuaEngine : public ScriptEngine {
    */
   void pushFunction(const void* data, PushFunctionCallback callable);
 
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
-
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine,
                                    const std::initializer_list<Local<Value>>& args) {

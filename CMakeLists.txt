@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/VERSION SCRIPTX_VERSION)
 
 if ("${PROJECT_NAME}" STREQUAL "")
-    project(ScriptX VERSION ${SCRIPTX_VERSION} LANGUAGES CXX)
+    project(ScriptX VERSION ${SCRIPTX_VERSION} LANGUAGES CXX C)
 endif ()
 
 if ("${CMAKE_CXX_STANDARD}" STREQUAL "")
@@ -62,6 +62,7 @@ add_library(ScriptX STATIC
         ${SCRIPTX_DIR}/src/Utils.cc
         ${SCRIPTX_DIR}/src/utils/GlobalWeakBookkeeping.hpp
         ${SCRIPTX_DIR}/src/utils/Helper.hpp
+        ${SCRIPTX_DIR}/src/utils/Helper.cc
         ${SCRIPTX_DIR}/src/utils/MemoryPool.hpp
         ${SCRIPTX_DIR}/src/utils/MessageQueue.cc
         ${SCRIPTX_DIR}/src/utils/ThreadPool.cc

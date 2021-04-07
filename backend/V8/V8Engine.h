@@ -140,8 +140,6 @@ class V8Engine : public ::script::ScriptEngine {
 
   Local<Value> eval(const Local<String>& script, const Local<Value>& sourceFile);
 
-  Local<Object> getNamespaceForRegister(std::string_view namespaceName);
-
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine);
 

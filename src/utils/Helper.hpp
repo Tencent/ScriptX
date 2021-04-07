@@ -18,6 +18,7 @@
 #pragma once
 #include <utility>
 #include <vector>
+#include "../Reference.h"
 #include "../foundation.h"
 
 namespace script::internal {
@@ -52,4 +53,6 @@ void withNArray(size_t N, FN&& fn) {
   }
 }
 
+Local<Value> getNamespaceObject(ScriptEngine* engine, const std::string_view& nameSpace,
+                                Local<Value> rootNs = {});
 }  // namespace script::internal
