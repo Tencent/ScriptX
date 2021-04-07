@@ -15,16 +15,6 @@
  * limitations under the License.
  */
 
-// Copyright 2021 taylorcyang@tencent.com
-
-/**
- * <pre>
- * Author: taylorcyang@tencent.com
- * Date:   2021-03-31
- * Time:   14:42
- * Life with Passion, Code with Creativity.
- * </pre>
- */
 #include "QjsHelper.h"
 #include "QjsEngine.h"
 
