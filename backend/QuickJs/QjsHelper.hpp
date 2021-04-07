@@ -21,20 +21,23 @@
 
 namespace script {
 
+namespace qjs_backend {
+
+template <typename T>
+struct MakeLocalInternal {
+  static Local<T> make(JSValue value) { return QjsEngine::make<Local<T>>(value); }
+};
+
+template <>
+struct MakeLocalInternal<ByteBuffer> {
+  static Local<ByteBuffer> make(JSValue value) {
+    return QjsEngine::make<Local<ByteBuffer>>(qjs_backend::ByteBufferState(value));
+  }
+};
+
+}  // namespace qjs_backend
+
 struct qjs_interop {
- private:
-  qjs_interop() = default;
-
-  template <typename T>
-  Local<T> makeLocalInternal(JSValue value) {
-    return Local<T>(value);
-  }
-
-  template <>
-  Local<ByteBuffer> makeLocalInternal(JSValue value) {
-    return Local<ByteBuffer>(qjs_backend::ByteBufferState(value));
-  }
-
  public:
   static qjs_backend::QjsEngine& currentEngine() { return qjs_backend::currentEngine(); }
   static JSContext* currentContext() { return qjs_backend::currentContext(); }
@@ -50,9 +53,7 @@ struct qjs_interop {
    */
   template <typename T>
   static Local<T> makeLocal(JSValue value) {
-    // workaround that C++ don't support specialize static member function
-    // https://stackoverflow.com/questions/29041775/explicit-template-specialization-cannot-have-a-storage-class-member-method-spe
-    return qjs_interop().template makeLocalInternal<T>(value);
+    return ::script::qjs_backend::MakeLocalInternal<T>::make(value);
   }
 
   /**

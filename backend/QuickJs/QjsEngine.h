@@ -142,6 +142,11 @@ class QjsEngine : public ScriptEngine {
 
   void extendLifeTimeToNextLoop(JSValue value);
 
+  template <typename T, typename... Args>
+  static T make(Args&&... args) {
+    return T(std::forward<Args>(args)...);
+  }
+
  private:
   template <typename T>
   friend class ::script::Local;
@@ -175,6 +180,8 @@ class QjsEngine : public ScriptEngine {
   friend class EngineScopeImpl;
   friend class ExitEngineScopeImpl;
   friend struct GlobalRefState;
+  template <typename T>
+  friend struct MakeLocalInternal;
 
   friend struct ::script::qjs_interop;
 
