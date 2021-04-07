@@ -273,25 +273,23 @@ std::vector<Local<String>> Local<Object>::getKeys() const {
   JSPropertyEnum* list = nullptr;
   uint32_t listLen = 0;
 
-  try {
-    qjs_backend::checkException(
-        JS_GetOwnPropertyNames(context, &list, &listLen, val_,
-                               JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_PRIVATE_MASK));
+  qjs_backend::checkException(
+      JS_GetOwnPropertyNames(context, &list, &listLen, val_,
+                             JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_PRIVATE_MASK));
 
-    std::vector<Local<String>> ret;
-    ret.reserve(listLen);
+  std::unique_ptr<JSPropertyEnum, std::function<void(JSPropertyEnum*)>> ptr(
+      list, [context](JSPropertyEnum* list) {
+        if (list) js_free(context, list);
+      });
 
-    for (uint32_t i = 0; i < listLen; ++i) {
-      ret.push_back(qjs_interop::makeLocal<String>(JS_AtomToString(context, list[i].atom)));
-      JS_FreeAtom(context, list[i].atom);
-    }
-    return ret;
-  } catch (...) {
-    if (list) {
-      js_free(context, list);
-    }
-    throw;
+  std::vector<Local<String>> ret;
+  ret.reserve(listLen);
+
+  for (uint32_t i = 0; i < listLen; ++i) {
+    ret.push_back(qjs_interop::makeLocal<String>(JS_AtomToString(context, list[i].atom)));
+    JS_FreeAtom(context, list[i].atom);
   }
+  return ret;
 }
 
 float Local<Number>::toFloat() const { return static_cast<float>(toDouble()); }
