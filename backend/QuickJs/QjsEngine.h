@@ -115,8 +115,6 @@ class QjsEngine : public ScriptEngine {
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine);
 
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
-
   void registerNativeStatic(const Local<Object>& module, const internal::StaticDefine& data1);
 
   template <typename T>

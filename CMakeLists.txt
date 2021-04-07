@@ -62,6 +62,7 @@ add_library(ScriptX STATIC
         ${SCRIPTX_DIR}/src/Utils.cc
         ${SCRIPTX_DIR}/src/utils/GlobalWeakBookkeeping.hpp
         ${SCRIPTX_DIR}/src/utils/Helper.hpp
+        ${SCRIPTX_DIR}/src/utils/Helper.cc
         ${SCRIPTX_DIR}/src/utils/MemoryPool.hpp
         ${SCRIPTX_DIR}/src/utils/MessageQueue.cc
         ${SCRIPTX_DIR}/src/utils/ThreadPool.cc

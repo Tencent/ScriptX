@@ -18,6 +18,7 @@
 #pragma once
 
 #include "../../src/Utils.h"
+#include "../../src/utils/Helper.hpp"
 #include "V8Engine.h"
 #include "V8Helper.hpp"
 
@@ -28,7 +29,9 @@ void V8Engine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
   StackFrameScope stack;
   v8::TryCatch tryCatch(isolate_);
 
-  Local<Object> nameSpaceObj = getNamespaceForRegister(classDefine->nameSpace);
+  Local<Object> nameSpaceObj =
+      ::script::internal::getNamespaceObject(this, classDefine->getNameSpace(), getGlobal())
+          .asObject();
 
   v8::Local<v8::FunctionTemplate> funcT;
 

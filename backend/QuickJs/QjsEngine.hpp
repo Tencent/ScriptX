@@ -17,6 +17,7 @@
 
 #pragma once
 #include "../../src/Native.hpp"
+#include "../../src/utils/Helper.hpp"
 #include "QjsEngine.h"
 #include "QjsHelper.hpp"
 
@@ -39,7 +40,7 @@ class PauseGc {
 
 template <typename T>
 void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-  auto ns = getNamespaceForRegister(classDefine->getNameSpace());
+  auto ns = internal::getNamespaceObject(this, classDefine->getNameSpace(), getGlobal()).asObject();
 
   auto hasInstance = classDefine->instanceDefine.constructor;
 

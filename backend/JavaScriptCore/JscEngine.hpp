@@ -21,6 +21,7 @@
 #include "../../src/Native.h"
 #include "../../src/Scope.h"
 #include "../../src/Utils.h"
+#include "../../src/utils/Helper.hpp"
 #include "JscEngine.h"
 #include "JscHelper.hpp"
 #include "JscReference.hpp"
@@ -50,7 +51,8 @@ bool JscEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 
   registerStaticDefine(classDefine->staticDefine, object.asObject());
 
-  auto ns = getNamespaceForRegister(classDefine->nameSpace);
+  auto ns = ::script::internal::getNamespaceObject(this, classDefine->getNameSpace(), getGlobal())
+                .asObject();
   ns.set(classDefine->className, object);
 
   classRegistry_.emplace(const_cast<ClassDefine<T>*>(classDefine), registry);
