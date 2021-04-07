@@ -20,8 +20,6 @@
 #include <string>
 #include "../../src/types.h"
 
-#define TEMPLATE_NOT_IMPLEMENTED() throw Exception(std::string(__func__) + " not implemented");
-
 namespace script {
 
 namespace qjs_backend {
