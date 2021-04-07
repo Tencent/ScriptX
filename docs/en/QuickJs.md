@@ -4,7 +4,12 @@ Current support QuickJs version is 2021-03-27.
 
 Other version should be also supported.
 
-Note:
+## Event Loop
+
+QuickJs uses `JS_ExecutePendingJob` to execute promise-related asynchronous events, and ScriptX provides the MessageQueue mechanism.
+Therefore, ScriptX will automatically post events at the right time to drive the execution of `JS_ExecutePendingJob`.
+
+## The Patch
 
 QuickJs's C-API is limited, so ScriptX has workaround it mostly be using JS functions.
 
