@@ -66,6 +66,8 @@ Local<Object> QjsEngine::newConstructor(const ClassDefine<T>& classDefine) {
         auto classDefine = static_cast<const ClassDefine<T>*>(data);
         auto engine = args.template engineAs<QjsEngine>();
 
+        Tracer trace(engine, classDefine->getClassName());
+
         // For Constructor the this_val is new.target, which must be the constructor.
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target
         if (!JS_IsConstructor(engine->context_, args.callbackInfo_.thiz_)) {
@@ -124,56 +126,61 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) {
 
   auto& def = define.instanceDefine;
   for (auto&& f : def.functions) {
-    using FCT = typename IDT::FunctionDefine::FunctionCallback;
+    using FuncDef = typename IDT::FunctionDefine;
 
-    auto fun = newRawFunction(this, const_cast<FCT*>(&f.callback), definePtr,
-                              [](const Arguments& args, void* data1, void* data2, bool) {
-                                auto ptr = static_cast<InstanceClassOpaque*>(JS_GetOpaque(
-                                    qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
-                                if (ptr == nullptr || ptr->classDefine != data2) {
-                                  throw Exception(u8"call function on wrong receiver");
-                                }
-                                return (*static_cast<FCT*>(data1))(
-                                    static_cast<T*>(ptr->scriptClassPolymorphicPointer), args);
-                              });
+    auto fun = newRawFunction(
+        this, const_cast<FuncDef*>(&f), definePtr,
+        [](const Arguments& args, void* data1, void* data2, bool) {
+          auto ptr = static_cast<InstanceClassOpaque*>(
+              JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+          if (ptr == nullptr || ptr->classDefine != data2) {
+            throw Exception(u8"call function on wrong receiver");
+          }
+          auto f = static_cast<FuncDef*>(data1);
+          Tracer tracer(args.engine(), f->traceName);
+          return (f->callback)(static_cast<T*>(ptr->scriptClassPolymorphicPointer), args);
+        });
     proto.set(f.name, fun);
   }
 
   for (auto&& prop : def.properties) {
-    using GCT = typename IDT::PropertyDefine::GetterCallback;
-    using SCT = typename IDT::PropertyDefine::SetterCallback;
+    using PropDef = typename IDT::PropertyDefine;
 
     Local<Value> getterFun;
     Local<Value> setterFun;
 
     if (prop.getter) {
-      getterFun = newRawFunction(this, const_cast<GCT*>(&prop.getter), definePtr,
-                                 [](const Arguments& args, void* data1, void* data2, bool) {
-                                   auto ptr = static_cast<InstanceClassOpaque*>(JS_GetOpaque(
-                                       qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
-                                   if (ptr == nullptr || ptr->classDefine != data2) {
-                                     throw Exception(u8"call function on wrong receiver");
-                                   }
-                                   return (*static_cast<GCT*>(data1))(
-                                       static_cast<T*>(ptr->scriptClassPolymorphicPointer));
-                                 })
-                      .asValue();
-    }
-
-    if (prop.setter) {
-      setterFun =
-          newRawFunction(this, const_cast<SCT*>(&prop.setter), definePtr,
+      getterFun =
+          newRawFunction(this, const_cast<PropDef*>(&prop), definePtr,
                          [](const Arguments& args, void* data1, void* data2, bool) {
                            auto ptr = static_cast<InstanceClassOpaque*>(
                                JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
                            if (ptr == nullptr || ptr->classDefine != data2) {
                              throw Exception(u8"call function on wrong receiver");
                            }
-                           (*static_cast<SCT*>(data1))(
-                               static_cast<T*>(ptr->scriptClassPolymorphicPointer), args[0]);
-                           return Local<Value>();
+                           auto p = static_cast<PropDef*>(data1);
+                           Tracer tracer(args.engine(), p->traceName);
+                           return (p->getter)(static_cast<T*>(ptr->scriptClassPolymorphicPointer));
                          })
               .asValue();
+    }
+
+    if (prop.setter) {
+      setterFun = newRawFunction(
+                      this, const_cast<PropDef*>(&prop), definePtr,
+                      [](const Arguments& args, void* data1, void* data2, bool) {
+                        auto ptr = static_cast<InstanceClassOpaque*>(
+                            JS_GetOpaque(qjs_interop::peekLocal(args.thiz()), kInstanceClassId));
+                        if (ptr == nullptr || ptr->classDefine != data2) {
+                          throw Exception(u8"call function on wrong receiver");
+                        }
+                        auto p = static_cast<PropDef*>(data1);
+                        Tracer tracer(args.engine(), p->traceName);
+
+                        (p->setter)(static_cast<T*>(ptr->scriptClassPolymorphicPointer), args[0]);
+                        return Local<Value>();
+                      })
+                      .asValue();
     }
 
     auto atom = JS_NewAtomLen(context_, prop.name.c_str(), prop.name.length());

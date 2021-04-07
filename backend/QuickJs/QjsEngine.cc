@@ -266,11 +266,13 @@ Local<Value> QjsEngine::eval(const Local<String>& script, const Local<Value>& so
 std::shared_ptr<utils::MessageQueue> QjsEngine::messageQueue() { return queue_; }
 
 void QjsEngine::gc() {
+  EngineScope scope(this);
   if (isDestroying() || pauseGcCount_ != 0) return;
   JS_RunGC(runtime_);
 }
 
 size_t QjsEngine::getHeapSize() {
+  EngineScope scope(this);
   JSMemoryUsage usage{};
   JS_ComputeMemoryUsage(runtime_, &usage);
   return usage.memory_used_size;
@@ -287,30 +289,38 @@ bool QjsEngine::isDestroying() const { return isDestroying_; }
 void QjsEngine::registerNativeStatic(const Local<Object>& module,
                                      const internal::StaticDefine& def) {
   for (auto&& f : def.functions) {
-    auto ptr = &f.callback;
+    using FuncDef = ::script::internal::StaticDefine::FunctionDefine;
 
-    auto fun = newRawFunction(this, const_cast<FunctionCallback*>(ptr), nullptr,
+    auto fun = newRawFunction(this, const_cast<FuncDef*>(&f), nullptr,
                               [](const Arguments& args, void* data1, void*, bool) {
-                                return (*static_cast<FunctionCallback*>(data1))(args);
+                                auto f = static_cast<FuncDef*>(data1);
+                                Tracer trace(args.engine(), f->traceName);
+                                return (f->callback)(args);
                               });
     module.set(f.name, fun);
   }
 
   for (auto&& prop : def.properties) {
+    using PropDef = ::script::internal::StaticDefine::PropertyDefine;
+
     Local<Value> getterFun;
     Local<Value> setterFun;
     if (prop.getter) {
-      getterFun = newRawFunction(this, const_cast<GetterCallback*>(&prop.getter), nullptr,
+      getterFun = newRawFunction(this, const_cast<PropDef*>(&prop), nullptr,
                                  [](const Arguments& args, void* data, void*, bool) {
-                                   return (*static_cast<GetterCallback*>(data))();
+                                   auto p = static_cast<PropDef*>(data);
+                                   Tracer trace(args.engine(), p->traceName);
+                                   return (p->getter)();
                                  })
                       .asValue();
     }
 
     if (prop.setter) {
-      setterFun = newRawFunction(this, const_cast<SetterCallback*>(&prop.setter), nullptr,
+      setterFun = newRawFunction(this, const_cast<PropDef*>(&prop), nullptr,
                                  [](const Arguments& args, void* data, void*, bool) {
-                                   (*static_cast<SetterCallback*>(data))(args[0]);
+                                   auto p = static_cast<PropDef*>(data);
+                                   Tracer trace(args.engine(), p->traceName);
+                                   (p->setter)(args[0]);
                                    return Local<Value>();
                                  });
     }

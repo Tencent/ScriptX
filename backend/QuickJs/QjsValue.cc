@@ -18,6 +18,7 @@
 #include "../../src/Exception.h"
 #include "../../src/Reference.h"
 #include "../../src/Scope.h"
+#include "../../src/Utils.h"
 #include "../../src/Value.h"
 #include "../../src/utils/Helper.hpp"
 #include "QjsEngine.h"
@@ -119,6 +120,7 @@ Local<Function> Function::newFunction(script::FunctionCallback callback) {
         auto engine = static_cast<qjs_backend::QjsEngine*>(
             JS_GetOpaque(func_data[1], qjs_backend::QjsEngine::kPointerClassId));
 
+        Tracer trace(engine, "CppFunction");
         try {
           auto args = qjs_interop::makeArguments(engine, this_val, argc, argv);
           auto ret = (*callback)(args);
