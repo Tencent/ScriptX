@@ -17,9 +17,9 @@
 
 // ScriptX version config files
 // auto generated from the file VERSION
-#define SCRIPTX_VERSION_STRING "3.0.0"
+#define SCRIPTX_VERSION_STRING "3.1.0"
 #define SCRIPTX_VERSION_MAJOR 3
-#define SCRIPTX_VERSION_MINOR 0
+#define SCRIPTX_VERSION_MINOR 1
 #define SCRIPTX_VERSION_PATCH 0
 
 constexpr const char* kVersionString = SCRIPTX_VERSION_STRING;
