@@ -152,7 +152,7 @@ void QjsEngine::initEngineResource() {
     }
 
     {
-      // TODO(landerl): can we create symbol through C-API???
+      // TODO(landerl): can we create symbol through C-API? Not yet.
       auto ret = static_cast<ScriptEngine*>(this)->eval("(Symbol('ScriptX.InternalStore'))");
       auto atom = JS_ValueToAtom(context_, qjs_interop::peekLocal(ret));
       assert(atom != JS_ATOM_NULL);
@@ -317,10 +317,9 @@ void QjsEngine::registerNativeStatic(const Local<Object>& module,
 
     auto atom = JS_NewAtomLen(context_, prop.name.c_str(), prop.name.length());
 
-    // TODO: flags
     auto ret = JS_DefinePropertyGetSet(context_, qjs_interop::peekLocal(module), atom,
                                        qjs_interop::getLocal(getterFun),
-                                       qjs_interop::getLocal(setterFun), 0);
+                                       qjs_interop::getLocal(setterFun), JS_PROP_C_W_E);
     JS_FreeAtom(context_, atom);
     qjs_backend::checkException(ret);
   }

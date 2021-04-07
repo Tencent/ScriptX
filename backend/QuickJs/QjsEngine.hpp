@@ -50,7 +50,7 @@ void QjsEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 
   if (hasInstance) {
     auto proto = newPrototype(*classDefine);
-    nativeInstanceRegistry_.template emplace(
+    nativeInstanceRegistry_.emplace(
         classDefine,
         std::pair{qjs_interop::getLocal(proto, context_), qjs_interop::getLocal(module, context_)});
     module.set("prototype", proto);
@@ -178,10 +178,9 @@ Local<Object> QjsEngine::newPrototype(const ClassDefine<T>& define) {
 
     auto atom = JS_NewAtomLen(context_, prop.name.c_str(), prop.name.length());
 
-    // TODO: flags
     auto ret = JS_DefinePropertyGetSet(context_, qjs_interop::peekLocal(proto), atom,
                                        qjs_interop::getLocal(getterFun),
-                                       qjs_interop::getLocal(setterFun), 0);
+                                       qjs_interop::getLocal(setterFun), JS_PROP_C_W_E);
     JS_FreeAtom(context_, atom);
     qjs_backend::checkException(ret);
   }
