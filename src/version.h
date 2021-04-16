@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 // ScriptX version config files
 // auto generated from the file VERSION
 #define SCRIPTX_VERSION_STRING "3.1.0"

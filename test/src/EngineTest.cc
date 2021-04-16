@@ -31,6 +31,8 @@ TEST_F(EngineTest, Misc) {
 #endif
 
   EXPECT_FALSE(engine->getEngineVersion().empty());
+  EXPECT_TRUE(::script::kVersionMajor != 0);
+  EXPECT_TRUE(::script::kVersionString != nullptr);
 
 #ifdef SCRIPTX_LANG_JAVASCRIPT
   EXPECT_EQ(engine->getLanguageType(), ScriptLanguage::kJavaScript);

@@ -18,7 +18,6 @@
 #pragma once
 
 #include <new>
-#include "version.h"
 
 #define SCRIPTX_DISALLOW_COPY(CLASS_NAME) \
   CLASS_NAME(const CLASS_NAME&) = delete; \

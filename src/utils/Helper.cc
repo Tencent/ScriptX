@@ -49,7 +49,7 @@ Local<Value> getNamespaceObject(ScriptEngine* engine, const std::string_view& na
         throw Exception("invalid namespace");
       }
 
-      nameSpaceObj = stack.returnValue(obj.asObject());
+      nameSpaceObj = stack.returnValue(obj);
       begin = index + 1;
     }
   }

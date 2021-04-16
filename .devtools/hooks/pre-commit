@@ -26,6 +26,8 @@ function regenerateVersionHeader() {
   IFS='.' read -a VERSION_ARRAY <<<"${VERSION_STRING}"
 
   cat > src/version.h <<EOF
+#pragma once
+
 // ScriptX version config files
 // auto generated from the file VERSION
 #define SCRIPTX_VERSION_STRING "${VERSION_STRING}"
