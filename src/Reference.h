@@ -479,6 +479,24 @@ class Local<Function> {
 
   Local<Value> call() const { return call({}); }
 
+  /**
+   * create a C++ function wrapping a Local<Function>
+   *
+   * \code
+   * // example:
+   * Local<Function> add = ...
+   * auto func = add.wrapper<int(int,int)>();
+   * func(1, 2) == 3;
+   * \endcode
+   *
+   * @tparam FuncType function signature, like "int(int, int)" or "std::string(const char*, int)"
+   * @param function a std::function
+   * @note the returned std::function holds a Global<Function> to this reference, and will be auto
+   * released when destroy engine, after that, the returned std::function is not valid anymore.
+   */
+  template <typename FuncType>
+  std::function<FuncType> wrapper() const;  // implemented in Native.hpp
+
   SPECIALIZE_NON_VALUE(Function)
 
  private:

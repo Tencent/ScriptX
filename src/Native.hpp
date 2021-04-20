@@ -509,6 +509,31 @@ constexpr bool kBindingNoThrowDefaultValue =
     false;
 #endif
 
+template <typename RetType, typename... Args>
+std::enable_if_t<::script::converter::isConvertible<RetType> &&
+                     isArgsConvertible<std::tuple<Args...>>,
+                 std::function<RetType(Args...)>>
+createFunctionWrapperInner(const Local<Function>& function, const std::tuple<Args...>*) {
+  using EngineImpl = typename ImplType<ScriptEngine>::type;
+  return std::function(
+      [f = Global<Function>(function),
+       engine = EngineScope::currentEngineAs<EngineImpl>()](Args... args) -> RetType {
+        // use EngineImpl to avoid possible dynamic_cast
+        EngineScope scope(engine);
+        auto ret = f.get().call({}, args...);
+        if constexpr (!std::is_void_v<RetType>) {
+          return ::script::converter::Converter<RetType>::toCpp(ret);
+        }
+      });
+}
+
+template <typename FuncType>
+inline std::function<FuncType> createFunctionWrapper(const Local<Function>& function) {
+  using FC = traits::FunctionTrait<FuncType>;
+  return createFunctionWrapperInner<typename FC::ReturnType>(
+      function, static_cast<typename FC::Arguments*>(nullptr));
+}
+
 }  // namespace script::internal
 
 namespace script {
@@ -525,7 +550,7 @@ inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::
 Local<Object>::set(const Local<String>& key, T&& value) const {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   // static_cast is crucial!!!
-  // force the compile chose the non-template version
+  // force the compiler to chose the non-template version
   // to avoid a recursive call
   set(key, static_cast<const Local<Value>&>(val));
 }
@@ -557,6 +582,11 @@ inline internal::type_t<Local<Value>,
                         std::void_t<decltype(&internal::TypeConverter<T>::toScript)>...>
 Local<Function>::call(const Local<Value>& thiz, T&&... args) const {
   return call(thiz, {internal::TypeConverter<T>::toScript(std::forward<T>(args))...});
+}
+
+template <typename FuncType>
+std::function<FuncType> Local<Function>::wrapper() const {
+  return internal::createFunctionWrapper<FuncType>(*this);
 }
 
 template <typename... T>
