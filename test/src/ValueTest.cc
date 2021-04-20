@@ -567,7 +567,7 @@ TEST_F(ValueTest, Number) {
 
   testNumber<int32_t>(42);
   testNumber<int64_t>(42);
-  testNumber<float>(3.14);
+  testNumber<float>(3.14f);
   testNumber<double>(3.14);
 }
 

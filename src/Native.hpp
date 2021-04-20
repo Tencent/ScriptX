@@ -520,7 +520,7 @@ createFunctionWrapperInner(const Local<Function>& function, const std::tuple<Arg
        engine = EngineScope::currentEngineAs<EngineImpl>()](Args... args) -> RetType {
         // use EngineImpl to avoid possible dynamic_cast
         EngineScope scope(engine);
-        auto ret = f.get().template call({}, args...);
+        auto ret = f.get().call({}, args...);
         if constexpr (!std::is_void_v<RetType>) {
           return ::script::converter::Converter<RetType>::toCpp(ret);
         }
