@@ -178,19 +178,19 @@ struct Converter<T, std::enable_if_t<StringLikeConceptCondition(T)>> {
 
   static T toCpp(const StringHolder& holder) {
     if constexpr (std::is_same_v<T, std::string>) {
-      return std::move(holder).string();
+      return holder.string();
     } else if constexpr (std::is_same_v<T, std::string_view>) {
-      return std::move(holder).stringView();
+      return holder.stringView();
     } else if constexpr (std::is_same_v<T, const char*>) {
-      return std::move(holder).c_str();
+      return holder.c_str();
     }
 #ifdef __cpp_lib_char8_t
     else if constexpr (std::is_same_v<T, std::u8string>) {
-      return std::move(holder).u8string();
+      return holder.u8string();
     } else if constexpr (std::is_same_v<T, std::u8string_view>) {
-      return std::move(holder).u8stringView();
+      return holder.u8stringView();
     } else if constexpr (std::is_same_v<T, const char8_t*>) {
-      return std::move(holder).c_u8str();
+      return holder.c_u8str();
     }
 #endif
     else {
@@ -198,6 +198,8 @@ struct Converter<T, std::enable_if_t<StringLikeConceptCondition(T)>> {
       abort();
     }
   }
+
+  static T toCpp(const Local<Value>& str) { return toCpp(str.asString().toStringHolder()); }
 };
 
 // ScriptX types bypass
@@ -259,8 +261,8 @@ struct IsConvertibleHelper : std::false_type {};
 
 template <typename T>
 struct IsConvertibleHelper<T,
-                           // test if it has a function toCpp
-                           std::void_t<decltype(&TypeConverter<T>::toCpp)>> : std::true_type {};
+                           // test if it has a function toScript
+                           std::void_t<decltype(&TypeConverter<T>::toScript)>> : std::true_type {};
 
 }  // namespace internal
 

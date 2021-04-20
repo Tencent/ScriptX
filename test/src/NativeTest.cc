@@ -1116,6 +1116,33 @@ TEST_F(NativeTest, SelectOverloadedFunction) {
   EXPECT_EQ(3, (p->*x3)(0.0));
 }
 
+TEST_F(NativeTest, FunctionWrapper) {
+  std::function<int(int, int)> add;
+
+  {
+    EngineScope scope(engine);
+
+    auto func = engine
+                    ->eval(TS().js("(function (ia, ib) { return ia + ib;})")
+                               .lua("return function (ia, ib) return ia + ib end")
+                               .select())
+                    .asFunction();
+    auto f = func.wrapper<int(int, int)>();
+    EXPECT_EQ(f(1, 2), 3);
+    add = std::move(f);
+
+    func.wrapper<void(int, int)>();
+
+    auto wrongRetType = func.wrapper<const char*(int, int)>();
+    EXPECT_THROW({ wrongRetType(1, 2); }, Exception);
+
+    auto wrongParamType = func.wrapper<int(const char*, int)>();
+    EXPECT_THROW({ wrongParamType("hello", 2); }, Exception);
+  }
+
+  EXPECT_EQ(add(1, 1), 2) << "Out of EngineScope test";
+}
+
 TEST_F(NativeTest, ValidateClassDefine) {
   // static & instance are empty
   EXPECT_THROW({ defineClass("hello").build(); }, std::runtime_error);
