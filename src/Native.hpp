@@ -513,14 +513,15 @@ template <typename RetType, typename... Args>
 std::enable_if_t<::script::converter::isConvertible<RetType> &&
                      isArgsConvertible<std::tuple<Args...>>,
                  std::function<RetType(Args...)>>
-createFunctionWrapperInner(const Local<Function>& function, const std::tuple<Args...>*) {
+createFunctionWrapperInner(const Local<Function>& function, const Local<Value>& thiz,
+                           const std::tuple<Args...>*) {
   using EngineImpl = typename ImplType<ScriptEngine>::type;
   return std::function(
-      [f = Global<Function>(function),
+      [func = Global<Function>(function), receiver = Global<Value>(thiz),
        engine = EngineScope::currentEngineAs<EngineImpl>()](Args... args) -> RetType {
         // use EngineImpl to avoid possible dynamic_cast
         EngineScope scope(engine);
-        auto ret = f.get().call({}, args...);
+        auto ret = func.get().call(receiver.getValue(), args...);
         if constexpr (!std::is_void_v<RetType>) {
           return ::script::converter::Converter<RetType>::toCpp(ret);
         }
@@ -528,10 +529,11 @@ createFunctionWrapperInner(const Local<Function>& function, const std::tuple<Arg
 }
 
 template <typename FuncType>
-inline std::function<FuncType> createFunctionWrapper(const Local<Function>& function) {
+inline std::function<FuncType> createFunctionWrapper(const Local<Function>& function,
+                                                     const Local<Value>& thiz) {
   using FC = traits::FunctionTrait<FuncType>;
   return createFunctionWrapperInner<typename FC::ReturnType>(
-      function, static_cast<typename FC::Arguments*>(nullptr));
+      function, thiz, static_cast<typename FC::Arguments*>(nullptr));
 }
 
 }  // namespace script::internal
@@ -585,8 +587,8 @@ Local<Function>::call(const Local<Value>& thiz, T&&... args) const {
 }
 
 template <typename FuncType>
-std::function<FuncType> Local<Function>::wrapper() const {
-  return internal::createFunctionWrapper<FuncType>(*this);
+std::function<FuncType> Local<Function>::wrapper(const Local<Value>& thiz) const {
+  return internal::createFunctionWrapper<FuncType>(*this, thiz);
 }
 
 template <typename... T>

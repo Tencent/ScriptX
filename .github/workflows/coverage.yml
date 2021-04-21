@@ -12,6 +12,7 @@ on:
 
 jobs:
   coverage-mac-clang:
+    timeout-minutes: 30
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -60,6 +61,7 @@ jobs:
           parallel: true
 
   coverage-finish:
+    timeout-minutes: 30
     needs: coverage-mac-clang
     runs-on: ubuntu-latest
     steps:
