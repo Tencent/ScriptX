@@ -477,6 +477,9 @@ class Local<Function> {
   template <typename... T>
   Local<Value> call(const Local<Value>& thiz, T&&... args) const;
 
+  /**
+   * helper function to call with null thiz(receiver) and no arguments.
+   */
   Local<Value> call() const { return call({}); }
 
   /**
@@ -490,12 +493,15 @@ class Local<Function> {
    * \endcode
    *
    * @tparam FuncType function signature, like "int(int, int)" or "std::string(const char*, int)"
-   * @param function a std::function
-   * @note the returned std::function holds a Global<Function> to this reference, and will be auto
-   * released when destroy engine, after that, the returned std::function is not valid anymore.
+   * @return a std::function
+   * @param thiz the receiver of the function, default to null
+   * @note the returned std::function holds a Global<Function> to the function and receiver
+   * reference, and will be auto released when destroy engine, after that, the returned
+   * std::function is not valid anymore.
    */
+  // implemented in Native.hpp
   template <typename FuncType>
-  std::function<FuncType> wrapper() const;  // implemented in Native.hpp
+  std::function<FuncType> wrapper(const Local<Value>& thiz = {}) const;
 
   SPECIALIZE_NON_VALUE(Function)
 

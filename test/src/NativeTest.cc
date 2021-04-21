@@ -1143,6 +1143,32 @@ TEST_F(NativeTest, FunctionWrapper) {
   EXPECT_EQ(add(1, 1), 2) << "Out of EngineScope test";
 }
 
+TEST_F(NativeTest, FunctionWrapperReceiver) {
+  EngineScope scope(engine);
+  try {
+    auto func =
+        engine
+            ->eval(
+                TS().js("(function () { if (this && this.num) return this.num; else return -1 ;})")
+                    .lua("return function (self) if self ~= nil then return self.num else return "
+                         "-1 end end")
+                    .select())
+            .asFunction();
+
+    auto receiver =
+        engine->eval(TS().js("({ num: 42})").lua("num = {}; num.num = 42; return num;").select())
+            .asObject();
+
+    auto withReceiver = func.wrapper<int()>(receiver);
+    EXPECT_EQ(withReceiver(), 42);
+
+    auto noReceiver = func.wrapper<int()>();
+    EXPECT_EQ(noReceiver(), -1);
+  } catch (const Exception& e) {
+    FAIL() << e;
+  }
+}
+
 TEST_F(NativeTest, ValidateClassDefine) {
   // static & instance are empty
   EXPECT_THROW({ defineClass("hello").build(); }, std::runtime_error);
