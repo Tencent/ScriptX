@@ -45,10 +45,7 @@ class LoopQueueGuard {
       q.erase(queue_);
     }
 
-    {
-      std::unique_lock<std::mutex> lk(queue_->queueMutex_);
-      queue_->workerCount_--;
-    }
+    queue_->workerCount_--;
     queue_->workerQuitCondition_.notify_all();
   }
 
