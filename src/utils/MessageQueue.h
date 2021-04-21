@@ -223,7 +223,7 @@ class MessageQueue {
   std::condition_variable queueNotFullCondition_;
   std::deque<Message*> queue_;
   std::atomic_int32_t messageIdCounter_;
-  size_t workerCount_;
+  std::atomic_uint32_t workerCount_;
   std::condition_variable workerQuitCondition_;
 
   std::shared_ptr<Supervisor> supervisor_;
