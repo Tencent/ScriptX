@@ -109,10 +109,11 @@ class V8Engine : public ::script::ScriptEngine {
   Local<Object> getGlobal();
 
   void set(const Local<String>& key, const Local<Value>& value) override;
+  using ScriptEngine::set;
 
   Local<Value> eval(const Local<String>& script, const Local<String>& sourceFile) override;
-
   Local<Value> eval(const Local<String>& script) override;
+  using ScriptEngine::eval;
 
   /**
    * Create a new V8 Engine that share the same isolate, but with different context.
