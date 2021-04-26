@@ -43,6 +43,7 @@ cmake-build-*
 .vscode
 .vs
 /compile_commands.json
+/.cache/clangd
 
 # js
 node_modules

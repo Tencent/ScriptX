@@ -121,8 +121,7 @@ void JscEngine::initInternalSymbols() {
     )")
                                               .asFunction();
     if (!hasByteBufferAPI_) {
-      isByteBuffer_ = static_cast<ScriptEngine*>(this)
-                          ->eval(R"(
+      isByteBuffer_ = eval(R"(
         (function() {
           return function isByteBuffer(val) {
             return val instanceof ArrayBuffer ||

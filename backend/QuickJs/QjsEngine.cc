@@ -135,25 +135,25 @@ void QjsEngine::initEngineResource() {
   {
     EngineScope scope(this);
     {
-      auto ret = static_cast<ScriptEngine*>(this)->eval("(function(a, b) {return a === b;})");
+      auto ret = eval("(function(a, b) {return a === b;})");
       helperFunctionStrictEqual_ = qjs_interop::getLocal(ret);
     }
 
     {
-      auto ret = static_cast<ScriptEngine*>(this)->eval(
+      auto ret = eval(
           "(function(b) { return b instanceof ArrayBuffer || b instanceof SharedArrayBuffer || "
           "ArrayBuffer.isView(b);})");
       helperFunctionIsByteBuffer_ = qjs_interop::getLocal(ret);
     }
 
     {
-      auto ret = static_cast<ScriptEngine*>(this)->eval(kGetByteBufferInfo);
+      auto ret = eval(kGetByteBufferInfo);
       helperFunctionGetByteBufferInfo_ = qjs_interop::getLocal(ret);
     }
 
     {
       // TODO(landerl): can we create symbol through C-API? Not yet.
-      auto ret = static_cast<ScriptEngine*>(this)->eval("(Symbol('ScriptX.InternalStore'))");
+      auto ret = eval("(Symbol('ScriptX.InternalStore'))");
       auto atom = JS_ValueToAtom(context_, qjs_interop::peekLocal(ret));
       assert(atom != JS_ATOM_NULL);
       helperSymbolInternalStore_ = atom;
