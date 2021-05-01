@@ -137,4 +137,9 @@ elseif (${SCRIPTX_BACKEND} STREQUAL WebAssembly)
 elseif (${SCRIPTX_BACKEND} STREQUAL QuickJs)
     include("${SCRIPTX_TEST_LIBS}/quickjs/CMakeLists.txt")
     set(DEVOPS_LIBS_LIBPATH QuickJs CACHE STRING "" FORCE)
+elseif (${SCRIPTX_BACKEND} STREQUAL Python)
+    set(DEVOPS_LIBS_INCLUDE
+            "/usr/local/Cellar/python@3.9/3.9.4/Frameworks/Python.framework/Versions/3.9/include/python3.9/"
+                CACHE STRING "" FORCE)
+    set(DEVOPS_LIBS_LIBPATH "/usr/local/Cellar/python@3.9/3.9.4/Frameworks/Python.framework/Versions/3.9/lib/libpython3.9.dylib" CACHE STRING "" FORCE)
 endif ()
