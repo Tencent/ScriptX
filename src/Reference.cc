@@ -43,4 +43,8 @@ std::vector<std::string> Local<Object>::getKeyNames() const {
   return ret;
 }
 
+bool Local<Number>::isInteger() const {
+  return num.asNumber().toDouble() - num.asNumber().toInt64() < 1e-15;
+}
+
 }  // namespace script
