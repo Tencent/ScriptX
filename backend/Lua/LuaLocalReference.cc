@@ -49,12 +49,16 @@ bool judgeIsArray(int index)
   int currectArrIndex = 0;
 
   lua_pushnil(lua); 
+  
   while (lua_next(lua, index))
   {
       // Copy current key and judge it's type
       lua_pushvalue(lua, -2);
       if(!lua_isnumber(lua,-1) || lua_tonumber(lua,-1) != ++currectArrIndex)
+      {
+        lua_pop(lua, 2);
         return false;
+      }
       lua_pop(lua, 2);
   }
   return true;
