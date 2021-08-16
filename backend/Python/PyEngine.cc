@@ -17,16 +17,17 @@
 
 #include "PyEngine.h"
 #include "../../src/Utils.h"
+#include "PyHelper.h"
 
 namespace script::py_backend {
 
-PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue) {}
+PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue) { Py_Initialize(); }
 
-PyEngine::PyEngine() : PyEngine(std::shared_ptr<utils::MessageQueue>{}) {}
+PyEngine::PyEngine() : PyEngine(std::shared_ptr<utils::MessageQueue>{}) { Py_Initialize(); }
 
 PyEngine::~PyEngine() = default;
 
-void PyEngine::destroy() noexcept {}
+void PyEngine::destroy() noexcept { Py_Finalize(); }
 
 Local<Value> PyEngine::get(const Local<String>& key) { return Local<Value>(); }
 
@@ -39,6 +40,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
+  PyRun_SimpleString(script.toString().c_str());
   return Local<Value>();
 }
 
@@ -50,9 +52,9 @@ void PyEngine::gc() {}
 
 void PyEngine::adjustAssociatedMemory(int64_t count) {}
 
-ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kJavaScript; }
+ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 
-std::string PyEngine::getEngineVersion() { return ""; }
+std::string PyEngine::getEngineVersion() { return "0.0.1"; }
 
 bool PyEngine::isDestroying() const { return false; }
 

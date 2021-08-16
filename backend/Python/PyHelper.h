@@ -25,7 +25,7 @@ SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #ifndef PY_SSIZE_T_CLEAN
 #define PY_SSIZE_T_CLEAN
 #endif
-#include <Python.h>
+#include "include/Python.h"
 SCRIPTX_END_INCLUDE_LIBRARY
 
 namespace script::py_backend {}
