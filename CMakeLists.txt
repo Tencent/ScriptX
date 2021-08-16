@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
+set(CMAKE_CXX_STANDARD 17)
+
 file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/VERSION SCRIPTX_VERSION)
 
 if ("${PROJECT_NAME}" STREQUAL "")
@@ -73,6 +75,7 @@ target_include_directories(ScriptX PUBLIC ${SCRIPTX_DIR}/src/include)
 
 ###### config implementation ######
 
+set(SCRIPTX_BACKEND Python)
 if ("${SCRIPTX_BACKEND}" STREQUAL "")
     message(FATAL_ERROR "Platform not set. Please set SCRIPTX_BACKEND. Candidates: ${SCRIPTX_BACKEND_LIST}")
 endif ()
