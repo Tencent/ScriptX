@@ -20,6 +20,7 @@
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
 #include "../../src/utils/MessageQueue.h"
+#include "PyHelper.h"
 
 namespace script::py_backend {
 

@@ -19,7 +19,10 @@
 
 #include "../../src/foundation.h"
 
-// docs: https://docs.python.org/3/c-api/index.html
+// docs:
+// https://docs.python.org/3/c-api/index.html
+// https://docs.python.org/3/extending/embedding.html
+// https://docs.python.org/2/c-api/init.html#thread-state-and-the-global-interpreter-lock
 
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #ifndef PY_SSIZE_T_CLEAN
@@ -28,4 +31,10 @@ SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <Python.h>
 SCRIPTX_END_INCLUDE_LIBRARY
 
-namespace script::py_backend {}
+namespace script::py_backend {
+
+PyObject* checkException(PyObject* obj);
+int checkException(int ret);
+void checkException();
+
+}  // namespace script::py_backend

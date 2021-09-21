@@ -16,6 +16,8 @@
  */
 
 #pragma once
+#include <string>
+#include "../../src/types.h"
 
 namespace script {
 
