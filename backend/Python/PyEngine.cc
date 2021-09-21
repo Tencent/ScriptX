@@ -17,16 +17,18 @@
 
 #include "PyEngine.h"
 #include "../../src/Utils.h"
+#include "pydebug.h"
+#include "pylifecycle.h"
 
 namespace script::py_backend {
 
-PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue) {}
+PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue) { Py_Initialize(); }
 
 PyEngine::PyEngine() : PyEngine(std::shared_ptr<utils::MessageQueue>{}) {}
 
 PyEngine::~PyEngine() = default;
 
-void PyEngine::destroy() noexcept {}
+void PyEngine::destroy() noexcept { ScriptEngine::destroyUserData(); }
 
 Local<Value> PyEngine::get(const Local<String>& key) { return Local<Value>(); }
 
@@ -50,9 +52,9 @@ void PyEngine::gc() {}
 
 void PyEngine::adjustAssociatedMemory(int64_t count) {}
 
-ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kJavaScript; }
+ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 
-std::string PyEngine::getEngineVersion() { return ""; }
+std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
 bool PyEngine::isDestroying() const { return false; }
 

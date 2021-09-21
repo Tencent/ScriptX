@@ -20,22 +20,23 @@
 #include <cstdint>
 #include <string>
 #include "../../src/types.h"
+#include "../PyHelper.h"
 
 namespace script::internal {
 
 template <typename T>
 struct ImplType<Local<T>> {
-  using type = int;
+  using type = PyObject*;
 };
 
 template <typename T>
 struct ImplType<Global<T>> {
-  using type = int;
+  using type = PyObject*;
 };
 
 template <typename T>
 struct ImplType<Weak<T>> {
-  using type = int;
+  using type = PyObject*;
 };
 
 }  // namespace script::internal

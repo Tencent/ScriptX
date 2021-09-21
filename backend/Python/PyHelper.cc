@@ -16,3 +16,28 @@
  */
 
 #include "PyHelper.hpp"
+
+namespace script::py_backend {
+
+PyObject* checkException(PyObject* obj) {
+  if (!obj) {
+    checkException();
+  }
+  return obj;
+}
+
+int checkException(int ret) {
+  if (ret == -1) {
+    checkException();
+  }
+  return ret;
+}
+
+void checkException() {
+  auto err = PyErr_Occurred();
+  if (err) {
+    // TODO
+  }
+}
+
+}  // namespace script::py_backend

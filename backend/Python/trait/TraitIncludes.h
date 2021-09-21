@@ -22,5 +22,5 @@
 #include "../PyReference.hpp"
 
 // global marco
-#define SCRIPTX_BACKEND_TEMPLATE
-#define SCRIPTX_LANG_NONE
+#define SCRIPTX_BACKEND_PYTHON
+#define SCRIPTX_LANG_PYTHON

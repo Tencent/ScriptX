@@ -16,6 +16,16 @@
  */
 
 #pragma once
+#include "../../src/Reference.h"
 #include "PyHelper.h"
 
-namespace script::py_backend {}
+namespace script::py_backend {
+
+struct py_interop {
+  template <class T>
+  static Local<T> makeLocal(PyObject* ref) {
+    return Local<T>(ref);
+  }
+};
+
+}  // namespace script::py_backend
