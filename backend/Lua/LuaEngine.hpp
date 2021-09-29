@@ -19,6 +19,7 @@
 
 #include "../../src/Scope.h"
 #include "../../src/Utils.h"
+#include "../../src/utils/Helper.hpp"
 #include "LuaEngine.h"
 #include "LuaHelper.hpp"
 
@@ -77,7 +78,9 @@ template <typename T>
 void LuaEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
   StackFrameScope stackFrameScope;
 
-  auto ns = getNamespaceForRegister(classDefine->nameSpace);
+  auto ns = ::script::internal::getNamespaceObject(this, classDefine->getNameSpace(),
+                                                   get(kLuaGlobalEnvName).asObject())
+                .asObject();
 
   lua_newtable(lua_);
   auto table = lua_gettop(lua_);

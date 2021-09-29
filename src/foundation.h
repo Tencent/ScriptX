@@ -18,7 +18,6 @@
 #pragma once
 
 #include <new>
-#include "version.h"
 
 #define SCRIPTX_DISALLOW_COPY(CLASS_NAME) \
   CLASS_NAME(const CLASS_NAME&) = delete; \
@@ -62,6 +61,24 @@ struct ImplType {
 // MSVC only support the standart _Pragma on recent version, use the extension key word here
 #define SCRIPTX_BEGIN_INCLUDE_LIBRARY __pragma(warning(push, 0))
 #define SCRIPTX_END_INCLUDE_LIBRARY __pragma(pop)
+
+#elif defined(__clang__)
+
+#define SCRIPTX_BEGIN_INCLUDE_LIBRARY \
+  _Pragma("clang diagnostic push") _Pragma("clang diagnostic ignored \"-Wall\"")
+
+#define SCRIPTX_END_INCLUDE_LIBRARY _Pragma("clang diagnostic pop")
+
+#elif defined(__GNUC__)
+// GCC can't suppress all warnings by -Wall
+// suppress anything encountered explicitly
+// 1. -Wcast-function-type for QuickJs
+
+#define SCRIPTX_BEGIN_INCLUDE_LIBRARY                                        \
+  _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wall\"") \
+      _Pragma("GCC diagnostic ignored \"-Wcast-function-type\"")
+
+#define SCRIPTX_END_INCLUDE_LIBRARY _Pragma("GCC diagnostic pop")
 
 #else
 

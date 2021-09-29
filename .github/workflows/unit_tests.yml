@@ -12,11 +12,12 @@ on:
 
 jobs:
   mac-clang-run:
+    timeout-minutes: 30
     runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
-        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        backends: [ V8, JavaScriptCore, QuickJs, Lua, Empty ]
         build_type:
           - Debug
           # mac runner seems to be slow and less
@@ -49,6 +50,7 @@ jobs:
           ./UnitTests
 
   windows-msvc-run:
+    timeout-minutes: 30
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -98,11 +100,12 @@ jobs:
           ${{ matrix.build_type }}/UnitTests
 
   ubuntu-gcc-build:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        backends: [ V8, JavaScriptCore, QuickJs, Lua, Empty ]
         build_type:
           - Debug
           #- Release
@@ -133,11 +136,12 @@ jobs:
     # 1. we don't have android libraries
     # 2. -undefined dynamic_lookup not work with NDK
     if: ${{ false }}
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        backends: [ V8, JavaScriptCore, Lua, Empty ]
+        backends: [ V8, JavaScriptCore, QuickJs, Lua, Empty ]
         build_type:
           - Debug
           #- Release
@@ -167,6 +171,7 @@ jobs:
           cmake --build . -j $(nproc) --target UnitTests
 
   node-gcc-run:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -190,6 +195,7 @@ jobs:
           npm run test
 
   webassembly-emscripten-run:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

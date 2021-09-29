@@ -16,6 +16,21 @@ ScriptX不仅隔离了几种JavaScript引擎，甚至可以隔离不同脚本语
 
 ScriptX的术语中，"前端"指对外的C++ API，"后端"则指不同的底层引擎，目前已经实现的后端有：V8, node.js, JavaScriptCore, WebAssembly, Lua.
 
+# 状态
+
+| 后端 | 语言 | 版本 | 状态 |
+| :----: |  :----:  | :----:  | :----: |
+| V8 | JavaScript | 7.4+ | done |
+| JavaScriptCore | JavaScript | 7604.1.38.0.7+<br>（iOS 10+/macOS10.12+) | done |
+| Node.js | JavaScript | 14.x+ | done |
+| QuickJs | JavaScript | 2021-03-27 | done |
+| WebAssembly | JavaScript | Emscripten-2.0.5+ | done |
+| Lua | Lua | 5.4+ | done |
+| CPython | Python |  | todo |
+| YARV | Ruby |  | todo |
+| Mono | C# |  | todo |
+
+
 # 简介
 
 ScriptX 的接口使用现代C++特性。并且做到100%符合C++标准，完全跨平台。
@@ -178,38 +193,4 @@ ScriptX 中的一些重要类：
 4. `Local<Value>`, `Local<Null>`, `Local<Object>`, `Local<String>`, `Local<Number>`, `Local<Boolean>`, `Local<Function>`, `Local<Array>`, `Local<ByteBuffer>`, `Local<Unsupported>`
 5. `Global<T>`, `Weak<T>`
 
-在正式使用ScriptX之前，请花半个小时**仔细阅读**下列文档，并熟悉 ScriptX 中的若干概念。
-
-1. [CMake项目引入指引](docs/zh/ImportScriptX.md)
-2. [基本概念](docs/zh/Basics.md) 这部分比较重要
-    1. 约定
-    1. 预定义宏
-    1. Engine 与 MessageQueue
-    1. Scope
-    1. Value
-    1. Local
-    1. Global / Weak
-3. [异常处理](docs/zh/Exception.md)
-4. [C++绑定](docs/zh/NativeBinding.md)
-    1. 创建一个Native的Function
-    2. defineClass
-    1. ScriptClass
-    3. 各种操作
-    4. 直接绑定C++函数
-    5. converter
-    6. 对现有C++类的绑定
-    7. Tips: 选择重载函数
-    8. Tips: 不同语言见的差异
-5. [和原生引擎API的互操作](docs/zh/Interop.md)
-    1. `script::v8_interop`
-    1. `script::jsc_interop`
-    1. `script::lua_interop`
-6. [JavaScript语言说明](docs/zh/JavaScript.md)
-    1. 类型对照表
-7. [Lua语言说明](docs/zh/Lua.md)
-8. [WebAssemble说明](docs/zh/WebAssembly.md)
-9. [node.js说明](docs/zh/NodeJs.md)
-9. [常见问题](docs/zh/FAQ.md)
-10. [快速体验指南](docs/zh/QuickStart.md)
-11. [性能相关](docs/zh/Performance.md)
-12. [ScriptX在 2020年 Pure C++大会](docs/zh/PureCpp2020.md)
+在正式使用ScriptX之前，请花半个小时**仔细阅读**[项目文档](docs/zh/TOC.md)，并熟悉 ScriptX 中的若干概念。

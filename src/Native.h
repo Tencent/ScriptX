@@ -112,38 +112,61 @@ class ScriptClass {
   struct ConstructFromCpp {};
 
   /**
-   * This constructor is be used pure to create a ScriptObject along with
+   * This constructor is been used purely to create a ScriptObject along with
    * it's script object with cpp code (not from the script constructor binding).
+   *
+   * Please use this competence with extra CAUTION, read the following doc with care,
+   * otherwise you may face strange crashes (memory issue).
+   *
+   * YOU HAVE BEEN WARNED.
+   *
    *
    * use case:
    *
    * \code
    *
-   * class MyContextScriptObject : public ScriptObject {
+   * class Context : public ScriptObject {
    * public:
-   *     MyContextScriptObject(Canvas* canvas) :
-   *        ScriptObject(ConstructFromCpp<MyContextScriptObject>()) {
+   *     Context(Canvas* canvas) :
+   *        ScriptObject(ConstructFromCpp<Context>()) {
    *            // pay attention, in constructor the `this` is partial inited,
    *            // take care of publishing `this` pointer and/or script object.
    *        }
    * };
    *
    * Canvas* canvas = render->getCanvas();
-   * // note: the pointer is managed be script object
+   *
+   * // NOTE: the pointer is managed be script object
    * // so, just return the script object out, it's all done.
-   * auto pointer = new MyContextScriptObject(canvas);
+   * auto pointer = new Context(canvas);
    * engine->set("context", pointer->getScriptObject());
-   * // never delete pointer, ScriptEngine does that on finalization.
+   * // NEVER delete the pointer, ScriptEngine does that on finalization.
+   * // AND NEVER keep the pointer from c++, still, it's managed by ScriptEngine,
+   * // use a global reference instead.
    *
    * \endcode
    *
-   * note: upon new, the returned pointer should be own(managed) by the script object,
+   *
+   * another use case:
+   *
+   * \code
+   *
+   * auto getContext = Function::newFunction([]() {
+   *   Canvas* canvas = render->getCanvas();
+   *   auto pointer = new Context(canvas);
+   *   return pointer->getScriptObject();
+   * });
+   *
+   * \endcode
+   *
+   * NOTE: upon new, the returned pointer should be own(managed) by the script object,
    * caller should not delete the pointer.
    *
-   * note: this constructor MUST be called under EngineScope.
+   * NOTE: this constructor MUST be called under EngineScope.
    *
-   * note: this ctor "CAN BE" implemented with no params, but which makes it the "default
-   * constructor" however, there are heavy logic inside this ctor, we deliberately add a param.
+   * NOTE: this ctor "CAN BE" implemented with no params, but which makes it the "default
+   * constructor" however, there is heavy logic inside this ctor, we deliberately add a param --
+   * policy.
    */
   template <typename T>
   explicit ScriptClass(ConstructFromCpp<T> policy);

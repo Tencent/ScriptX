@@ -569,34 +569,6 @@ void LuaEngine::pushInstanceFunction(const void* data, const void* classDefine,
       4);
 }
 
-Local<Object> LuaEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
-  StackFrameScope stack;
-  Local<Object> nameSpaceObj = get(kLuaGlobalEnvName).asObject();
-  if (!nameSpace.empty()) {
-    std::size_t begin = 0;
-    while (begin < nameSpace.size()) {
-      StackFrameScope stack2;
-      auto index = nameSpace.find('.', begin);
-      if (index == std::string::npos) {
-        index = nameSpace.size();
-      }
-      auto key = String::newString(nameSpace.substr(begin, index - begin));
-      auto obj = nameSpaceObj.get(key);
-      if (obj.isNull()) {
-        // new plain object
-        obj = Object::newObject();
-        nameSpaceObj.set(key, obj);
-      } else if (!obj.isObject()) {
-        throw Exception("invalid namespace");
-      }
-
-      begin = index + 1;
-      nameSpaceObj = stack2.returnValue(obj.asObject());
-    }
-  }
-  return stack.returnValue(nameSpaceObj);
-}
-
 std::shared_ptr<utils::MessageQueue> LuaEngine::messageQueue() { return messageQueue_; }
 
 void LuaEngine::gc() { lua_gc(lua_, LUA_GCCOLLECT, 0); }

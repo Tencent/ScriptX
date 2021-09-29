@@ -80,10 +80,11 @@ class JscEngine : public ::script::ScriptEngine {
   Local<Value> get(const Local<String>& key) override;
 
   void set(const Local<String>& key, const Local<Value>& value) override;
+  using ScriptEngine::set;
 
   Local<Value> eval(const Local<String>& script, const Local<String>& sourceFile) override;
-
   Local<Value> eval(const Local<String>& script) override;
+  using ScriptEngine::eval;
 
   std::shared_ptr<utils::MessageQueue> messageQueue() override;
 
@@ -103,8 +104,6 @@ class JscEngine : public ::script::ScriptEngine {
 
   template <typename T>
   bool registerNativeClassImpl(const ClassDefine<T>* classDefine);
-
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
 
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,

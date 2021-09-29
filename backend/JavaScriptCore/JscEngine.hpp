@@ -21,6 +21,7 @@
 #include "../../src/Native.h"
 #include "../../src/Scope.h"
 #include "../../src/Utils.h"
+#include "../../src/utils/Helper.hpp"
 #include "JscEngine.h"
 #include "JscHelper.hpp"
 #include "JscReference.hpp"
@@ -50,7 +51,8 @@ bool JscEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
 
   registerStaticDefine(classDefine->staticDefine, object.asObject());
 
-  auto ns = getNamespaceForRegister(classDefine->nameSpace);
+  auto ns = ::script::internal::getNamespaceObject(this, classDefine->getNameSpace(), getGlobal())
+                .asObject();
   ns.set(classDefine->className, object);
 
   classRegistry_.emplace(const_cast<ClassDefine<T>*>(classDefine), registry);
@@ -137,6 +139,7 @@ JSObjectCallAsConstructorCallback JscEngine::createConstructor() {
         thiz = def->instanceDefine.constructor(callbackInfo);
       }
       if (thiz) {
+        thiz->internalState_.classDefine = def;
         JSObjectSetPrivate(object, thiz);
         JSObjectSetPrototype(ctx, object,
                              toJsc(engine->context_, registry.prototype.get().asValue()));
@@ -181,7 +184,11 @@ Local<Object> JscEngine::defineInstancePrototype(const ClassDefine<T>* classDefi
 template <typename T>
 void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
                                        Local<Object>& prototypeObject) {
-  using ContextData = std::pair<typename internal::InstanceDefine<T>::FunctionDefine*, JscEngine*>;
+  struct ContextData {
+    typename internal::InstanceDefine<T>::FunctionDefine* functionDefine;
+    JscEngine* engine;
+    const ClassDefine<T>* classDefine;
+  };
 
   for (auto& f : classDefine->instanceDefine.functions) {
     StackFrameScope stack;
@@ -191,8 +198,9 @@ void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
                                size_t argumentCount, const JSValueRef arguments[],
                                JSValueRef* exception) {
       auto data = static_cast<ContextData*>(JSObjectGetPrivate(function));
-      auto fp = data->first;
-      auto engine = data->second;
+      auto fp = data->functionDefine;
+      auto engine = data->engine;
+      auto def = data->classDefine;
       auto& callback = fp->callback;
 
       Tracer trace(engine, fp->traceName);
@@ -201,7 +209,9 @@ void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
 
       try {
         auto* t = static_cast<T*>(JSObjectGetPrivate(thisObject));
-        if (!t) throw Exception(u8"call function on wrong receiver");
+        if (!t || t->internalState_.classDefine != def) {
+          throw Exception(u8"call function on wrong receiver");
+        }
         auto returnVal = callback(t, args);
         return toJsc(engine->context_, returnVal);
       } catch (Exception& e) {
@@ -216,8 +226,8 @@ void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
     auto funcClazz = JSClassCreate(&jsFunc);
     Local<Function> funcObj(JSObjectMake(
         currentEngineContextChecked(), funcClazz,
-        new ContextData(const_cast<typename internal::InstanceDefine<T>::FunctionDefine*>(&f),
-                        this)));
+        new ContextData{const_cast<typename internal::InstanceDefine<T>::FunctionDefine*>(&f), this,
+                        classDefine}));
 
     // not used anymore
     JSClassRelease(funcClazz);
@@ -230,7 +240,11 @@ void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
 template <typename T, typename ConsumeLambda>
 void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
                                          ConsumeLambda consumerLambda) {
-  using ContextData = std::pair<typename internal::InstanceDefine<T>::PropertyDefine*, JscEngine*>;
+  struct ContextData {
+    typename internal::InstanceDefine<T>::PropertyDefine* propertyDefine;
+    JscEngine* engine;
+    const ClassDefine<T>* classDefine;
+  };
 
   for (auto& p : classDefine->instanceDefine.properties) {
     StackFrameScope stack;
@@ -244,15 +258,17 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
                                  size_t argumentCount, const JSValueRef arguments[],
                                  JSValueRef* exception) {
         auto data = static_cast<ContextData*>(JSObjectGetPrivate(function));
-        auto pp = data->first;
-        auto engine = data->second;
+        auto pp = data->propertyDefine;
+        auto engine = data->engine;
+        auto def = data->classDefine;
 
         Tracer trace(engine, pp->traceName);
 
         try {
           auto* t = static_cast<T*>(JSObjectGetPrivate(thisObject));
-          if (!t) throw Exception(u8"call function on wrong receiver");
-
+          if (!t || t->internalState_.classDefine != def) {
+            throw Exception(u8"call function on wrong receiver");
+          }
           auto value = (pp->getter)(t);
 
           return toJsc(engine->context_, value);
@@ -268,8 +284,8 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
 
       getter = Local<Function>(JSObjectMake(
           currentEngineContextChecked(), funcClazz,
-          new ContextData(const_cast<typename internal::InstanceDefine<T>::PropertyDefine*>(&p),
-                          this)));
+          new ContextData{const_cast<typename internal::InstanceDefine<T>::PropertyDefine*>(&p),
+                          this, classDefine}));
 
       JSClassRelease(funcClazz);
     }
@@ -281,9 +297,9 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
                                  size_t argumentCount, const JSValueRef arguments[],
                                  JSValueRef* exception) {
         auto data = static_cast<ContextData*>(JSObjectGetPrivate(function));
-
-        auto pp = data->first;
-        auto engine = data->second;
+        auto pp = data->propertyDefine;
+        auto engine = data->engine;
+        auto def = data->classDefine;
 
         Tracer trace(engine, pp->traceName);
 
@@ -291,7 +307,9 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
         if (args.size() > 0) {
           try {
             auto* t = static_cast<T*>(JSObjectGetPrivate(thisObject));
-            if (!t) throw Exception(u8"call function on wrong receiver");
+            if (!t || t->internalState_.classDefine != def) {
+              throw Exception(u8"call function on wrong receiver");
+            }
             (pp->setter)(t, args[0]);
           } catch (Exception& e) {
             *exception = jsc_backend::JscEngine::toJsc(engine->context_, e.exception());
@@ -306,8 +324,8 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
 
       setter = Local<Function>(JSObjectMake(
           context_, funcClazz,
-          new ContextData(const_cast<typename internal::InstanceDefine<T>::PropertyDefine*>(&p),
-                          this)));
+          new ContextData{const_cast<typename internal::InstanceDefine<T>::PropertyDefine*>(&p),
+                          this, classDefine}));
 
       JSClassRelease(funcClazz);
     }

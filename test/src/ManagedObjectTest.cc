@@ -160,7 +160,7 @@ TEST_F(ManagedObjectTest, FunctionCallback) {
     {
       // when use std::function with functor
       // be careful with move-constructor!
-      Function::newFunction(FunctionCallbackTest());
+      auto function = Function::newFunction(FunctionCallbackTest());
       EXPECT_TRUE(functionCallback != nullptr);
     }
   }

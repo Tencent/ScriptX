@@ -18,6 +18,7 @@
 #pragma once
 
 #include "../../types.h"
+#include "../../version.h"
 
 // all in one header file
 #include "../../Engine.h"

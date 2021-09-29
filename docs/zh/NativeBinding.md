@@ -34,7 +34,7 @@ struct ClassDefine {
 
 1. 模板参数T：即该脚本class在C++中对应的类，脚本类的实例和C++中T的实例是一一对应的，每创建一个脚本class实例，C++中都会创建一个新的T的实例。当这个class只有静态方法属性（类方法属性）即不能创建实例的，用void代替T。
 2. className：类的名字
-3. nameSpace：即这个类在哪个命名空间下。在JS中比如`nameSpace= "game.ui"; className="ImageView";`则该类在脚本中会存在于`game.ui.ImageView`，使用时`new game.ui.ImageView()`.
+3. nameSpace：即这个类在哪个命名空间下。在JS中比如`nameSpace= "game.ui"; className="ImageView";`则该类在脚本中会存在于`game.ui.ImageView`，使用时`new game.ui.ImageView()`. 为了支持多种语言，命名空间的分隔符统一使用英文句号——`.`。
 4. staticDefine：类的静态方法+属性定义
 5. instanceDefine：类的实例方法+属性定义
 6. getNativeRegister: 由于ClassDefine是模板类，在一些需要存储到容器的场景就比较难实现。因此ClassDefine直接实现了一个**类型擦除**的helper类，`NativeRegister`类是一个普通类，支持拷贝和移动，可以当做指针使用。
@@ -175,6 +175,8 @@ ScriptX不保证这个实例一定是在 ScriptObject GC的同时销毁（可能
 
 #### `ScriptClass::ScriptClass(ConstructFromCpp<T>)`
 这个是ScriptClass的另一个构造函数，使用场景是某个绑定类构造时需要很多C++依赖，这样再经过一道ScriptX就导致类型转换很多很麻烦。所以提供这个构造函数，直接用C++new一个实例出来，然后通过 `getScriptObejct` 拿到对应的ScriptObject返回给ScriptX。
+
+请谨慎使用这个能力，并详细阅读头文件中的相关注释，否则你将面临内存问题导致的crash！
 
 ```c++
 

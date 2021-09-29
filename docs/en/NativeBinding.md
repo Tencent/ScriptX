@@ -36,7 +36,7 @@ Use `ClassDefine<T>` to describe all the information of a class.
    Each time a script class instance is created, a new instance of T will be created in C++.
    When this class has only static methods (class methods) that we cannot create an instance, use void instead of T.
 2. className: the name of the class
-3. nameSpace: In which namespace this class is located. In JS, such as `nameSpace = "game.ui"; className="ImageView";` then the class will exist in `game.ui.ImageView` in the script, and use `new game.ui.ImageView()`.
+3. nameSpace: In which namespace this class is located. In JS, such as `nameSpace = "game.ui"; className="ImageView";` then the class will exist in `game.ui.ImageView` in the script, and use `new game.ui.ImageView()`. To cover different languages, the namespace separator char is always a single dot -- `.`.
 4. staticDefine: class static method + properties definition
 5. instanceDefine: instance method + properties definition of the class
 6. getNativeRegister: Since ClassDefine is a template class, it is quite difficult to be stored in a container. 
@@ -187,6 +187,10 @@ So when you hold a ScriptClass pointer in C++, you may find that `ScriptClass::g
 
 #### `ScriptClass::ScriptClass(ConstructFromCpp<T>)`
 This is another constructor of ScriptClass. The usage scenario is that a certain binding class requires a lot of C++ dependencies when constructing it. In this way, going through another ScriptX will cause a lot of type conversion and troublesome. So provide this constructor, directly use C++new as an instance, and then get the corresponding ScriptObject through `getScriptObejct` and return it to ScriptX.
+
+Please use this competence with extra CAUTION, read the doc in header file with care, otherwise you may face strange crashes (memory issue).
+
+YOU HAVE BEEN WARNED.
 
 ```c++
 

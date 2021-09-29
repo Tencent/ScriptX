@@ -29,6 +29,16 @@ TEST_F(EngineTest, Misc) {
 #if defined(SCRIPTX_BACKEND_V8) || defined(SCRIPTX_BACKEND_LUA)
   EXPECT_GT(size, 0);
 #endif
+
+  EXPECT_FALSE(engine->getEngineVersion().empty());
+  EXPECT_TRUE(::script::kVersionMajor != 0);
+  EXPECT_TRUE(::script::kVersionString != nullptr);
+
+#ifdef SCRIPTX_LANG_JAVASCRIPT
+  EXPECT_EQ(engine->getLanguageType(), ScriptLanguage::kJavaScript);
+#elif defined(SCRIPTX_LANG_LUA)
+  EXPECT_EQ(engine->getLanguageType(), ScriptLanguage::kLua);
+#endif
 }
 
 TEST_F(EngineTest, UserData) {

@@ -24,6 +24,7 @@
 #include "types.h"
 #include SCRIPTX_BACKEND(Reference.h)
 #include SCRIPTX_BACKEND(Engine.h)
+#include SCRIPTX_BACKEND(Utils.h)
 
 namespace script {
 
@@ -239,6 +240,8 @@ class Local<String>;
                                                                                   \
   friend class ScriptEngine;                                                      \
   friend typename internal::ImplType<ScriptEngine>::type;                         \
+                                                                                  \
+  friend typename internal::ImplType<internal::interop>::type;                    \
                                                                                   \
   friend class ValueType;                                                         \
                                                                                   \
@@ -474,7 +477,31 @@ class Local<Function> {
   template <typename... T>
   Local<Value> call(const Local<Value>& thiz, T&&... args) const;
 
+  /**
+   * helper function to call with null thiz(receiver) and no arguments.
+   */
   Local<Value> call() const { return call({}); }
+
+  /**
+   * create a C++ function wrapping a Local<Function>
+   *
+   * \code
+   * // example:
+   * Local<Function> add = ...
+   * auto func = add.wrapper<int(int,int)>();
+   * func(1, 2) == 3;
+   * \endcode
+   *
+   * @tparam FuncType function signature, like "int(int, int)" or "std::string(const char*, int)"
+   * @return a std::function
+   * @param thiz the receiver of the function, default to null
+   * @note the returned std::function holds a Global<Function> to the function and receiver
+   * reference, and will be auto released when destroy engine, after that, the returned
+   * std::function is not valid anymore.
+   */
+  // implemented in Native.hpp
+  template <typename FuncType>
+  std::function<FuncType> wrapper(const Local<Value>& thiz = {}) const;
 
   SPECIALIZE_NON_VALUE(Function)
 

@@ -20,6 +20,7 @@
 #include <memory>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include "Reference.h"
 #include "Value.h"
 #include "types.h"
@@ -31,6 +32,7 @@ namespace script {
 class ScriptEngine {
  protected:
   std::unordered_map<internal::TypeIndex, const void*> classDefineRegistry_{};
+  std::unordered_set<const void*> staticClassDefineRegistry_{};
   std::shared_ptr<void> userData_{};
 
  public:

@@ -1,6 +1,11 @@
 
 ---
 
+Version 3.1.0 (2021-04):
+1. add QuickJs backend
+
+---
+
 Version 3.0.0 (2021-03):
 1. Rename project name to ScriptX
 2. prepare for open source
