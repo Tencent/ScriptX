@@ -128,6 +128,17 @@ elseif (${SCRIPTX_BACKEND} STREQUAL Lua)
         set(DEVOPS_LIBS_LIBPATH
                 "${SCRIPTX_TEST_LIBS}/win64/lua/Lua54.lib"
                 CACHE STRING "" FORCE)
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # apt install liblua5.3-dev
+        set(DEVOPS_LIBS_INCLUDE
+                "/usr/include/lua5.3"
+                CACHE STRING "" FORCE)
+
+        #/usr/lib/x86_64-linux-gnu/liblua5.3.a
+        set(DEVOPS_LIBS_LIBPATH
+                "lua5.3"
+                "lua5.3-c++"
+                CACHE STRING "" FORCE)
     endif ()
 
 elseif (${SCRIPTX_BACKEND} STREQUAL WebAssembly)

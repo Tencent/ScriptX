@@ -118,6 +118,9 @@ jobs:
           path: |
             build/ScriptXTestLibs
             build/googletest-src
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install -y liblua5.3-dev
       - name: Configure cmake
         env:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
