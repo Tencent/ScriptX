@@ -185,6 +185,8 @@ void QjsEngine::destroy() noexcept {
   JS_RunGC(runtime_);
   JS_FreeContext(context_);
   JS_FreeRuntime(runtime_);
+
+  delete this;
 }
 
 void QjsEngine::scheduleTick() {
