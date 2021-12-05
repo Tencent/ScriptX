@@ -21,7 +21,7 @@ jobs:
         backends: [ V8, JavaScriptCore, QuickJs, Lua, Empty ]
         build_type:
           - Debug
-          # mac runner seems to be slow and less
+          # mac runner seems to be slow and rear
           # - Release
     steps:
       - uses: actions/checkout@v2
@@ -124,7 +124,7 @@ jobs:
       - name: Configure cmake
         env:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
-          SCRIPTX_TEST_BUILD_ONLY: ON
+          # SCRIPTX_TEST_BUILD_ONLY: ON
         run: |
           mkdir -p build && cd build
           cmake ../test                                       \
