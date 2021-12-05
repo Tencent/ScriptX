@@ -12,12 +12,12 @@ enable_testing()
 add_executable(UnitTests)
 include(cmake/TestEnv.cmake)
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -flto")
 
     if (TEST_FLAG_ENABLE_ASAN)
         # macOS doesn't support -fsanitize=memory
-        string(APPEND CMAKE_CXX_FLAGS_DEBUG
+        string(APPEND UNIT_TEST_ASAN_FLAGS
                 " -fsanitize=address"
                 " -fsanitize-recover=address"
                 " -fno-omit-frame-pointer")
@@ -26,10 +26,14 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     if (TEST_FLAG_ENABLE_UBSAN)
         # UBSan make UnitTests runs very slow
         # enable as need
-        string(APPEND CMAKE_CXX_FLAGS_DEBUG
+        string(APPEND UNIT_TEST_ASAN_FLAGS
                 " -fsanitize=undefined"
                 " -fsanitize-recover=undefined")
     endif ()
+
+    string(APPEND CMAKE_C_FLAGS ${UNIT_TEST_ASAN_FLAGS})
+    string(APPEND CMAKE_CXX_FLAGS ${UNIT_TEST_ASAN_FLAGS})
+    string(APPEND CMAKE_EXE_LINKER ${UNIT_TEST_ASAN_FLAGS})
 
     if (DEVOPS_ENABLE_COVERAGE)
         # devops support gcov only

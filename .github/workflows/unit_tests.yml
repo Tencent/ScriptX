@@ -125,6 +125,7 @@ jobs:
           mkdir -p build && cd build
           cmake ../test                                       \
                 -DSCRIPTX_BACKEND=${{ matrix.backends }}      \
+                -DTEST_FLAG_ENABLE_ASAN=ON                    \
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
       - name: Compile UnitTests
         run: |
