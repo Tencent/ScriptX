@@ -134,7 +134,6 @@ elseif (${SCRIPTX_BACKEND} STREQUAL Lua)
                 "/usr/include/lua5.3"
                 CACHE STRING "" FORCE)
 
-        #/usr/lib/x86_64-linux-gnu/liblua5.3.a
         set(DEVOPS_LIBS_LIBPATH
                 "lua5.3"
                 "lua5.3-c++"
