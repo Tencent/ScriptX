@@ -132,6 +132,11 @@ jobs:
         run: |
           cd build
           cmake --build . -j $(nproc) --target UnitTests
+      - name: Run UnitTests
+        if: matrix.backends != 'Empty'
+        run: |
+          cd build
+          ./UnitTests
 
   android-clang-build:
     # disable for now
