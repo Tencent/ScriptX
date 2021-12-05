@@ -9,6 +9,7 @@ on:
       - main
     paths-ignore:
       - 'docs/**'
+  workflow_dispatch:
 
 jobs:
   mac-clang-run:
