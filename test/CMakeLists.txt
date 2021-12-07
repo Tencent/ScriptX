@@ -92,6 +92,7 @@ endif ()
 
 include_directories(${DEVOPS_LIBS_INCLUDE})
 target_link_libraries(ScriptX ${DEVOPS_LIBS_LIBPATH})
+target_compile_definitions(ScriptX PUBLIC ${DEVOPS_LIBS_MARCO})
 
 # if you want to close rtti feature for ScriptX and your project
 #target_compile_options(ScriptX PRIVATE -fno-rtti)

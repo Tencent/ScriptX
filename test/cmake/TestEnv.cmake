@@ -62,7 +62,17 @@ if (${SCRIPTX_BACKEND} STREQUAL V8)
         set(DEVOPS_LIBS_LIBPATH
                 "${SCRIPTX_TEST_LIBS}/mac/v8/libv8_monolith.a"
                 CACHE STRING "" FORCE)
-
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # v8 8.8
+        set(DEVOPS_LIBS_INCLUDE
+                "${SCRIPTX_TEST_LIBS}/linux64/v8/include"
+                CACHE STRING "" FORCE)
+        set(DEVOPS_LIBS_LIBPATH
+                "${SCRIPTX_TEST_LIBS}/linux64/v8/libv8_monolith.a"
+                CACHE STRING "" FORCE)
+	set(DEVOPS_LIBS_MARCO
+		V8_COMPRESS_POINTERS
+                CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
                 "${SCRIPTX_TEST_LIBS}/win64/v8/include"
