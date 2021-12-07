@@ -18,7 +18,7 @@ if (NOT EXISTS ${SCRIPTX_TEST_GOOGLE_TEST})
     endif ()
 elseif (("${SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON) OR ("$ENV{SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON))
     message(STATUS "update SCRIPTX_TEST_GOOGLE_TEST ${SCRIPTX_TEST_GOOGLE_TEST}")
-    execute_process(COMMAND git pull --force --rebase WORKING_DIRECTORY ${SCRIPTX_TEST_GOOGLE_TEST})
+    execute_process(COMMAND git pull --force --rebase --autostash WORKING_DIRECTORY ${SCRIPTX_TEST_GOOGLE_TEST})
 endif ()
 
 # Prevent overriding the parent project's compiler/linker
