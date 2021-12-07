@@ -109,37 +109,8 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
     endif ()
 
 elseif (${SCRIPTX_BACKEND} STREQUAL Lua)
-    if (SCRIPTX_TEST_BUILD_ONLY)
-        set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/mac/lua/include"
-                CACHE STRING "" FORCE)
-    elseif (APPLE)
-        set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/mac/lua/include"
-                CACHE STRING "" FORCE)
-        set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/mac/lua/liblua.a"
-                CACHE STRING "" FORCE)
-    elseif (WIN32)
-        set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/win64/lua/include"
-                CACHE STRING "" FORCE)
-
-        set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/win64/lua/Lua54.lib"
-                CACHE STRING "" FORCE)
-    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        # apt install liblua5.3-dev
-        set(DEVOPS_LIBS_INCLUDE
-                "/usr/include/lua5.3"
-                CACHE STRING "" FORCE)
-
-        set(DEVOPS_LIBS_LIBPATH
-                "lua5.3"
-                "lua5.3-c++"
-                CACHE STRING "" FORCE)
-    endif ()
-
+    include("${SCRIPTX_TEST_LIBS}/Lua/CMakeLists.txt")
+    set(DEVOPS_LIBS_LIBPATH Lua CACHE STRING "" FORCE)
 elseif (${SCRIPTX_BACKEND} STREQUAL WebAssembly)
     if ("${CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
         message(FATAL_ERROR "CMAKE_TOOLCHAIN_FILE must be passed for emscripten")
