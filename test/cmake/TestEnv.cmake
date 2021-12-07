@@ -119,7 +119,7 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
     endif ()
 
 elseif (${SCRIPTX_BACKEND} STREQUAL Lua)
-    include("${SCRIPTX_TEST_LIBS}/Lua/CMakeLists.txt")
+    include("${SCRIPTX_TEST_LIBS}/lua/CMakeLists.txt")
     set(DEVOPS_LIBS_LIBPATH Lua CACHE STRING "" FORCE)
 elseif (${SCRIPTX_BACKEND} STREQUAL WebAssembly)
     if ("${CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
