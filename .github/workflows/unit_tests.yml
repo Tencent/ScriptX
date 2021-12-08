@@ -100,7 +100,7 @@ jobs:
           cd build
           ${{ matrix.build_type }}/UnitTests
 
-  ubuntu-gcc-build:
+  ubuntu-gcc-run:
     timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
