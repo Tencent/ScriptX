@@ -103,6 +103,23 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
         set(DEVOPS_LIBS_LIBPATH
                 "-w -framework Foundation -framework JavaScriptCore"
                 CACHE STRING "" FORCE)
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(DEVOPS_LIBS_INCLUDE
+		"${SCRIPTX_TEST_LIBS}/linux64/jsc/Headers"
+                CACHE STRING "" FORCE)
+
+        set(DEVOPS_LIBS_LIBPATH
+		#"-Wl,--start-group"
+                "${SCRIPTX_TEST_LIBS}/linux64/jsc/libJavaScriptCore.a"
+		"${SCRIPTX_TEST_LIBS}/linux64/jsc/libWTF.a"
+		"${SCRIPTX_TEST_LIBS}/linux64/jsc/libbmalloc.a"
+		"dl"
+		"icudata"
+		"icui18n"
+		"icuuc"
+		"atomic"
+		#"-Wl,--end-group"
+                CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
                 "${SCRIPTX_TEST_LIBS}/win64/jsc/include"
