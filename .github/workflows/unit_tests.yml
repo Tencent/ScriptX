@@ -121,7 +121,6 @@ jobs:
       - name: Configure cmake
         env:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
-          # SCRIPTX_TEST_BUILD_ONLY: ON
         run: |
           mkdir -p build && cd build
           cmake ../test                                       \
