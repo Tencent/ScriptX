@@ -124,9 +124,9 @@ return exceptionStackTraceTest
     func.asFunction().call({}, Number::newNumber(0));
     FAIL() << "should thrown";
   } catch (const Exception& e) {
-    EXPECT_NE(e.message().find("recursive too deep"), std::string::npos);
-    EXPECT_NE(e.stacktrace().find("exceptionStackTraceTestThrow"), std::string::npos);
-    EXPECT_NE(e.stacktrace().find("exceptionStackTraceTest"), std::string::npos);
+    EXPECT_NE(e.message().find("recursive too deep"), std::string::npos) << e;
+    EXPECT_NE(e.stacktrace().find("exceptionStackTraceTestThrow"), std::string::npos) << e;
+    EXPECT_NE(e.stacktrace().find("exceptionStackTraceTest"), std::string::npos) << e;
   }
   Exception().stacktrace();
   std::ostringstream() << Exception();

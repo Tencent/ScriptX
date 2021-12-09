@@ -62,7 +62,17 @@ if (${SCRIPTX_BACKEND} STREQUAL V8)
         set(DEVOPS_LIBS_LIBPATH
                 "${SCRIPTX_TEST_LIBS}/mac/v8/libv8_monolith.a"
                 CACHE STRING "" FORCE)
-
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # v8 8.8
+        set(DEVOPS_LIBS_INCLUDE
+                "${SCRIPTX_TEST_LIBS}/linux64/v8/include"
+                CACHE STRING "" FORCE)
+        set(DEVOPS_LIBS_LIBPATH
+                "${SCRIPTX_TEST_LIBS}/linux64/v8/libv8_monolith.a"
+                CACHE STRING "" FORCE)
+	set(DEVOPS_LIBS_MARCO
+		V8_COMPRESS_POINTERS
+                CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
                 "${SCRIPTX_TEST_LIBS}/win64/v8/include"
@@ -93,6 +103,23 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
         set(DEVOPS_LIBS_LIBPATH
                 "-w -framework Foundation -framework JavaScriptCore"
                 CACHE STRING "" FORCE)
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(DEVOPS_LIBS_INCLUDE
+		"${SCRIPTX_TEST_LIBS}/linux64/jsc/Headers"
+                CACHE STRING "" FORCE)
+
+        set(DEVOPS_LIBS_LIBPATH
+		#"-Wl,--start-group"
+                "${SCRIPTX_TEST_LIBS}/linux64/jsc/libJavaScriptCore.a"
+		"${SCRIPTX_TEST_LIBS}/linux64/jsc/libWTF.a"
+		"${SCRIPTX_TEST_LIBS}/linux64/jsc/libbmalloc.a"
+		"dl"
+		"icudata"
+		"icui18n"
+		"icuuc"
+		"atomic"
+		#"-Wl,--end-group"
+                CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
                 "${SCRIPTX_TEST_LIBS}/win64/jsc/include"
@@ -109,27 +136,8 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
     endif ()
 
 elseif (${SCRIPTX_BACKEND} STREQUAL Lua)
-    if (SCRIPTX_TEST_BUILD_ONLY)
-        set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/mac/lua/include"
-                CACHE STRING "" FORCE)
-    elseif (APPLE)
-        set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/mac/lua/include"
-                CACHE STRING "" FORCE)
-        set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/mac/lua/liblua.a"
-                CACHE STRING "" FORCE)
-    elseif (WIN32)
-        set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/win64/lua/include"
-                CACHE STRING "" FORCE)
-
-        set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/win64/lua/Lua54.lib"
-                CACHE STRING "" FORCE)
-    endif ()
-
+    include("${SCRIPTX_TEST_LIBS}/lua/CMakeLists.txt")
+    set(DEVOPS_LIBS_LIBPATH Lua CACHE STRING "" FORCE)
 elseif (${SCRIPTX_BACKEND} STREQUAL WebAssembly)
     if ("${CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
         message(FATAL_ERROR "CMAKE_TOOLCHAIN_FILE must be passed for emscripten")
