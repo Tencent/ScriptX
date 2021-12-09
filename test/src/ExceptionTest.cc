@@ -121,6 +121,13 @@ return exceptionStackTraceTest
                           .select());
 
   try {
+#ifdef SCRIPTX_BACKEND_QUICKJS
+    // update max stack size for QuickJs
+    // otherwise a "stack overflow" maybe thrown
+    // even we have limited to 10 layers of recursion.
+    JS_SetMaxStackSize(qjs_interop::currentRuntime(), 1024 * 1024);
+#endif
+
     func.asFunction().call({}, Number::newNumber(0));
     FAIL() << "should thrown";
   } catch (const Exception& e) {

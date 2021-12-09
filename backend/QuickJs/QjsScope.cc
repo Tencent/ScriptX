@@ -26,6 +26,7 @@ EngineScopeImpl::EngineScopeImpl(QjsEngine &current)
     previous_->runtimeLock_.unlock();
   }
   current_->runtimeLock_.lock();
+  JS_UpdateStackTop(current_->runtime_);
 }
 
 EngineScopeImpl::~EngineScopeImpl() {
