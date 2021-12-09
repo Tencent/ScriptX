@@ -53,7 +53,7 @@ void ScriptXTestFixture::SetUp() {
 #ifdef SCRIPTX_BACKEND_WEBASSEMBLY
   auto eng = script::ScriptEngineImpl::instance();
   script::ScriptEngineImpl::ignoreDestroyCall();
-  eng->unitTestResetRetistry();
+  eng->unitTestResetRegistry();
   engine = eng;
 #else
   engine = new script::ScriptEngineImpl();

@@ -143,12 +143,11 @@ TEST_F(EngineTest, JsPromiseTest) {
   engine->eval(
       u8R"(
         const promise = new Promise((resolve, reject) => {
-            resolve('Ok');
+            resolve(1);
         });
 
-        promise.then(x => {
-            console.log(x);
-            setValue(1);
+        promise.then(num => {
+            setValue(num);
         });
     )");
 
