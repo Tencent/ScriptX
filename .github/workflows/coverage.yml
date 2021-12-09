@@ -36,6 +36,7 @@ jobs:
           mkdir -p build && cd build
           cmake ../test                                       \
                 -DSCRIPTX_BACKEND=${{ matrix.backends }}      \
+                -DDEVOPS_ENABLE_COVERAGE=ON                   \
                 -DCMAKE_BUILD_TYPE=DEBUG
       - name: Compile UnitTests
         run: |
