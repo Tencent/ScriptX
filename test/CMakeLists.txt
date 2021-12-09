@@ -13,8 +13,6 @@ add_executable(UnitTests)
 include(cmake/TestEnv.cmake)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -flto")
-
     if (TEST_FLAG_ENABLE_ASAN)
         # macOS doesn't support -fsanitize=memory
         string(APPEND UNIT_TEST_ASAN_FLAGS
@@ -39,10 +37,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU
         # devops support gcov only
         if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             # for clang
-            string(APPEND CMAKE_CXX_FLAGS " --coverage -g3")
+            string(APPEND CMAKE_CXX_FLAGS " --coverage")
         else ()
             # for gcc
-            string(APPEND CMAKE_CXX_FLAGS " -fprofile-arcs -ftest-coverage -g3")
+            string(APPEND CMAKE_CXX_FLAGS " -fprofile-arcs -ftest-coverage")
         endif()
     endif ()
 endif ()
@@ -73,7 +71,9 @@ target_sources(UnitTests PRIVATE
         src/InteroperateTest.cc
         src/ExceptionTest.cc
         src/PressureTest.cc
-        src/EngineTest.cc)
+        src/EngineTest.cc
+        src/ShowCaseTest.cc
+        )
 
 ######## ScriptX config ##########
 

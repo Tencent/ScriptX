@@ -50,6 +50,8 @@ struct alignas(std::max_align_t) ArbitraryData {
 
   ArbitraryData& operator=(const ArbitraryData&);
 
+  SCRIPTX_DISALLOW_MOVE(ArbitraryData);
+
   ~ArbitraryData() = default;
 };
 

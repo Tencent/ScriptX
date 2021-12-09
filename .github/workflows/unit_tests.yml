@@ -236,4 +236,4 @@ jobs:
         run: |
           cd build
           # exclude failed tests
-          node UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All:EngineTest.JsPromiseTest'
+          node UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All:EngineTest.JsPromiseTest:ShowCaseTest.SetTimeout'

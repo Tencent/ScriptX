@@ -71,7 +71,7 @@ The memory can only be managed manually. There are two main aspects related to S
 In V8 and JSCore, depending on the finalize callback provided by the engine, the automatic release of the bound class
 is realized, but in WASM it is not possible, and the user can only release it by himself. ScriptX provides auxiliary methods in the JS global scope.
 
-Give a chestnut:
+For example:
 
 ```C++
 static ClassDefine<Test> test =
