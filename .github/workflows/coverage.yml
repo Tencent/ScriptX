@@ -11,9 +11,9 @@ on:
       - 'docs/**'
 
 jobs:
-  coverage-mac-clang:
+  coverage-ubuntu-gcc:
     timeout-minutes: 30
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -28,7 +28,7 @@ jobs:
             build/googletest-src
       - name: prepare lcov
         run: |
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install lcov
+          sudo apt-get install -y lcov
       - name: Configure cmake
         env:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
@@ -36,12 +36,11 @@ jobs:
           mkdir -p build && cd build
           cmake ../test                                       \
                 -DSCRIPTX_BACKEND=${{ matrix.backends }}      \
-                -DDEVOPS_ENABLE_COVERAGE=ON                   \
                 -DCMAKE_BUILD_TYPE=DEBUG
       - name: Compile UnitTests
         run: |
           cd build
-          cmake --build . -j $(sysctl -n hw.ncpu) --target UnitTests
+          cmake --build . -j $(nproc) --target UnitTests
       - name: Run UnitTests
         run: |
           cd build && ./UnitTests
@@ -62,7 +61,7 @@ jobs:
 
   coverage-finish:
     timeout-minutes: 30
-    needs: coverage-mac-clang
+    needs: coverage-ubuntu-gcc
     runs-on: ubuntu-latest
     steps:
       - name: Coveralls Finished

@@ -37,7 +37,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU
 
     if (DEVOPS_ENABLE_COVERAGE)
         # devops support gcov only
-        string(APPEND CMAKE_CXX_FLAGS_DEBUG " --coverage -g3")
+        if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            # for clang
+            string(APPEND CMAKE_CXX_FLAGS " --coverage -g3")
+        else ()
+            # for gcc
+            string(APPEND CMAKE_CXX_FLAGS " -fprofile-arcs -ftest-coverage -g3")
+        endif()
     endif ()
 endif ()
 
