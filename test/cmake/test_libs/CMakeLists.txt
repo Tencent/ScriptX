@@ -35,3 +35,4 @@ elseif (("${SCRIPTX_TEST_FORCE_UPDATE_DEPS}" STREQUAL ON) OR ("$ENV{SCRIPTX_TEST
             WORKING_DIRECTORY ${SCRIPTX_TEST_LIBS}
             )
 endif ()
+
