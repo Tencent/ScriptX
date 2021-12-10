@@ -196,6 +196,7 @@ void QjsEngine::scheduleTick() {
         [](auto& m) {
           auto eng = static_cast<QjsEngine*>(m.ptr0);
           JSContext* ctx = nullptr;
+          EngineScope scope(eng);
           while (JS_ExecutePendingJob(eng->runtime_, &ctx) > 0) {
           }
           eng->tickScheduled_ = false;
