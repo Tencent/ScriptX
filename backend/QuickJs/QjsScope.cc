@@ -20,8 +20,8 @@
 
 namespace script::qjs_backend {
 
-EngineScopeImpl::EngineScopeImpl(QjsEngine &current)
-    : previous_(EngineScope::currentEngineAs<QjsEngine>()), current_(&current) {
+EngineScopeImpl::EngineScopeImpl(QjsEngine &current, QjsEngine *prev)
+    : previous_(prev), current_(&current) {
   if (previous_) {
     previous_->runtimeLock_.unlock();
   }
