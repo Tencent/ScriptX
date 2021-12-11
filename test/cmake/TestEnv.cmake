@@ -70,8 +70,8 @@ if (${SCRIPTX_BACKEND} STREQUAL V8)
         set(DEVOPS_LIBS_LIBPATH
                 "${SCRIPTX_TEST_LIBS}/linux64/v8/libv8_monolith.a"
                 CACHE STRING "" FORCE)
-	set(DEVOPS_LIBS_MARCO
-		V8_COMPRESS_POINTERS
+        set(DEVOPS_LIBS_MARCO
+                V8_COMPRESS_POINTERS
                 CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
@@ -105,20 +105,20 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
                 CACHE STRING "" FORCE)
     elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(DEVOPS_LIBS_INCLUDE
-		"${SCRIPTX_TEST_LIBS}/linux64/jsc/Headers"
+                "${SCRIPTX_TEST_LIBS}/linux64/jsc/Headers"
                 CACHE STRING "" FORCE)
 
         set(DEVOPS_LIBS_LIBPATH
-		#"-Wl,--start-group"
+                #"-Wl,--start-group"
                 "${SCRIPTX_TEST_LIBS}/linux64/jsc/libJavaScriptCore.a"
-		"${SCRIPTX_TEST_LIBS}/linux64/jsc/libWTF.a"
-		"${SCRIPTX_TEST_LIBS}/linux64/jsc/libbmalloc.a"
-		"dl"
-		"icudata"
-		"icui18n"
-		"icuuc"
-		"atomic"
-		#"-Wl,--end-group"
+                "${SCRIPTX_TEST_LIBS}/linux64/jsc/libWTF.a"
+                "${SCRIPTX_TEST_LIBS}/linux64/jsc/libbmalloc.a"
+                "dl"
+                "icudata"
+                "icui18n"
+                "icuuc"
+                "atomic"
+                #"-Wl,--end-group"
                 CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
