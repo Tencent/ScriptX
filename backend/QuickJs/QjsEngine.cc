@@ -82,13 +82,15 @@ QjsEngine::QjsEngine(std::shared_ptr<utils::MessageQueue> queue, const QjsFactor
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (factory) {
     std::tie(runtime_, context_) = factory();
-    assert(runtime_);
-    assert(context_);
   } else {
     runtime_ = JS_NewRuntime();
-    assert(runtime_);
-    context_ = JS_NewContext(runtime_);
-    assert(context_);
+    if (runtime_) {
+      context_ = JS_NewContext(runtime_);
+    }
+  }
+
+  if (!runtime_ || !context_) {
+    throw std::logic_error("QjsEngine: runtime or context is nullptr");
   }
 
   initEngineResource();
