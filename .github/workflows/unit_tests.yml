@@ -212,10 +212,10 @@ jobs:
             build/ScriptXTestLibs
             build/googletest-src
       - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v8
+        uses: mymindstorm/setup-emsdk@v11
         with:
-          version: '2.0.5'
-          actions-cache-folder: 'emsdk-cache'
+          version: '3.0.0'
+          actions-cache-folder: 'emsdk-cache-3.0.0'
       - name: Setup Node.js
         uses: actions/setup-node@v1
         with:
