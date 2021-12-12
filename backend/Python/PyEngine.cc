@@ -17,14 +17,15 @@
 
 #include "PyEngine.h"
 #include "../../src/Utils.h"
-#include "pydebug.h"
-#include "pylifecycle.h"
 
 namespace script::py_backend {
 
-PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue) { Py_Initialize(); }
+PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
+    : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
+  Py_Initialize();
+}
 
-PyEngine::PyEngine() : PyEngine(std::shared_ptr<utils::MessageQueue>{}) {}
+PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
 
@@ -44,9 +45,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   return Local<Value>();
 }
 
-std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() {
-  return std::shared_ptr<utils::MessageQueue>();
-}
+std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }
 
 void PyEngine::gc() {}
 

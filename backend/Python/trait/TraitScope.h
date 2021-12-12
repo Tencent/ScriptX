@@ -25,7 +25,7 @@ namespace py_backend {
 
 class EngineScopeImpl {
  public:
-  explicit EngineScopeImpl(PyEngine &) {
+  explicit EngineScopeImpl(PyEngine &, PyEngine *) {
     // enter engine;
   }
 
