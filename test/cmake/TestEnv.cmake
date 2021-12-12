@@ -147,7 +147,7 @@ elseif (${SCRIPTX_BACKEND} STREQUAL QuickJs)
     set(DEVOPS_LIBS_LIBPATH QuickJs CACHE STRING "" FORCE)
 elseif (${SCRIPTX_BACKEND} STREQUAL Python)
     set(DEVOPS_LIBS_INCLUDE
-            "/usr/local/Cellar/python@3.9/3.9.4/Frameworks/Python.framework/Versions/3.9/include/python3.9/"
+            "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Headers/"
                 CACHE STRING "" FORCE)
-    set(DEVOPS_LIBS_LIBPATH "/usr/local/Cellar/python@3.9/3.9.4/Frameworks/Python.framework/Versions/3.9/lib/libpython3.9.dylib" CACHE STRING "" FORCE)
+    set(DEVOPS_LIBS_LIBPATH "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Versions/Current/lib/libpython3.10.dylib" CACHE STRING "" FORCE)
 endif ()
