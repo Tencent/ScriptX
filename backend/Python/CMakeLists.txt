@@ -9,6 +9,8 @@ target_sources(ScriptX PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/PyNative.cc
         ${CMAKE_CURRENT_LIST_DIR}/PyNative.hpp
         ${CMAKE_CURRENT_LIST_DIR}/PyReference.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/PyScope.h
+        ${CMAKE_CURRENT_LIST_DIR}/PyScope.cc
         ${CMAKE_CURRENT_LIST_DIR}/PyUtils.cc
         ${CMAKE_CURRENT_LIST_DIR}/PyValue.cc
         )

@@ -15,26 +15,17 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "PyScope.h"
 
-#include "../PyScope.h"
-#include "TraitEngine.h"
+// reference
+// https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
 
-namespace script {
+namespace script::py_backend {
 
-template <>
-struct internal::ImplType<EngineScope> {
-  using type = py_backend::EngineScopeImpl;
-};
+EngineScopeImpl::EngineScopeImpl(PyEngine &, PyEngine *) { gilState_ = PyGILState_Ensure(); }
+EngineScopeImpl::~EngineScopeImpl() { PyGILState_Release(gilState_); }
 
-template <>
-struct internal::ImplType<ExitEngineScope> {
-  using type = py_backend::ExitEngineScopeImpl;
-};
+ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &) { threadState = PyEval_SaveThread(); }
+ExitEngineScopeImpl::~ExitEngineScopeImpl() { PyEval_RestoreThread(threadState); }
 
-template <>
-struct internal::ImplType<StackFrameScope> {
-  using type = py_backend::StackFrameScopeImpl;
-};
-
-}  // namespace script
+}  // namespace script::py_backend
