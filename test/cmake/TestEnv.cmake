@@ -53,47 +53,47 @@ include(${CMAKE_CURRENT_LIST_DIR}/test_libs/CMakeLists.txt)
 if (${SCRIPTX_BACKEND} STREQUAL V8)
     if (SCRIPTX_TEST_BUILD_ONLY)
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/mac/v8/include"
+                "${SCRIPTX_TEST_LIBS}/v8/mac/include"
                 CACHE STRING "" FORCE)
     elseif (APPLE)
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/mac/v8/include"
+                "${SCRIPTX_TEST_LIBS}/v8/mac/include"
                 CACHE STRING "" FORCE)
         set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/mac/v8/libv8_monolith.a"
+                "${SCRIPTX_TEST_LIBS}/v8/mac/libv8_monolith.a"
                 CACHE STRING "" FORCE)
     elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         # v8 8.8
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/linux64/v8/include"
+                "${SCRIPTX_TEST_LIBS}/v8/linux64/include"
                 CACHE STRING "" FORCE)
         set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/linux64/v8/libv8_monolith.a"
+                "${SCRIPTX_TEST_LIBS}/v8/linux64/libv8_monolith.a"
                 CACHE STRING "" FORCE)
         set(DEVOPS_LIBS_MARCO
                 V8_COMPRESS_POINTERS
                 CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/win64/v8/include"
+                "${SCRIPTX_TEST_LIBS}/v8/win64/include"
                 CACHE STRING "" FORCE)
 
         set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/win64/v8/v8_libbase.dll.lib"
-                "${SCRIPTX_TEST_LIBS}/win64/v8/v8_libplatform.dll.lib"
-                "${SCRIPTX_TEST_LIBS}/win64/v8/v8.dll.lib"
+                "${SCRIPTX_TEST_LIBS}/v8/win64/v8_libbase.dll.lib"
+                "${SCRIPTX_TEST_LIBS}/v8/win64/v8_libplatform.dll.lib"
+                "${SCRIPTX_TEST_LIBS}/v8/win64/v8.dll.lib"
                 CACHE STRING "" FORCE)
 
         add_custom_command(TARGET UnitTests POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${SCRIPTX_TEST_LIBS}/win64/v8/dll" $<TARGET_FILE_DIR:UnitTests>
+                "${SCRIPTX_TEST_LIBS}/v8/win64/dll" $<TARGET_FILE_DIR:UnitTests>
                 )
 
     endif ()
 elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
     if (SCRIPTX_TEST_BUILD_ONLY)
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/win64/jsc/include"
+                "${SCRIPTX_TEST_LIBS}/jsc/win32/include"
                 CACHE STRING "" FORCE)
     elseif (APPLE)
         set(DEVOPS_LIBS_INCLUDE
@@ -105,14 +105,14 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
                 CACHE STRING "" FORCE)
     elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/linux64/jsc/Headers"
+                "${SCRIPTX_TEST_LIBS}/jsc/linux64/Headers"
                 CACHE STRING "" FORCE)
 
         set(DEVOPS_LIBS_LIBPATH
                 #"-Wl,--start-group"
-                "${SCRIPTX_TEST_LIBS}/linux64/jsc/libJavaScriptCore.a"
-                "${SCRIPTX_TEST_LIBS}/linux64/jsc/libWTF.a"
-                "${SCRIPTX_TEST_LIBS}/linux64/jsc/libbmalloc.a"
+                "${SCRIPTX_TEST_LIBS}/jsc/linux64/libJavaScriptCore.a"
+                "${SCRIPTX_TEST_LIBS}/jsc/linux64/libWTF.a"
+                "${SCRIPTX_TEST_LIBS}/jsc/linux64/libbmalloc.a"
                 "dl"
                 "icudata"
                 "icui18n"
@@ -122,16 +122,16 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
                 CACHE STRING "" FORCE)
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/win64/jsc/include"
+                "${SCRIPTX_TEST_LIBS}/jsc/win32/include"
                 CACHE STRING "" FORCE)
 
         set(DEVOPS_LIBS_LIBPATH
-                "${SCRIPTX_TEST_LIBS}/win64/jsc/JavaScriptCore.lib"
+                "${SCRIPTX_TEST_LIBS}/jsc/win32/JavaScriptCore.lib"
                 CACHE STRING "" FORCE)
 
         add_custom_command(TARGET UnitTests POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${SCRIPTX_TEST_LIBS}/win64/jsc/dll" $<TARGET_FILE_DIR:UnitTests>
+                "${SCRIPTX_TEST_LIBS}/jsc/win32/dll" $<TARGET_FILE_DIR:UnitTests>
                 )
     endif ()
 
@@ -146,3 +146,4 @@ elseif (${SCRIPTX_BACKEND} STREQUAL QuickJs)
     include("${SCRIPTX_TEST_LIBS}/quickjs/CMakeLists.txt")
     set(DEVOPS_LIBS_LIBPATH QuickJs CACHE STRING "" FORCE)
 endif ()
+
