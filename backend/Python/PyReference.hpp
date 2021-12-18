@@ -20,6 +20,14 @@
 
 namespace script {
 
+namespace py_backend {
+
+inline PyObject* incRef(PyObject* ref) { return Py_XNewRef(ref); }
+
+inline void decRef(PyObject* ref) { Py_XDECREF(ref); }
+
+}  // namespace py_backend
+
 template <typename T>
 Global<T>::Global() noexcept : val_() {}
 

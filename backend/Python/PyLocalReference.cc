@@ -15,22 +15,37 @@
  * limitations under the License.
  */
 
-#include <ScriptX/ScriptX.h>
+#include "../../src/Native.hpp"
+#include "../../src/Reference.h"
+#include "../../src/Utils.h"
+#include "../../src/Value.h"
+#include "PyReference.hpp"
 
 namespace script {
 
-#define REF_IMPL_BASIC_FUNC(ValueType)                                           \
-  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(copy.val_) {}     \
-  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {} \
-  Local<ValueType>::~Local() {}                                                  \
-  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {             \
-    Local(from).swap(*this);                                                     \
-    return *this;                                                                \
-  }                                                                              \
-  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {         \
-    Local(std::move(move)).swap(*this);                                          \
-    return *this;                                                                \
-  }                                                                              \
+namespace py_backend {
+void valueConstructorCheck(PyObject* value) {
+  SCRIPTX_UNUSED(value);
+#ifndef NDEBUG
+  if (!value) throw Exception("null reference");
+#endif
+}
+}  // namespace py_backend
+
+#define REF_IMPL_BASIC_FUNC(ValueType)                                                           \
+  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(py_backend::incRef(copy.val_)) {} \
+  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {                  \
+    move.val_ = nullptr;                                                                         \
+  }                                                                                              \
+  Local<ValueType>::~Local() { py_backend::decRef(val_); }                                       \
+  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                             \
+    Local(from).swap(*this);                                                                     \
+    return *this;                                                                                \
+  }                                                                                              \
+  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {                         \
+    Local(std::move(move)).swap(*this);                                                          \
+    return *this;                                                                                \
+  }                                                                                              \
   void Local<ValueType>::swap(Local& rhs) noexcept { std::swap(val_, rhs.val_); }
 
 #define REF_IMPL_BASIC_EQUALS(ValueType)                                               \
@@ -39,12 +54,14 @@ namespace script {
   }
 
 #define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                         \
-  Local<ValueType>::Local(InternalLocalRef val) : val_(val) {}                      \
+  Local<ValueType>::Local(InternalLocalRef val) : val_(val) {                       \
+    py_backend::valueConstructorCheck(val);                                         \
+  }                                                                                 \
   Local<String> Local<ValueType>::describe() const { return asValue().describe(); } \
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
-  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(/*TMPL: value*/); }
+  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(val_); }
 
 REF_IMPL_BASIC_FUNC(Value)
 
@@ -92,11 +109,14 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 Local<Value>::Local() noexcept : val_() {}
 
-Local<Value>::Local(InternalLocalRef v8Local) : val_(v8Local) {}
+Local<Value>::Local(InternalLocalRef ref) : val_(ref) {}
 
-bool Local<Value>::isNull() const { return false; }
+bool Local<Value>::isNull() const { return val_ == nullptr; }
 
-void Local<Value>::reset() {}
+void Local<Value>::reset() {
+  py_backend::decRef(val_);
+  val_ = nullptr;
+}
 
 ValueKind Local<Value>::getKind() const {
   if (isNull()) {
@@ -122,9 +142,9 @@ ValueKind Local<Value>::getKind() const {
 
 bool Local<Value>::isString() const { return false; }
 
-bool Local<Value>::isNumber() const { return false; }
+bool Local<Value>::isNumber() const { return PyNumber_Check(val_); }
 
-bool Local<Value>::isBoolean() const { return false; }
+bool Local<Value>::isBoolean() const { return PyBool_Check(val_); }
 
 bool Local<Value>::isFunction() const { return false; }
 
