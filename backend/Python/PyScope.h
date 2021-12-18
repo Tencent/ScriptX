@@ -16,25 +16,38 @@
  */
 
 #pragma once
+#include "../../src/Reference.h"
+#include "PyHelper.h"
 
-#include "../PyScope.h"
-#include "TraitEngine.h"
+namespace script::py_backend {
 
-namespace script {
+class PyEngine;
 
-template <>
-struct internal::ImplType<EngineScope> {
-  using type = py_backend::EngineScopeImpl;
+class EngineScopeImpl {
+  PyGILState_STATE gilState_ = PyGILState_UNLOCKED;
+
+ public:
+  explicit EngineScopeImpl(PyEngine &, PyEngine *);
+
+  ~EngineScopeImpl();
 };
 
-template <>
-struct internal::ImplType<ExitEngineScope> {
-  using type = py_backend::ExitEngineScopeImpl;
+class ExitEngineScopeImpl {
+  PyThreadState *threadState = nullptr;
+
+ public:
+  explicit ExitEngineScopeImpl(PyEngine &);
+
+  ~ExitEngineScopeImpl();
 };
 
-template <>
-struct internal::ImplType<StackFrameScope> {
-  using type = py_backend::StackFrameScopeImpl;
-};
+class StackFrameScopeImpl {
+ public:
+  explicit StackFrameScopeImpl(PyEngine &) {}
 
-}  // namespace script
+  template <typename T>
+  Local<T> returnValue(const Local<T> &localRef) {
+    return localRef;
+  }
+};
+}  // namespace script::py_backend
