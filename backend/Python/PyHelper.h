@@ -34,6 +34,8 @@ SCRIPTX_END_INCLUDE_LIBRARY
 
 namespace script::py_backend {
 
+class PyEngine;
+
 PyObject* checkException(PyObject* obj);
 int checkException(int ret);
 void checkException();
