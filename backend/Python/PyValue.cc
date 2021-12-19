@@ -21,8 +21,8 @@
 #include "../../src/Value.h"
 #include "PyHelper.hpp"
 
+using script::py_interop;
 using script::py_backend::checkException;
-using script::py_backend::py_interop;
 
 namespace script {
 
@@ -87,7 +87,7 @@ Local<Boolean> Boolean::newBoolean(bool value) {
 
 namespace {
 
-static constexpr const char* kFunctionDataName = "capsule_function_data";
+static constexpr const char* kFunctionDataName = "_ScriptX_function_data";
 
 struct FunctionData {
   FunctionCallback function;
@@ -108,14 +108,14 @@ Local<Function> Function::newFunction(script::FunctionCallback callback) {
   method.ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
     auto ptr = PyCapsule_GetPointer(self, kFunctionDataName);
     if (ptr == nullptr) {
-      // TODO: exception
+      ::PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
     } else {
       auto data = static_cast<FunctionData*>(ptr);
       try {
         auto ret = data->function(py_interop::makeArguments(nullptr, self, args));
         return py_interop::toPy(ret);
       } catch (Exception& e) {
-        // TODO: exception
+        py_backend::rethrowException(e);
       }
     }
     return nullptr;
@@ -125,13 +125,13 @@ Local<Function> Function::newFunction(script::FunctionCallback callback) {
     auto ptr = PyCapsule_GetPointer(cap, kFunctionDataName);
     delete static_cast<FunctionData*>(ptr);
   });
+  py_backend::checkException(ctx);
+  callbackIns.release();
 
   PyObject* closure = PyCFunction_New(&method, ctx);
-
   Py_XDECREF(ctx);
+  py_backend::checkException(closure);
 
-  // todo: check exception
-  callbackIns.release();
   return Local<Function>(closure);
 }
 

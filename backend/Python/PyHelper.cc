@@ -26,18 +26,15 @@ PyObject* checkException(PyObject* obj) {
   return obj;
 }
 
-int checkException(int ret) {
-  if (ret == -1) {
-    checkException();
-  }
-  return ret;
-}
-
 void checkException() {
   auto err = PyErr_Occurred();
   if (err) {
     // TODO
   }
+}
+
+void rethrowException(const Exception& exception) {
+  // TODO
 }
 
 }  // namespace script::py_backend

@@ -19,6 +19,7 @@
 #include "../../src/Reference.h"
 #include "../../src/Utils.h"
 #include "../../src/Value.h"
+#include "PyHelper.hpp"
 #include "PyReference.hpp"
 
 namespace script {
@@ -61,7 +62,7 @@ void valueConstructorCheck(PyObject* value) {
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
-  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(val_); }
+  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(py_backend::incRef(val_)); }
 
 REF_IMPL_BASIC_FUNC(Value)
 
@@ -146,7 +147,7 @@ bool Local<Value>::isNumber() const { return PyNumber_Check(val_); }
 
 bool Local<Value>::isBoolean() const { return PyBool_Check(val_); }
 
-bool Local<Value>::isFunction() const { return false; }
+bool Local<Value>::isFunction() const { return PyCallable_Check(val_); }
 
 bool Local<Value>::isArray() const { return false; }
 
@@ -217,7 +218,26 @@ bool Local<Boolean>::value() const { return false; }
 
 Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
-  return {};
+  // PyObject* self = thiz.isObject() ? py_interop::toPy(thiz) : nullptr;
+  // TODO: self
+  PyObject* ret = nullptr;
+  // args to tuple
+  if (size == 0) {
+    ret = PyObject_CallNoArgs(py_interop::asPy(*this));
+  } else if (size == 1) {
+    ret = PyObject_CallOneArg(py_interop::asPy(*this), py_interop::asPy(args[0]));
+  } else {
+    auto tuple = PyTuple_New(static_cast<Py_ssize_t>(size));
+    py_backend::checkException();
+    for (size_t i = 0; i < size; ++i) {
+      PyTuple_SetItem(tuple, static_cast<Py_ssize_t>(i), py_interop::toPy(args[i]));
+      py_backend::checkException();
+    }
+    ret = PyObject_Call(py_interop::asPy(*this), tuple, nullptr);
+  }
+
+  py_backend::checkException();
+  return Local<Value>(ret);
 }
 
 size_t Local<Array>::size() const { return 0; }
