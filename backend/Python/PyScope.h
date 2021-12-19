@@ -24,7 +24,7 @@ namespace script::py_backend {
 class PyEngine;
 
 class EngineScopeImpl {
-  PyGILState_STATE gilState_ = PyGILState_UNLOCKED;
+  PyGILState_STATE gilState_;
 
  public:
   explicit EngineScopeImpl(PyEngine &, PyEngine *);
@@ -33,7 +33,7 @@ class EngineScopeImpl {
 };
 
 class ExitEngineScopeImpl {
-  PyThreadState *threadState = nullptr;
+  PyThreadState *threadState;
 
  public:
   explicit ExitEngineScopeImpl(PyEngine &);

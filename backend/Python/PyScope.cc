@@ -22,10 +22,10 @@
 
 namespace script::py_backend {
 
-EngineScopeImpl::EngineScopeImpl(PyEngine &, PyEngine *) { gilState_ = PyGILState_Ensure(); }
+EngineScopeImpl::EngineScopeImpl(PyEngine &, PyEngine *) : gilState_(PyGILState_Ensure()) {}
 EngineScopeImpl::~EngineScopeImpl() { PyGILState_Release(gilState_); }
 
-ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &) { threadState = PyEval_SaveThread(); }
+ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &) : threadState(PyEval_SaveThread()) {}
 ExitEngineScopeImpl::~ExitEngineScopeImpl() { PyEval_RestoreThread(threadState); }
 
 }  // namespace script::py_backend
