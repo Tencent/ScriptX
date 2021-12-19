@@ -178,7 +178,18 @@ Local<Unsupported> Local<Value>::asUnsupported() const {
   throw Exception("can't cast value as Unsupported");
 }
 
-bool Local<Value>::operator==(const script::Local<script::Value>& other) const { return false; }
+bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
+  // TODO: nullptr vs None
+  auto lhs = val_;
+  auto rhs = other.val_;
+
+  // nullptr == nullptr
+  if (lhs == nullptr || rhs == nullptr) {
+    return lhs == rhs;
+  }
+
+  return PyObject_RichCompareBool(lhs, rhs, Py_EQ);
+}
 
 Local<String> Local<Value>::describe() const { TEMPLATE_NOT_IMPLEMENTED(); }
 
