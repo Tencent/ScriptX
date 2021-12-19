@@ -85,8 +85,54 @@ Local<Boolean> Boolean::newBoolean(bool value) {
   return checkAndMakeLocal<Boolean>(PyBool_FromLong(value));
 }
 
+namespace {
+
+static constexpr const char* kFunctionDataName = "capsule_function_data";
+
+struct FunctionData {
+  FunctionCallback function;
+  py_backend::PyEngine* engine = nullptr;
+};
+
+}  // namespace
+
 Local<Function> Function::newFunction(script::FunctionCallback callback) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  auto callbackIns = std::make_unique<FunctionData>();
+  callbackIns->engine = EngineScope::currentEngineAs<py_backend::PyEngine>();
+  callbackIns->function = std::move(callback);
+
+  PyMethodDef method{};
+  method.ml_name = "ScriptX_native_method";
+  method.ml_flags = METH_O;
+  method.ml_doc = "ScriptX Function::newFunction";
+  method.ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+    auto ptr = PyCapsule_GetPointer(self, kFunctionDataName);
+    if (ptr == nullptr) {
+      // TODO: exception
+    } else {
+      auto data = static_cast<FunctionData*>(ptr);
+      try {
+        auto ret = data->function(py_interop::makeArguments(nullptr, self, args));
+        return py_interop::toPy(ret);
+      } catch (Exception& e) {
+        // TODO: exception
+      }
+    }
+    return nullptr;
+  };
+
+  auto ctx = PyCapsule_New(callbackIns.get(), kFunctionDataName, [](PyObject* cap) {
+    auto ptr = PyCapsule_GetPointer(cap, kFunctionDataName);
+    delete static_cast<FunctionData*>(ptr);
+  });
+
+  PyObject* closure = PyCFunction_New(&method, ctx);
+
+  Py_XDECREF(ctx);
+
+  // todo: check exception
+  callbackIns.release();
+  return Local<Function>(closure);
 }
 
 Local<Array> Array::newArray(size_t size) {

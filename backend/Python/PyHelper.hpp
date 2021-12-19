@@ -16,16 +16,37 @@
  */
 
 #pragma once
+#include "../../src/Native.hpp"
 #include "../../src/Reference.h"
 #include "PyHelper.h"
 
-namespace script::py_backend {
+namespace script {
 
 struct py_interop {
-  template <class T>
+  template <typename T>
   static Local<T> makeLocal(PyObject* ref) {
     return Local<T>(ref);
   }
+
+  /**
+   * @return stolen ref.
+   */
+  template <typename T>
+  static PyObject* toPy(const Local<T>& ref) {
+    return Py_XNewRef(ref.val_);
+  }
+
+  /**
+   * @return borrowed ref.
+   */
+  template <typename T>
+  static PyObject* asPy(const Local<T>& ref) {
+    return ref.val_;
+  }
+
+  static Arguments makeArguments(py_backend::PyEngine* engine, PyObject* self, PyObject* args) {
+    return Arguments(py_backend::ArgumentsData{engine, self, args});
+  }
 };
 
-}  // namespace script::py_backend
+}  // namespace script

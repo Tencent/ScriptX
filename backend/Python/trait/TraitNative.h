@@ -17,14 +17,16 @@
 
 #pragma once
 #include "../../src/types.h"
+#include "../PyHelper.h"
 
 namespace script {
 
 namespace py_backend {
 
 struct ArgumentsData {
-  int stackBase;
-  size_t size;
+  mutable PyEngine* engine;
+  PyObject* self;
+  PyObject* args;
 };
 
 struct ScriptClassState {

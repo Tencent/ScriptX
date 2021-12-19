@@ -20,9 +20,7 @@
 
 namespace script {
 
-namespace py_backend {
 struct py_interop;
-}
 
 template <>
 struct internal::ImplType<StringHolder> {
@@ -31,7 +29,7 @@ struct internal::ImplType<StringHolder> {
 
 template <>
 struct internal::ImplType<internal::interop> {
-  using type = py_backend::py_interop;
+  using type = py_interop;
 };
 
 }  // namespace script

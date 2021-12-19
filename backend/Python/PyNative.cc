@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
-#include <ScriptX/ScriptX.h>
+#include "../../src/Native.hpp"
+#include "PyEngine.h"
+#include "PyHelper.hpp"
 
 namespace script {
 
@@ -23,15 +25,27 @@ Arguments::Arguments(InternalCallbackInfoType callbackInfo) : callbackInfo_(call
 
 Arguments::~Arguments() = default;
 
-Local<Object> Arguments::thiz() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Object> Arguments::thiz() const {
+  return py_interop::makeLocal<Value>(callbackInfo_.self).asObject();
+}
 
-bool Arguments::hasThiz() const { TEMPLATE_NOT_IMPLEMENTED(); }
+bool Arguments::hasThiz() const { return callbackInfo_.self != nullptr; }
 
-size_t Arguments::size() const { TEMPLATE_NOT_IMPLEMENTED(); }
+size_t Arguments::size() const {
+  if (!callbackInfo_.args) {
+    return 0;
+  }
+  return PyTuple_Size(callbackInfo_.args);
+}
 
-Local<Value> Arguments::operator[](size_t i) const { return {}; }
+Local<Value> Arguments::operator[](size_t i) const {
+  if (i < size()) {
+    return py_interop::makeLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
+  }
+  return {};
+}
 
-ScriptEngine* Arguments::engine() const { return nullptr; }
+ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
 ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
   TEMPLATE_NOT_IMPLEMENTED();
