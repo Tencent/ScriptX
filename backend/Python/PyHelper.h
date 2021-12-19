@@ -37,7 +37,7 @@ namespace script::py_backend {
 class PyEngine;
 
 PyObject* checkException(PyObject* obj);
-int checkException(int ret);
 void checkException();
+void rethrowException(const Exception& exception);
 
 }  // namespace script::py_backend

@@ -18,6 +18,7 @@
 #pragma once
 #include "../../src/Native.hpp"
 #include "../../src/Reference.h"
+#include "PyEngine.h"
 #include "PyHelper.h"
 
 namespace script {
