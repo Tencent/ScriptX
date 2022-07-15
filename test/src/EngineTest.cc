@@ -70,7 +70,7 @@ TEST_F(EngineTest, SmartPointer) {
   uniquePtr.release();
   uniquePtr1.release();
   engine = nullptr;
-  // destory engine
+  // destroy engine
   sharedPtr.reset();
 }
 
