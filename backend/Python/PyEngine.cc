@@ -42,7 +42,13 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  return Local<Value>();
+  PyObject* d = PyModule_GetDict(PyImport_AddModule("__main__"));
+  PyObject* result = PyRun_String(script.toString().c_str(), Py_file_input, d, d);
+  if (result == nullptr) {
+    checkException();
+    return Local<Value>();
+  }
+  return Local<Value>(result);
 }
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }

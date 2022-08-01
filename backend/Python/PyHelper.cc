@@ -29,7 +29,7 @@ PyObject* checkException(PyObject* obj) {
 void checkException() {
   auto err = PyErr_Occurred();
   if (err) {
-    // TODO
+    PyErr_Print();
   }
 }
 
