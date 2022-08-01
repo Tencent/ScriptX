@@ -175,7 +175,7 @@ TEST_F(ExceptionTest, Cross) {
 }
 
 #ifndef SCRIPTX_BACKEND_WEBASSEMBLY
-TEST_F(ExceptionTest, EngineScopeOnDestory) {
+TEST_F(ExceptionTest, EngineScopeOnDestroy) {
   bool executed = false;
   {
     EngineScope engineScope(engine);
