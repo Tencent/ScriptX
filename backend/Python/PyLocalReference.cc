@@ -141,7 +141,7 @@ ValueKind Local<Value>::getKind() const {
   }
 }
 
-bool Local<Value>::isString() const { return false; }
+bool Local<Value>::isString() const { return PyUnicode_Check(val_); }
 
 bool Local<Value>::isNumber() const { return PyNumber_Check(val_); }
 
@@ -149,17 +149,32 @@ bool Local<Value>::isBoolean() const { return PyBool_Check(val_); }
 
 bool Local<Value>::isFunction() const { return PyCallable_Check(val_); }
 
-bool Local<Value>::isArray() const { return false; }
+bool Local<Value>::isArray() const { return PyList_Check(val_); }
 
-bool Local<Value>::isByteBuffer() const { return false; }
+bool Local<Value>::isByteBuffer() const { return PyByteArray_Check(val_); }
 
-bool Local<Value>::isObject() const { return false; }
+bool Local<Value>::isObject() const { return PyDict_Check(val_); }
 
-bool Local<Value>::isUnsupported() const { return false; }
+bool Local<Value>::isUnsupported() const {
+  throw std::runtime_error("Unsupported value type");
+  return false;
+}
 
-Local<String> Local<Value>::asString() const { throw Exception("can't cast value as String"); }
+Local<String> Local<Value>::asString() const {
+  if (isString()) {
+    return Local<String>(py_backend::incRef(val_));
+  } else {
+    throw std::runtime_error("Value is not a string");
+  }
+}
 
-Local<Number> Local<Value>::asNumber() const { throw Exception("can't cast value as Number"); }
+Local<Number> Local<Value>::asNumber() const {
+  if (isNumber()) {
+    return Number::newNumber(PyFloat_AsDouble(val_));
+  } else {
+    throw Exception("can't cast value as Number");
+  }
+}
 
 Local<Boolean> Local<Value>::asBoolean() const { throw Exception("can't cast value as Boolean"); }
 

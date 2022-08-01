@@ -45,12 +45,12 @@ Local<String> String::newString(const char* utf8) {
 
 Local<String> String::newString(std::string_view utf8) {
   return checkAndMakeLocal<String>(
-      PyBytes_FromStringAndSize(utf8.data(), static_cast<Py_ssize_t>(utf8.length())));
+      PyUnicode_FromStringAndSize(utf8.data(), static_cast<Py_ssize_t>(utf8.length())));
 }
 
 Local<String> String::newString(const std::string& utf8) {
   return checkAndMakeLocal<String>(
-      PyBytes_FromStringAndSize(utf8.c_str(), static_cast<Py_ssize_t>(utf8.length())));
+      PyUnicode_FromStringAndSize(utf8.c_str(), static_cast<Py_ssize_t>(utf8.length())));
 }
 
 #if defined(__cpp_char8_t)
