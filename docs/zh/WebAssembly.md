@@ -238,13 +238,13 @@ class SharedByteBuffer {
     readonly byteLength: number;
 
     // 手动内存管理，销毁该类，并释放WASM的内存
-    public destory(): void;
+    public destroy(): void;
 }
 ```
 
 注意上面的buffer属性，如上文所述，当WASM `grow_memory` 的时候，底层的`ArrayBuffer`可能会变，因此使用`SharedByteBuffer`的时候要即时创建`TypedArray`，不要保留引用长期使用（当然你可以配置wasm不grow_memory，或者使用`SharedArrayBuffer`，这样buffer属性一定不会变，具体还是取决于你的使用场景）。
 
-最后还是因为WASM 没有GC, JS 没有finalize，因此这段内存需要使用者自己去释放。可以使用上述`destory`方法，也可以使用`ScriptX.destroySharedByteBuffer`。C++代码使用`wasm_interop::destroySharedByteBuffer`。
+最后还是因为WASM 没有GC, JS 没有finalize，因此这段内存需要使用者自己去释放。可以使用上述`destroy`方法，也可以使用`ScriptX.destroySharedByteBuffer`。C++代码使用`wasm_interop::destroySharedByteBuffer`。
 
 举个栗子：
 
