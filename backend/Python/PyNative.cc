@@ -31,25 +31,15 @@ Local<Object> Arguments::thiz() const {
 
 bool Arguments::hasThiz() const { return callbackInfo_.self != nullptr; }
 
-size_t Arguments::size() const {
-  if (!callbackInfo_.args) {
-    return 0;
-  }
-  return PyTuple_Size(callbackInfo_.args);
-}
+size_t Arguments::size() const { return callbackInfo_.args.size(); }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  if (i < size()) {
-    return py_interop::makeLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
-  }
-  return {};
+  return py_interop::makeLocal<Value>(callbackInfo_.args[i]);
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
-ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
-  TEMPLATE_NOT_IMPLEMENTED();
-}
+ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {}
 
 Local<Object> ScriptClass::getScriptObject() const { TEMPLATE_NOT_IMPLEMENTED(); }
 

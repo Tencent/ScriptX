@@ -25,8 +25,8 @@ namespace py_backend {
 
 struct ArgumentsData {
   mutable PyEngine* engine;
-  PyObject* self;
-  PyObject* args;
+  py::object self;
+  py::args args;
 };
 
 struct ScriptClassState {

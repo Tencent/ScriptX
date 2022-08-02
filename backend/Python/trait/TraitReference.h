@@ -26,17 +26,17 @@ namespace script::internal {
 
 template <typename T>
 struct ImplType<Local<T>> {
-  using type = PyObject*;
+  using type = py::handle;
 };
 
 template <typename T>
 struct ImplType<Global<T>> {
-  using type = PyObject*;
+  using type = py::handle;
 };
 
 template <typename T>
 struct ImplType<Weak<T>> {
-  using type = PyObject*;
+  using type = py::handle;
 };
 
 }  // namespace script::internal

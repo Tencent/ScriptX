@@ -25,19 +25,14 @@
 // https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
 
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
-#ifndef PY_SSIZE_T_CLEAN
-#define PY_SSIZE_T_CLEAN
-#endif
-#include <Python.h>
-#include <pylifecycle.h>
+#include <pybind11/embed.h>
+#include <pybind11/stl.h>
 SCRIPTX_END_INCLUDE_LIBRARY
+
+namespace py = pybind11;
 
 namespace script::py_backend {
 
 class PyEngine;
-
-PyObject* checkException(PyObject* obj);
-void checkException();
-void rethrowException(const Exception& exception);
 
 }  // namespace script::py_backend

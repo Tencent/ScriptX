@@ -25,7 +25,7 @@ namespace script {
 
 struct py_interop {
   template <typename T>
-  static Local<T> makeLocal(PyObject* ref) {
+  static Local<T> makeLocal(py::object ref) {
     return Local<T>(ref);
   }
 
@@ -33,19 +33,19 @@ struct py_interop {
    * @return stolen ref.
    */
   template <typename T>
-  static PyObject* toPy(const Local<T>& ref) {
-    return Py_XNewRef(ref.val_);
+  static py::handle toPy(const Local<T>& ref) {
+    return ref.val_.inc_ref();
   }
 
   /**
    * @return borrowed ref.
    */
   template <typename T>
-  static PyObject* asPy(const Local<T>& ref) {
+  static py::handle asPy(const Local<T>& ref) {
     return ref.val_;
   }
 
-  static Arguments makeArguments(py_backend::PyEngine* engine, PyObject* self, PyObject* args) {
+  static Arguments makeArguments(py_backend::PyEngine* engine, py::object self, py::args args) {
     return Arguments(py_backend::ArgumentsData{engine, self, args});
   }
 };

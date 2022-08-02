@@ -20,7 +20,7 @@
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
 #include "../../src/utils/MessageQueue.h"
-#include "PyHelper.h"
+#include "PyHelper.hpp"
 
 namespace script::py_backend {
 
@@ -65,7 +65,31 @@ class PyEngine : public ScriptEngine {
  private:
   template <typename T>
   bool registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    return false;
+    if (classDefine == nullptr) {
+      return false;
+    }
+    if (classDefine->getClassName().empty()) {
+      return false;
+    }
+    if constexpr (std::is_same_v<T, void>) {
+      py::class_<void*> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
+      for (auto& method : classDefine->staticDefine.functions) {
+        c.def_static(method.name.c_str(), [&method](py::args args) {
+          return py_interop::asPy(
+              method.callback(py_interop::makeArguments(nullptr, py::object(), args)));
+        });
+      }
+      return c.check();
+    } else {
+      py::class_<T> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
+      for (auto& method : classDefine->staticDefine.functions) {
+        c.def(method.name.c_str(), [&method](py::args args) {
+          return py_interop::asPy(
+              method.callback(py_interop::makeArguments(nullptr, py::object(), args)));
+        });
+      }
+      return c.check();
+    }
   }
 
   Local<Object> getNamespaceForRegister(const std::string_view& nameSpace) {
@@ -74,9 +98,7 @@ class PyEngine : public ScriptEngine {
 
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                   const Local<Value>* args) {
-    TEMPLATE_NOT_IMPLEMENTED();
-  }
+                                   const Local<Value>* args) {}
 
   template <typename T>
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
