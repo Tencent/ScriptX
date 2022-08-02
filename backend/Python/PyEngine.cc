@@ -22,7 +22,7 @@ namespace script::py_backend {
 
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
-  Py_Initialize();
+  py::initialize_interpreter();
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
@@ -31,9 +31,13 @@ PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept { ScriptEngine::destroyUserData(); }
 
-Local<Value> PyEngine::get(const Local<String>& key) { return Local<Value>(); }
+Local<Value> PyEngine::get(const Local<String>& key) {
+  return Local<Value>(py::globals()[key.toString().c_str()]);
+}
 
-void PyEngine::set(const Local<String>& key, const Local<Value>& value) {}
+void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
+  py::globals()[key.toString().c_str()] = value.val_;
+}
 
 Local<Value> PyEngine::eval(const Local<String>& script) { return eval(script, Local<Value>()); }
 
@@ -42,13 +46,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  PyObject* d = PyModule_GetDict(PyImport_AddModule("__main__"));
-  PyObject* result = PyRun_String(script.toString().c_str(), Py_file_input, d, d);
-  if (result == nullptr) {
-    checkException();
-    return Local<Value>();
-  }
-  return Local<Value>(result);
+  return Local<Value>(py::eval(script.toString()));
 }
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }

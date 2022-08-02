@@ -22,36 +22,27 @@
 #include "PyHelper.hpp"
 
 using script::py_interop;
-using script::py_backend::checkException;
 
 namespace script {
 
 template <typename T>
-Local<T> checkAndMakeLocal(PyObject* ref) {
-  return py_interop::makeLocal<T>(checkException(ref));
+Local<T> checkAndMakeLocal(py::object ref) {
+  return py_interop::makeLocal<T>(ref);
 }
 
 // for python this creates an empty dict
-Local<Object> Object::newObject() { return checkAndMakeLocal<Object>(PyDict_New()); }
+Local<Object> Object::newObject() { return Local<Object>(py::dict()); }
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
   TEMPLATE_NOT_IMPLEMENTED();
 }
 
-Local<String> String::newString(const char* utf8) {
-  return checkAndMakeLocal<String>(PyBytes_FromString(utf8));
-}
+Local<String> String::newString(const char* utf8) { return Local<String>(py::str(utf8)); }
 
-Local<String> String::newString(std::string_view utf8) {
-  return checkAndMakeLocal<String>(
-      PyUnicode_FromStringAndSize(utf8.data(), static_cast<Py_ssize_t>(utf8.length())));
-}
+Local<String> String::newString(std::string_view utf8) { return Local<String>(py::str(utf8)); }
 
-Local<String> String::newString(const std::string& utf8) {
-  return checkAndMakeLocal<String>(
-      PyUnicode_FromStringAndSize(utf8.c_str(), static_cast<Py_ssize_t>(utf8.length())));
-}
+Local<String> String::newString(const std::string& utf8) { return Local<String>(py::str(utf8)); }
 
 #if defined(__cpp_char8_t)
 
@@ -69,21 +60,13 @@ Local<String> String::newString(const std::u8string& utf8) { return newString(ut
 
 Local<Number> Number::newNumber(float value) { return newNumber(static_cast<double>(value)); }
 
-Local<Number> Number::newNumber(double value) {
-  return checkAndMakeLocal<Number>(PyLong_FromDouble(value));
-}
+Local<Number> Number::newNumber(double value) { return Local<Number>(py::float_(value)); }
 
-Local<Number> Number::newNumber(int32_t value) {
-  return checkAndMakeLocal<Number>(PyLong_FromLong(static_cast<long>(value)));
-}
+Local<Number> Number::newNumber(int32_t value) { return Local<Number>(py::int_(value)); }
 
-Local<Number> Number::newNumber(int64_t value) {
-  return checkAndMakeLocal<Number>(PyLong_FromLongLong(static_cast<long long>(value)));
-}
+Local<Number> Number::newNumber(int64_t value) { return Local<Number>(py::int_(value)); }
 
-Local<Boolean> Boolean::newBoolean(bool value) {
-  return checkAndMakeLocal<Boolean>(PyBool_FromLong(value));
-}
+Local<Boolean> Boolean::newBoolean(bool value) { return Local<Boolean>(py::bool_(value)); }
 
 namespace {
 
@@ -97,60 +80,33 @@ struct FunctionData {
 }  // namespace
 
 Local<Function> Function::newFunction(script::FunctionCallback callback) {
-  auto callbackIns = std::make_unique<FunctionData>();
-  callbackIns->engine = EngineScope::currentEngineAs<py_backend::PyEngine>();
-  callbackIns->function = std::move(callback);
-
-  PyMethodDef method{};
-  method.ml_name = "ScriptX_native_method";
-  method.ml_flags = METH_O;
-  method.ml_doc = "ScriptX Function::newFunction";
-  method.ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
-    auto ptr = PyCapsule_GetPointer(self, kFunctionDataName);
-    if (ptr == nullptr) {
-      ::PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
-    } else {
-      auto data = static_cast<FunctionData*>(ptr);
-      try {
-        auto ret = data->function(py_interop::makeArguments(nullptr, self, args));
-        return py_interop::toPy(ret);
-      } catch (Exception& e) {
-        py_backend::rethrowException(e);
-      }
-    }
-    return nullptr;
+  py::cpp_function func = [&callback](py::args args) {
+    return py_interop::asPy(callback(py_interop::makeArguments(nullptr, py::object(), args)));
   };
-
-  auto ctx = PyCapsule_New(callbackIns.get(), kFunctionDataName, [](PyObject* cap) {
-    auto ptr = PyCapsule_GetPointer(cap, kFunctionDataName);
-    delete static_cast<FunctionData*>(ptr);
-  });
-  py_backend::checkException(ctx);
-  callbackIns.release();
-
-  PyObject* closure = PyCFunction_New(&method, ctx);
-  Py_XDECREF(ctx);
-  py_backend::checkException(closure);
-
-  return Local<Function>(closure);
+  return Local<Function>(func);
 }
 
-Local<Array> Array::newArray(size_t size) {
-  return checkAndMakeLocal<Array>(PyList_New(static_cast<Py_ssize_t>(size)));
-}
+Local<Array> Array::newArray(size_t size) { return Local<Array>(py::list(size)); }
 
 Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  py::list list(size);
+  for (size_t i = 0; i < size; ++i) {
+    list[i] = Local<Value>(args[i]);
+  }
+  return Local<Array>(list);
 }
 
-Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) {
+  return Local<ByteBuffer>(py::bytearray());
+}
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  return Local<script::ByteBuffer>(
+      py::bytearray(reinterpret_cast<const char*>(nativeBuffer), size));
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(std::shared_ptr<void> nativeBuffer, size_t size) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  return Local<ByteBuffer>(py::bytearray(reinterpret_cast<const char*>(nativeBuffer.get()), size));
 }
 
 }  // namespace script

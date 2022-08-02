@@ -24,10 +24,7 @@ struct py_interop;
 
 template <>
 struct internal::ImplType<StringHolder> {
-  struct type {
-    const char* string = nullptr;
-    size_t len = 0;
-  };
+  using type = std::string;
 };
 
 template <>
