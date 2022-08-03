@@ -46,7 +46,11 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  return Local<Value>(py::eval(script.toString()));
+  std::string source = script.toString();
+  if (source.find('\n') != std::string::npos)
+    return Local<Value>(py::eval<py::eval_statements>(source));
+  else
+    return Local<Value>(py::eval<py::eval_single_statement>(source));
 }
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }

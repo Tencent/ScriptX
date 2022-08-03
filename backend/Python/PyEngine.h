@@ -116,7 +116,7 @@ class PyEngine : public ScriptEngine {
             c.def_property(
                 prop.name.c_str(),
                 [prop](T* instance) { return py_interop::asPy(prop.getter(instance)); },
-                [prop](T* instance, py::object value) {
+                [prop](T* instance, py::handle value) {
                   prop.setter(instance, Local<Value>(value));
                 });
           } else {

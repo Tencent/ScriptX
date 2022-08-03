@@ -61,21 +61,23 @@ Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
 
 template <typename T>
 Local<T> Global<T>::get() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  return val_;
 }
 
 template <typename T>
 Local<Value> Global<T>::getValue() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  return val_;
 }
 
 template <typename T>
 bool Global<T>::isEmpty() const {
-  return false;
+  return val_.IsEmpty();
 }
 
 template <typename T>
-void Global<T>::reset() {}
+void Global<T>::reset() {
+  val_.Reset();
+}
 
 // == Weak ==
 
@@ -86,10 +88,9 @@ template <typename T>
 Weak<T>::~Weak() {}
 
 template <typename T>
-Weak<T>::Weak(const script::Local<T>& localReference) {}
-
+Weak<T>::Weak(const script::Local<T>& localReference) : val_(localReference) {}
 template <typename T>
-Weak<T>::Weak(const script::Global<T>& globalReference) {}
+Weak<T>::Weak(const script::Global<T>& globalReference) : val_(globalReference) {}
 
 template <typename T>
 Weak<T>::Weak(const script::Weak<T>& copy) : val_(copy.val_) {}
@@ -128,15 +129,18 @@ Local<T> Weak<T>::get() const {
 
 template <typename T>
 Local<Value> Weak<T>::getValue() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  if (isEmpty()) throw Exception("getValue on empty Weak");
+  return val_;
 }
 
 template <typename T>
 bool Weak<T>::isEmpty() const {
-  return false;
+  return val_.IsEmpty();
 }
 
 template <typename T>
-void Weak<T>::reset() noexcept {}
+void Weak<T>::reset() noexcept {
+  val_.Reset();
+}
 
 }  // namespace script
