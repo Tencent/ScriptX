@@ -24,7 +24,7 @@ template <typename T>
 Global<T>::Global() noexcept : val_() {}
 
 template <typename T>
-Global<T>::Global(const script::Local<T>& localReference) {}
+Global<T>::Global(const script::Local<T>& localReference) : val_(localReference) {}
 
 template <typename T>
 Global<T>::Global(const script::Weak<T>& weak) {}

@@ -35,4 +35,6 @@ namespace script::py_backend {
 
 class PyEngine;
 
+PyEngine& currentEngine();
+
 }  // namespace script::py_backend

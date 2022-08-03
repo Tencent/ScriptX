@@ -35,7 +35,8 @@ Local<Object> Object::newObject() { return Local<Object>(py::dict()); }
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  py::dict dict;
+  return Local<Object>(dict);
 }
 
 Local<String> String::newString(const char* utf8) { return Local<String>(py::str(utf8)); }
@@ -80,8 +81,9 @@ struct FunctionData {
 }  // namespace
 
 Local<Function> Function::newFunction(script::FunctionCallback callback) {
-  py::cpp_function func = [&callback](py::args args) {
-    return py_interop::asPy(callback(py_interop::makeArguments(nullptr, py::object(), args)));
+  py::cpp_function func = [callback](py::args args) {
+    return py_interop::toPy(
+        callback(py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
   };
   return Local<Function>(func);
 }

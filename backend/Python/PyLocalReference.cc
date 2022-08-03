@@ -236,7 +236,7 @@ int32_t Local<Number>::toInt32() const { return static_cast<int32_t>(toDouble())
 
 int64_t Local<Number>::toInt64() const { return static_cast<int64_t>(toDouble()); }
 
-bool Local<Boolean>::value() const { return false; }
+bool Local<Boolean>::value() const { return val_.cast<bool>(); }
 
 Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
