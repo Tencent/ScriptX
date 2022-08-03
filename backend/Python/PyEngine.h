@@ -74,19 +74,57 @@ class PyEngine : public ScriptEngine {
     if constexpr (std::is_same_v<T, void>) {
       py::class_<void*> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
       for (auto& method : classDefine->staticDefine.functions) {
-        c.def_static(method.name.c_str(), [&method](py::args args) {
-          return py_interop::asPy(
-              method.callback(py_interop::makeArguments(nullptr, py::object(), args)));
+        c.def_static(method.name.c_str(), [method](py::args args) {
+          return py_interop::asPy(method.callback(
+              py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
         });
       }
       return c.check();
     } else {
       py::class_<T> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
+      if (classDefine->instanceDefine.constructor) {
+        c.def(py::init([classDefine](py::args args) {
+          T* instance = nullptr;
+          instance = classDefine->instanceDefine.constructor(
+              py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args));
+          if (instance == nullptr) {
+            throw Exception("can't create class " + classDefine->className);
+          }
+          return instance;
+        }));
+      }
       for (auto& method : classDefine->staticDefine.functions) {
-        c.def(method.name.c_str(), [&method](py::args args) {
-          return py_interop::asPy(
-              method.callback(py_interop::makeArguments(nullptr, py::object(), args)));
+        c.def(method.name.c_str(), [method](py::args args) {
+          return py_interop::asPy(method.callback(
+              py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
         });
+      }
+      for (auto& method : classDefine->instanceDefine.functions) {
+        c.def(method.name.c_str(), [method](T* instance, py::args args) {
+          return py_interop::asPy(method.callback(
+              instance, py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
+        });
+      }
+      for (auto& prop : classDefine->instanceDefine.properties) {
+        // template <typename T>
+        // using InstanceSetterCallback = std::function<void(T*, const Local<Value>& value)>;
+
+        // template <typename T>
+        // using InstanceGetterCallback = std::function<Local<Value>(T*)>;
+        if (prop.getter) {
+          if (prop.setter) {
+            c.def_property(
+                prop.name.c_str(),
+                [prop](T* instance) { return py_interop::asPy(prop.getter(instance)); },
+                [prop](T* instance, py::object value) {
+                  prop.setter(instance, Local<Value>(value));
+                });
+          } else {
+            c.def_property_readonly(prop.name.c_str(), [prop](T* instance) {
+              return py_interop::asPy(prop.getter(instance));
+            });
+          }
+        }
       }
       return c.check();
     }
@@ -98,16 +136,25 @@ class PyEngine : public ScriptEngine {
 
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                   const Local<Value>* args) {}
+                                   const Local<Value>* args) {
+    // 返回T指针，接收const Argument& args
+    py::tuple py_args(size);
+    for (size_t i = 0; i < size; i++) {
+      py_args[i] = py_interop::asPy(args[i]);
+    }
+    T* res = classDefine->instanceDefine.constructor(
+        py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), py_args));
+    return Local<Object>(py::cast(res));
+  }
 
   template <typename T>
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return false;
+    return py::isinstance<T>(value.val_);
   }
 
   template <typename T>
   T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return nullptr;
+    return value.val_.cast<T*>();
   }
 
  private:

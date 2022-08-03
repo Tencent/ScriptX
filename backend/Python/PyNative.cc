@@ -25,11 +25,9 @@ Arguments::Arguments(InternalCallbackInfoType callbackInfo) : callbackInfo_(call
 
 Arguments::~Arguments() = default;
 
-Local<Object> Arguments::thiz() const {
-  return py_interop::makeLocal<Value>(callbackInfo_.self).asObject();
-}
+Local<Object> Arguments::thiz() const { return py_interop::makeLocal<Object>(callbackInfo_.self); }
 
-bool Arguments::hasThiz() const { return callbackInfo_.self != nullptr; }
+bool Arguments::hasThiz() const { return bool(callbackInfo_.self); }
 
 size_t Arguments::size() const { return callbackInfo_.args.size(); }
 

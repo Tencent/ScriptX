@@ -16,3 +16,9 @@
  */
 
 #include "PyHelper.hpp"
+
+namespace script::py_backend {
+
+PyEngine& currentEngine() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
+
+}  // namespace script::py_backend
