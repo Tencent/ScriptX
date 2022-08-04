@@ -31,7 +31,8 @@ struct ArgumentsData {
 
 struct ScriptClassState {
   ScriptEngine* engine = nullptr;
-  Weak<Object> weakRef_;
+  py::dict script_obj;
+  py::list storage;
 };
 
 }  // namespace py_backend
