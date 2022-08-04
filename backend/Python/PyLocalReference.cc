@@ -212,9 +212,11 @@ void Local<Object>::set(const script::Local<script::String>& key,
 }
 
 void Local<Object>::remove(const Local<class script::String>& key) const {
-  TEMPLATE_NOT_IMPLEMENTED()
+  PyDict_DelItemString(val_.ptr(), key.toString().c_str());
 }
-bool Local<Object>::has(const Local<class script::String>& key) const { TEMPLATE_NOT_IMPLEMENTED() }
+bool Local<Object>::has(const Local<class script::String>& key) const {
+  return val_.contains(key.toString());
+}
 
 bool Local<Object>::instanceOf(const Local<class script::Value>& type) const {
   return py::isinstance(val_, type.val_);
@@ -247,34 +249,34 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
   return Local<Value>(val_(thiz.val_, py_args));
 }
 
-size_t Local<Array>::size() const { return val_.cast<std::vector<py::object>>().size(); }
+size_t Local<Array>::size() const { return val_.cast<py::list>().size(); }
 
 Local<Value> Local<Array>::get(size_t index) const {
-  return Local<Value>(val_.cast<std::vector<py::object>>()[index]);
+  return Local<Value>(val_.cast<py::list>()[index]);
 }
 
 void Local<Array>::set(size_t index, const script::Local<script::Value>& value) const {
-  val_.cast<std::vector<py::object>>()[index] = value.val_.cast<py::object>();
+  val_.attr("__setitem__")(index, value.val_);
 }
 
 void Local<Array>::add(const script::Local<script::Value>& value) const {
-  val_.cast<std::vector<py::object>>().push_back(value.val_.cast<py::object>());
+  val_.attr("append")(value.val_);
 }
 
-void Local<Array>::clear() const { val_.cast<std::vector<py::object>>().clear(); }
+void Local<Array>::clear() const { val_.attr("clear")(); }
 
-ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::KFloat32; }
+ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::kInt8; }
 
-bool Local<ByteBuffer>::isShared() const { return true; }
+bool Local<ByteBuffer>::isShared() const { return false; }
 
 void Local<ByteBuffer>::commit() const {}
 
 void Local<ByteBuffer>::sync() const {}
 
-size_t Local<ByteBuffer>::byteLength() const { return 0; }
+size_t Local<ByteBuffer>::byteLength() const { return val_.cast<py::bytearray>().size(); }
 
-void* Local<ByteBuffer>::getRawBytes() const { return nullptr; }
+void* Local<ByteBuffer>::getRawBytes() const { return val_.cast<std::string>().data(); }
 
-std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return {}; }
+std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return nullptr; }
 
 }  // namespace script
