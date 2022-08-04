@@ -37,13 +37,15 @@ Local<Value> Arguments::operator[](size_t i) const {
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
-ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {}
+ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
+  internalState_.engine = &py_backend::currentEngine();
+}
 
 Local<Object> ScriptClass::getScriptObject() const { TEMPLATE_NOT_IMPLEMENTED(); }
 
 Local<Array> ScriptClass::getInternalStore() const { TEMPLATE_NOT_IMPLEMENTED(); }
 
-ScriptEngine* ScriptClass::getScriptEngine() const { TEMPLATE_NOT_IMPLEMENTED(); }
+ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
 ScriptClass::~ScriptClass() = default;
 }  // namespace script
