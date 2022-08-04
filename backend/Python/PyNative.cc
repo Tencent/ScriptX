@@ -37,13 +37,17 @@ Local<Value> Arguments::operator[](size_t i) const {
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
-ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
+ScriptClass::ScriptClass(const Local<Object>& scriptObject) : internalState_() {
   internalState_.engine = &py_backend::currentEngine();
 }
 
-Local<Object> ScriptClass::getScriptObject() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Object> ScriptClass::getScriptObject() const {
+  return py_interop::makeLocal<Object>(internalState_.script_obj);
+}
 
-Local<Array> ScriptClass::getInternalStore() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Array> ScriptClass::getInternalStore() const {
+  return py_interop::makeLocal<Array>(internalState_.storage);
+}
 
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
