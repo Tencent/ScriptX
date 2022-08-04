@@ -30,7 +30,7 @@ struct ArgumentsData {
 };
 
 struct ScriptClassState {
-  ScriptEngine* scriptEngine_ = nullptr;
+  ScriptEngine* engine = nullptr;
   // Weak<Object> weakRef_;
 };
 
