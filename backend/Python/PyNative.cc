@@ -51,5 +51,5 @@ Local<Array> ScriptClass::getInternalStore() const {
 
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
-ScriptClass::~ScriptClass() = default;
+ScriptClass::~ScriptClass() {};
 }  // namespace script
