@@ -23,6 +23,7 @@ namespace script::py_backend {
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   py::initialize_interpreter();
+  py::register_exception<Exception>(py::module_::import("builtins"), "ScriptXException");
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
@@ -46,11 +47,17 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  std::string source = script.toString();
-  if (source.find('\n') != std::string::npos)
-    return Local<Value>(py::eval<py::eval_statements>(source));
-  else
-    return Local<Value>(py::eval<py::eval_single_statement>(source));
+  try {
+    std::string source = script.toString();
+    if (source.find('\n') != std::string::npos)
+      return Local<Value>(py::eval<py::eval_statements>(source));
+    else
+      return Local<Value>(py::eval<py::eval_single_statement>(source));
+  } catch (const py::builtin_exception& e) {
+    throw Exception(e.what());
+  } catch (const py::error_already_set& e) {
+    throw Exception(e.what());
+  }
 }
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }
