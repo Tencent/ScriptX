@@ -17,6 +17,7 @@
 
 #include "PyEngine.h"
 #include "../../src/Utils.h"
+#include "../../src/utils/Helper.hpp"
 
 namespace script::py_backend {
 
@@ -58,6 +59,27 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   } catch (const py::error_already_set& e) {
     throw Exception(e.what());
   }
+}
+
+Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
+  if(scriptFile.toString().empty())
+    throw Exception("script file no found");
+  Local<Value> content = internal::readAllFileContent(scriptFile);
+  if(content.isNull())
+    throw Exception("can't load script file");
+
+  std::string sourceFilePath = scriptFile.toString();
+  std::size_t pathSymbol = sourceFilePath.rfind("/");
+  if(pathSymbol != -1)
+    sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  else
+  {
+    pathSymbol = sourceFilePath.rfind("\\");
+    if(pathSymbol != -1)
+      sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  }
+  Local<String> sourceFileName = String::newString(sourceFilePath);
+  return eval(content.asString(), sourceFileName);
 }
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }
