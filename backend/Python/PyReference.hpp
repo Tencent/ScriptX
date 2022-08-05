@@ -17,6 +17,7 @@
 
 #pragma once
 #include <utility>
+#include "PyHelper.hpp"
 
 namespace script {
 
@@ -73,7 +74,7 @@ Local<Value> Global<T>::getValue() const {
 
 template <typename T>
 bool Global<T>::isEmpty() const {
-  return val_;
+  return val_ == nullptr;
 }
 
 template <typename T>
@@ -140,7 +141,7 @@ Local<Value> Weak<T>::getValue() const {
 
 template <typename T>
 bool Weak<T>::isEmpty() const {
-  return val_;
+  return val_ == nullptr;
 }
 
 template <typename T>
