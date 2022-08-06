@@ -27,6 +27,7 @@ namespace script::py_backend {
 class PyEngine : public ScriptEngine {
  private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
+  py::module_ module_;
 
  public:
   PyEngine(std::shared_ptr<::script::utils::MessageQueue> queue);
