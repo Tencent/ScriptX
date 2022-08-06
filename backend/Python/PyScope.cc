@@ -16,16 +16,24 @@
  */
 
 #include "PyScope.h"
+#include "PyEngine.h"
 
 // reference
 // https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
 
 namespace script::py_backend {
 
-EngineScopeImpl::EngineScopeImpl(PyEngine &, PyEngine *) : gilState_(PyGILState_Ensure()) {}
-EngineScopeImpl::~EngineScopeImpl() { PyGILState_Release(gilState_); }
+EngineScopeImpl::EngineScopeImpl(PyEngine &engine,
+                                 PyEngine *) /*: gilState_(PyGILState_Ensure())*/ {
+  // PyThreadState_Swap(engine.sub_);
+}
+EngineScopeImpl::~EngineScopeImpl() {
+  // PyGILState_Release(gilState_);
+}
 
-ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &) : threadState(PyEval_SaveThread()) {}
-ExitEngineScopeImpl::~ExitEngineScopeImpl() { PyEval_RestoreThread(threadState); }
+ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &) /*: threadState(PyEval_SaveThread())*/ {}
+ExitEngineScopeImpl::~ExitEngineScopeImpl() {
+  // PyEval_RestoreThread(threadState);
+}
 
 }  // namespace script::py_backend

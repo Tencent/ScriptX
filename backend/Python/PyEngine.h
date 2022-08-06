@@ -27,7 +27,7 @@ namespace script::py_backend {
 class PyEngine : public ScriptEngine {
  private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
-  py::module_ module_;
+  PyThreadState* sub_;
 
  public:
   PyEngine(std::shared_ptr<::script::utils::MessageQueue> queue);
@@ -190,6 +190,8 @@ class PyEngine : public ScriptEngine {
   friend class ::script::Arguments;
 
   friend class ::script::ScriptClass;
+
+  friend class EngineScopeImpl;
 };
 
 }  // namespace script::py_backend

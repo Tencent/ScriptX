@@ -108,11 +108,11 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 // ==== value ====
 
-Local<Value>::Local() noexcept : val_() {}
+Local<Value>::Local() noexcept : val_(py::none()) {}
 
 Local<Value>::Local(InternalLocalRef ref) : val_(ref.inc_ref()) {}
 
-bool Local<Value>::isNull() const { return Py_IsNone(val_); }
+bool Local<Value>::isNull() const { return val_ == py::none(); }
 
 void Local<Value>::reset() {
   val_.dec_ref();

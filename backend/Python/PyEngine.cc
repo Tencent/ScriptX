@@ -27,13 +27,17 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     py::initialize_interpreter();
     py::register_exception<Exception>(py::module_::import("builtins"), "ScriptXException");
   }
+  sub_ = Py_NewInterpreter();
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
 
-void PyEngine::destroy() noexcept { ScriptEngine::destroyUserData(); }
+void PyEngine::destroy() noexcept {
+  Py_EndInterpreter(sub_);
+  ScriptEngine::destroyUserData();
+}
 
 Local<Value> PyEngine::get(const Local<String>& key) {
   return Local<Value>(py::globals()[key.toString().c_str()]);
@@ -65,9 +69,19 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
   if (scriptFile.toString().empty()) throw Exception("script file no found");
-  if (module_) throw Exception("script file is already loaded");
-  module_ = py::module_::import(scriptFile.toString().c_str());
-  return Local<Value>();
+  Local<Value> content = internal::readAllFileContent(scriptFile);
+  if (content.isNull()) throw Exception("can't load script file");
+
+  std::string sourceFilePath = scriptFile.toString();
+  std::size_t pathSymbol = sourceFilePath.rfind("/");
+  if (pathSymbol != -1)
+    sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  else {
+    pathSymbol = sourceFilePath.rfind("\\");
+    if (pathSymbol != -1) sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  }
+  Local<String> sourceFileName = String::newString(sourceFilePath);
+  return eval(content.asString(), sourceFileName);
 }
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }

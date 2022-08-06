@@ -24,7 +24,8 @@ namespace script::py_backend {
 class PyEngine;
 
 class EngineScopeImpl {
-  PyGILState_STATE gilState_;
+  // py::gil_scoped_release release_;
+  // py::gil_scoped_acquire gil_;
 
  public:
   explicit EngineScopeImpl(PyEngine &, PyEngine *);
