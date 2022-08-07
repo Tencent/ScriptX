@@ -33,11 +33,10 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     mainThreadState = PyEval_SaveThread();
   }
 
-  PyEval_RestoreThread(mainThreadState);     // acquire GIL & resume thread state
+  PyEval_RestoreThread(mainThreadState);  // acquire GIL & resume thread state
   PyThreadState* state = Py_NewInterpreter();
-  if(!state)
-    throw Exception("Fail to create sub interpreter");
-  subThreadState.set(PyEval_SaveThread());    // release GIL & reset thread state
+  if (!state) throw Exception("Fail to create sub interpreter");
+  subThreadState.set(PyEval_SaveThread());  // release GIL & reset thread state
   subInterpreterState = state->interp;
 }
 
@@ -75,7 +74,8 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   } catch (const py::builtin_exception& e) {
     throw Exception(e.what());
   } catch (const py::error_already_set& e) {
-    throw Exception(e.what());
+    py::error_scope scope;
+    throw Exception(e.m_fetched_error->error_string().c_str());
   }
 }
 
