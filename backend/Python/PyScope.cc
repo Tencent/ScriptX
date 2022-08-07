@@ -20,20 +20,41 @@
 
 // reference
 // https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
+// https://stackoverflow.com/questions/26061298/python-multi-thread-multi-interpreter-c-api
+// https://stackoverflow.com/questions/15470367/pyeval-initthreads-in-python-3-how-when-to-call-it-the-saga-continues-ad-naus
 
 namespace script::py_backend {
 
-EngineScopeImpl::EngineScopeImpl(PyEngine &engine,
-                                 PyEngine *) /*: gilState_(PyGILState_Ensure())*/ {
-  // PyThreadState_Swap(engine.sub_);
+PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
+  // acquire the GIL
+  PyEval_AcquireLock();   
+  PyThreadState* currentThreadState = engine.subThreadState.get();
+  if(currentThreadState == NULL) {
+    // create a new thread state for the the sub interpreter in the new thread
+    currentThreadState = PyThreadState_New(engine.subInterpreterState);
+    // save to TLS storage
+    engine.subThreadState.set(currentThreadState);
+  }
+
+  // swap to correct thread state
+  PyThreadState_Swap(currentThreadState);
 }
-EngineScopeImpl::~EngineScopeImpl() {
-  // PyGILState_Release(gilState_);
+PyEngineScopeImpl::~PyEngineScopeImpl() {
+  if(PyGILState_Check() > 0)
+  {
+    // swap thread state to default
+    PyThreadState_Swap(NULL);
+    // release the GIL
+    PyEval_ReleaseLock();         //TODO: release unused thread state if needed
+  }
 }
 
-ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &) /*: threadState(PyEval_SaveThread())*/ {}
-ExitEngineScopeImpl::~ExitEngineScopeImpl() {
-  // PyEval_RestoreThread(threadState);
+PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &) {
+  // swap thread state to default
+  PyThreadState_Swap(NULL);
+  // release the GIL
+  PyEval_ReleaseLock();         //TODO: release unused thread state if needed
 }
+
 
 }  // namespace script::py_backend

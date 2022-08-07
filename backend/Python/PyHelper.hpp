@@ -50,4 +50,31 @@ struct py_interop {
   }
 };
 
+class PyTssStorage
+{
+private:
+	Py_tss_t key = Py_tss_NEEDS_INIT;
+public:
+    PyTssStorage() {
+        int result = PyThread_tss_create(&key);   //TODO: Output or throw exception if failed
+    }        
+    ~PyTssStorage()
+    {
+      if(isValid())
+          PyThread_tss_delete(&key);
+    }
+    int set(void* value)
+    {
+      return isValid() ? PyThread_tss_set(&key, value) : 1;
+    }
+    void* get()
+    {
+      return isValid() ? PyThread_tss_get(&key) : NULL;
+    }
+    bool isValid()
+    {
+        return PyThread_tss_is_created(&key) > 0;
+    }
+};
+
 }  // namespace script
