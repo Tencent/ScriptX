@@ -16,8 +16,12 @@
  */
 
 #include "PyHelper.hpp"
+#include "PyEngine.h"
 
 namespace script::py_backend {
+
+// static difinition
+PyThreadState* PyEngine::mainThreadState;
 
 PyEngine& currentEngine() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 

@@ -18,10 +18,11 @@
 #pragma once
 #include "../../src/Native.hpp"
 #include "../../src/Reference.h"
-#include "PyEngine.h"
 #include "PyHelper.h"
 
 namespace script {
+
+class py_backend::PyEngine;
 
 struct py_interop {
   template <typename T>
@@ -50,6 +51,10 @@ struct py_interop {
   }
 };
 
+} // namespace script
+
+namespace script::py_backend {
+
 class PyTssStorage
 {
 private:
@@ -77,4 +82,4 @@ public:
     }
 };
 
-}  // namespace script
+}  // namespace script::backend

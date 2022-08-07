@@ -26,9 +26,7 @@
 namespace script::py_backend {
 
 PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
-  // acquire the GIL
-  PyEval_AcquireLock();   
-  PyThreadState* currentThreadState = engine.subThreadState.get();
+  PyThreadState* currentThreadState = (PyThreadState*)engine.subThreadState.get();
   if(currentThreadState == NULL) {
     // create a new thread state for the the sub interpreter in the new thread
     currentThreadState = PyThreadState_New(engine.subInterpreterState);
@@ -36,24 +34,23 @@ PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
     engine.subThreadState.set(currentThreadState);
   }
 
-  // swap to correct thread state
-  PyThreadState_Swap(currentThreadState);
+  // acquire the GIL & swap to correct thread state
+  PyEval_RestoreThread(currentThreadState);
 }
 PyEngineScopeImpl::~PyEngineScopeImpl() {
   if(PyGILState_Check() > 0)
   {
-    // swap thread state to default
-    PyThreadState_Swap(NULL);
-    // release the GIL
-    PyEval_ReleaseLock();         //TODO: release unused thread state if needed
+    PyEval_SaveThread();        // release GIL & reset thread state
+    //TODO: release unused thread state if needed
   }
 }
 
 PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &) {
-  // swap thread state to default
-  PyThreadState_Swap(NULL);
-  // release the GIL
-  PyEval_ReleaseLock();         //TODO: release unused thread state if needed
+  if(PyGILState_Check() > 0)
+  {
+    PyEval_SaveThread();        // release GIL & reset thread state
+  }
+  //TODO: release unused thread state if needed
 }
 
 
