@@ -31,7 +31,7 @@ class PyEngineScopeImpl {
   ~PyEngineScopeImpl();
 };
 
-class ExitPyEngineScopeImpl {
+class PyExitEngineScopeImpl {
 
  public:
   explicit PyExitEngineScopeImpl(PyEngine &);

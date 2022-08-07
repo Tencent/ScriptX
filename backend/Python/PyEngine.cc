@@ -33,11 +33,12 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     mainThreadState = PyEval_SaveThread();
   }
 
-  PyEval_AcquireLock();     // acquire GIL
+  PyEval_RestoreThread(mainThreadState);     // acquire GIL & resume thread state
   PyThreadState* state = Py_NewInterpreter();
-  subThreadState.set(state);
+  if(!state)
+    throw Exception("Fail to create sub interpreter");
+  subThreadState.set(PyEval_SaveThread());    // release GIL & reset thread state
   subInterpreterState = state->interp;
-  PyEval_ReleaseThread(state);    // release GIL
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
@@ -45,7 +46,8 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  Py_EndInterpreter(defaultSubThreadState);
+  PyEval_AcquireThread((PyThreadState*)subThreadState.get());
+  Py_EndInterpreter((PyThreadState*)subThreadState.get());
   ScriptEngine::destroyUserData();
 }
 

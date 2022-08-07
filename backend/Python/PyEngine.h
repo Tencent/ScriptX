@@ -24,14 +24,17 @@
 
 namespace script::py_backend {
 
+class PyTssStorage;
+
 class PyEngine : public ScriptEngine {
  private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
   
   static PyThreadState* mainThreadState;    // Global thread state of main interpreter
   PyInterpreterState* subInterpreterState;
-  PyTssStorage subThreadState;              // Sub thread state of sub interpreter (TLS)
-  int scopeReferNum;
+  PyTssStorage subThreadState;      // Sub thread state of sub interpreter (in TLS)
+  
+  friend class PyEngineScopeImpl;
 
  public:
   PyEngine(std::shared_ptr<::script::utils::MessageQueue> queue);
