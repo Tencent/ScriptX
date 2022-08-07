@@ -25,9 +25,19 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
     py::initialize_interpreter();
+    // enable thread support & get GIL
+    PyEval_InitThreads();
+    // register exception translation
     py::register_exception<Exception>(py::module_::import("builtins"), "ScriptXException");
+    // save thread state & release GIL
+    mainThreadState = PyEval_SaveThread();
   }
-  sub_ = Py_NewInterpreter();
+
+  PyEval_AcquireLock();     // acquire GIL
+  PyThreadState* state = Py_NewInterpreter();
+  subThreadState.set(state);
+  subInterpreterState = state->interp;
+  PyEval_ReleaseThread(state);    // release GIL
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
@@ -35,7 +45,7 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  Py_EndInterpreter(sub_);
+  Py_EndInterpreter(defaultSubThreadState);
   ScriptEngine::destroyUserData();
 }
 
