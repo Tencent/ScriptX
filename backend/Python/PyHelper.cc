@@ -23,6 +23,7 @@ namespace script::py_backend {
 // static difinition
 PyThreadState* PyEngine::mainThreadState;
 
-PyEngine& currentEngine() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
+PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
+PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
 }  // namespace script::py_backend

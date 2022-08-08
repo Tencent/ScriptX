@@ -34,23 +34,35 @@ PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
     engine.subThreadState.set(currentThreadState);
   }
 
+  if(py_backend::currentEngine() != nullptr)
+  {
+    // Another engine is entered
+    // Push his thread state into stack & release GIL to avoid dead-lock
+    engine.oldThreadStateStack.push(PyEval_SaveThread());
+  }
+
   // acquire the GIL & swap to correct thread state
   PyEval_RestoreThread(currentThreadState);
 }
 PyEngineScopeImpl::~PyEngineScopeImpl() {
-  if(PyGILState_Check() > 0)
+  PyEngine* currentEngine = py_backend::currentEngine();
+  if(currentEngine != nullptr)
   {
-    PyEval_SaveThread();        // release GIL & reset thread state
-    //TODO: release unused thread state if needed
+    // Engine existing. Need to exit
+    PyExitEngineScopeImpl exitEngine(*currentEngine);
   }
 }
 
-PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &) {
-  if(PyGILState_Check() > 0)
-  {
-    PyEval_SaveThread();        // release GIL & reset thread state
-  }
-  //TODO: release unused thread state if needed
+PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine & engine) {
+    // Current engine need to exit
+    PyEval_SaveThread();        // release GIL & clear current thread state
+    // restore old thread state saved if needed
+    auto &oldThreadStateStack = engine.oldThreadStateStack;
+    if(!oldThreadStateStack.empty())
+    {
+      PyEval_RestoreThread(oldThreadStateStack.top());
+      oldThreadStateStack.pop();
+    }
 }
 
 

@@ -24,21 +24,39 @@ namespace script::py_backend {
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
+    // Python not initialized. Init main interpreter
     py::initialize_interpreter();
-    // enable thread support & get GIL
+    // Enable thread support & get GIL
     PyEval_InitThreads();
-    // register exception translation
+    // Register exception translation
     py::register_exception<Exception>(py::module_::import("builtins"), "ScriptXException");
-    // save thread state & release GIL
+    // Save main thread state & release GIL
     mainThreadState = PyEval_SaveThread();
   }
 
-  PyEval_RestoreThread(mainThreadState);     // acquire GIL & resume thread state
-  PyThreadState* state = Py_NewInterpreter();
-  if(!state)
+  PyThreadState* oldState = nullptr;
+  if(py_backend::currentEngine() != nullptr)
+  {
+    // Another thread state exists, save it temporarily & release GIL
+    // Need to save it here because Py_NewInterpreter need main thread state stored at initialization
+    oldState = PyEval_SaveThread();
+  }
+
+  // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
+  PyEval_RestoreThread(mainThreadState);     
+  PyThreadState* newSubState = Py_NewInterpreter();
+  if(!newSubState)
     throw Exception("Fail to create sub interpreter");
-  subThreadState.set(PyEval_SaveThread());    // release GIL & reset thread state
-  subInterpreterState = state->interp;
+  subInterpreterState = newSubState->interp;
+
+  // Store created new sub thread state & release GIL
+  subThreadState.set(PyEval_SaveThread());  
+
+  // Recover old thread state stored before & recover GIL if needed
+  if(oldState)
+  {
+    PyEval_RestoreThread(oldState);
+  }
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
