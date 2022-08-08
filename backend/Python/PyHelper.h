@@ -35,6 +35,7 @@ namespace script::py_backend {
 
 class PyEngine;
 
-PyEngine& currentEngine();
+PyEngine* currentEngine();
+PyEngine& currentEngineChecked();
 
 }  // namespace script::py_backend

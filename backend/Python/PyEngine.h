@@ -21,20 +21,29 @@
 #include "../../src/Exception.h"
 #include "../../src/utils/MessageQueue.h"
 #include "PyHelper.hpp"
+#include <stack>
 
 namespace script::py_backend {
 
 class PyTssStorage;
 
+// an PyEngine = a subinterpreter
 class PyEngine : public ScriptEngine {
  private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
   
   static PyThreadState* mainThreadState;    // Global thread state of main interpreter
   PyInterpreterState* subInterpreterState;
-  PyTssStorage subThreadState;      // Sub thread state of sub interpreter (in TLS)
+  PyTssStorage subThreadState;      // Sub thread state of this sub interpreter (in TLS)
+
+  // When you use EngineScope to enter a new engine(subinterpreter)
+  // and find that there is an existing thread state owned by another engine,
+  // we need to push its thread state to stack and release GIL to avoid dead-lock
+  // -- see more code in "PyScope.cc"
+  std::stack<PyThreadState*> oldThreadStateStack;
   
   friend class PyEngineScopeImpl;
+  friend class PyExitEngineScopeImpl;
 
  public:
   PyEngine(std::shared_ptr<::script::utils::MessageQueue> queue);
@@ -84,7 +93,7 @@ class PyEngine : public ScriptEngine {
         for (auto& method : classDefine->staticDefine.functions) {
           c.def_static(method.name.c_str(), [method](py::args args) {
             return py_interop::asPy(method.callback(
-                py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
           });
         }
         return c.check();
@@ -94,7 +103,7 @@ class PyEngine : public ScriptEngine {
           c.def(py::init([classDefine](py::args args) {
             T* instance = nullptr;
             instance = classDefine->instanceDefine.constructor(
-                py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args));
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args));
             if (instance == nullptr) {
               throw Exception("can't create class " + classDefine->className);
             }
@@ -104,14 +113,14 @@ class PyEngine : public ScriptEngine {
         for (auto& method : classDefine->staticDefine.functions) {
           c.def(method.name.c_str(), [method](py::args args) {
             return py_interop::asPy(method.callback(
-                py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
           });
         }
         for (auto& method : classDefine->instanceDefine.functions) {
           c.def(method.name.c_str(), [method](T* instance, py::args args) {
             return py_interop::asPy(method.callback(
                 instance,
-                py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
           });
         }
         for (auto& prop : classDefine->instanceDefine.properties) {
@@ -153,7 +162,7 @@ class PyEngine : public ScriptEngine {
         py_args[i] = py_interop::asPy(args[i]);
       }
       T* res = classDefine->instanceDefine.constructor(
-          py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), py_args));
+          py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), py_args));
       return Local<Object>(py::cast(res));
     } catch (const py::builtin_exception& e) {
       throw Exception(e.what());

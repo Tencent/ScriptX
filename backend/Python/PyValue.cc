@@ -83,7 +83,7 @@ struct FunctionData {
 Local<Function> Function::newFunction(script::FunctionCallback callback) {
   py::cpp_function func = [callback](py::args args) {
     return py_interop::toPy(
-        callback(py_interop::makeArguments(&py_backend::currentEngine(), py::dict(), args)));
+        callback(py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
   };
   return Local<Function>(func);
 }

@@ -38,7 +38,7 @@ Local<Value> Arguments::operator[](size_t i) const {
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
 ScriptClass::ScriptClass(const Local<Object>& scriptObject) : internalState_() {
-  internalState_.engine = &py_backend::currentEngine();
+  internalState_.engine = &py_backend::currentEngineChecked();
 }
 
 Local<Object> ScriptClass::getScriptObject() const {
