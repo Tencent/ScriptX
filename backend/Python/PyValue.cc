@@ -25,11 +25,6 @@ using script::py_interop;
 
 namespace script {
 
-template <typename T>
-Local<T> checkAndMakeLocal(py::object ref) {
-  return py_interop::makeLocal<T>(ref);
-}
-
 // for python this creates an empty dict
 Local<Object> Object::newObject() { return Local<Object>(py::dict()); }
 
