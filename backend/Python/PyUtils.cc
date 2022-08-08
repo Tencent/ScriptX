@@ -19,19 +19,18 @@
 
 namespace script {
 
-StringHolder::StringHolder(const script::Local<script::String> &string) : internalHolder_() {
-  internalHolder_ = string.val_.str();
-}
+StringHolder::StringHolder(const script::Local<script::String> &string)
+    : internalHolder_(string.val_) {}
 
 StringHolder::~StringHolder() = default;
 
-size_t StringHolder::length() const { return internalHolder_.length(); }
+size_t StringHolder::length() const { return PyUnicode_GET_LENGTH(internalHolder_); }
 
-const char *StringHolder::c_str() const { return internalHolder_.c_str(); }
+const char *StringHolder::c_str() const { return PyUnicode_AsUTF8(internalHolder_); }
 
-std::string_view StringHolder::stringView() const { return internalHolder_; }
+std::string_view StringHolder::stringView() const { return std::string_view(c_str(), length()); }
 
-std::string StringHolder::string() const { return internalHolder_; }
+std::string StringHolder::string() const { return std::string(c_str(), length()); }
 
 #if defined(__cpp_char8_t)
 // NOLINTNEXTLINE(clang-analyzer-cplusplus.InnerPointer)

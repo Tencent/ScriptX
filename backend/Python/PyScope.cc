@@ -26,16 +26,15 @@
 namespace script::py_backend {
 
 PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
-  PyThreadState* currentThreadState = (PyThreadState*)engine.subThreadState.get();
-  if(currentThreadState == NULL) {
+  PyThreadState *currentThreadState = (PyThreadState *)engine.subThreadState.get();
+  if (currentThreadState == NULL) {
     // create a new thread state for the the sub interpreter in the new thread
     currentThreadState = PyThreadState_New(engine.subInterpreterState);
     // save to TLS storage
     engine.subThreadState.set(currentThreadState);
   }
 
-  if(py_backend::currentEngine() != nullptr)
-  {
+  if (py_backend::currentEngine() != nullptr) {
     // Another engine is entered
     // Push his thread state into stack & release GIL to avoid dead-lock
     engine.oldThreadStateStack.push(PyEval_SaveThread());
@@ -46,24 +45,21 @@ PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
 }
 
 PyEngineScopeImpl::~PyEngineScopeImpl() {
-  PyEngine* currentEngine = py_backend::currentEngine();
-  if(currentEngine != nullptr)
-  {
+  PyEngine *currentEngine = py_backend::currentEngine();
+  if (currentEngine != nullptr) {
     // Engine existing. Need to exit
     PyExitEngineScopeImpl exitEngine(*currentEngine);
   }
 }
 
-PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine & engine) {
-    PyEval_SaveThread();        // release GIL & clear current thread state
-    // restore old thread state saved & recover GIL if needed
-    auto &oldThreadStateStack = engine.oldThreadStateStack;
-    if(!oldThreadStateStack.empty())
-    {
-      PyEval_RestoreThread(oldThreadStateStack.top());
-      oldThreadStateStack.pop();
-    }
+PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &engine) {
+  PyEval_SaveThread();  // release GIL & clear current thread state
+  // restore old thread state saved & recover GIL if needed
+  auto &oldThreadStateStack = engine.oldThreadStateStack;
+  if (!oldThreadStateStack.empty()) {
+    PyEval_RestoreThread(oldThreadStateStack.top());
+    oldThreadStateStack.pop();
+  }
 }
-
 
 }  // namespace script::py_backend

@@ -24,7 +24,6 @@ namespace script::py_backend {
 class PyEngine;
 
 class PyEngineScopeImpl {
-
  public:
   explicit PyEngineScopeImpl(PyEngine &, PyEngine *);
 
@@ -32,7 +31,6 @@ class PyEngineScopeImpl {
 };
 
 class PyExitEngineScopeImpl {
-
  public:
   explicit PyExitEngineScopeImpl(PyEngine &);
 

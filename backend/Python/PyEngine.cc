@@ -25,36 +25,32 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
-    py::initialize_interpreter();
+    Py_Initialize();
     // Enable thread support & get GIL
     PyEval_InitThreads();
-    // Register exception translation
-    py::register_exception<Exception>(py::module_::import("builtins"), "ScriptXException");
     // Save main thread state & release GIL
     mainThreadState = PyEval_SaveThread();
   }
 
   PyThreadState* oldState = nullptr;
-  if(py_backend::currentEngine() != nullptr)
-  {
+  if (py_backend::currentEngine() != nullptr) {
     // Another thread state exists, save it temporarily & release GIL
-    // Need to save it here because Py_NewInterpreter need main thread state stored at initialization
+    // Need to save it here because Py_NewInterpreter need main thread state stored at
+    // initialization
     oldState = PyEval_SaveThread();
   }
 
   // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState);     
+  PyEval_RestoreThread(mainThreadState);
   PyThreadState* newSubState = Py_NewInterpreter();
-  if(!newSubState)
-    throw Exception("Fail to create sub interpreter");
+  if (!newSubState) throw Exception("Fail to create sub interpreter");
   subInterpreterState = newSubState->interp;
 
   // Store created new sub thread state & release GIL
-  subThreadState.set(PyEval_SaveThread());  
+  subThreadState.set(PyEval_SaveThread());
 
   // Recover old thread state stored before & recover GIL if needed
-  if(oldState)
-  {
+  if (oldState) {
     PyEval_RestoreThread(oldState);
   }
 }
@@ -70,11 +66,24 @@ void PyEngine::destroy() noexcept {
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
-  return Local<Value>(py::globals()[key.toString().c_str()]);
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  PyObject* value = PyDict_GetItemString(globals, key.toStringHolder().c_str());
+  return Local<Value>(value);
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
-  py::globals()[key.toString().c_str()] = value.val_;
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  int result =
+      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::peekLocal(value));
+  if (result != 0) {
+    checkException();
+  }
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script) { return eval(script, Local<Value>()); }
@@ -84,34 +93,35 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  try {
-    std::string source = script.toString();
-    if (source.find('\n') != std::string::npos)
-      return Local<Value>(py::eval<py::eval_statements>(source));
-    else
-      return Local<Value>(py::eval<py::eval_single_statement>(source));
-  } catch (const py::builtin_exception& e) {
-    throw Exception(e.what());
-  } catch (const py::error_already_set& e) {
-    // Because of pybind11's e.what() use his own gil lock,
-    // we need to let pybind11 know that we have created thread state and he only need to use it,
-    // or he will twice-acquire GIL & cause dead-lock.
-    // Code below is just adaptation for pybind11's gil acquire in his internal code
-    auto &internals = py::detail::get_internals();
-    PyThreadState* tempState = (PyThreadState*)PYBIND11_TLS_GET_VALUE(internals.tstate);
-    PYBIND11_TLS_REPLACE_VALUE(internals.tstate, subThreadState.get());
-    const char* errorStr = e.what();
-    // PYBIND11_TLS_REPLACE_VALUE(internals.tstate, tempState);
-    throw Exception(errorStr);
+  // Limitation: only support one statement or statements
+  // TODO: imporve eval support
+  const char* source = script.toStringHolder().c_str();
+  bool oneLine = false;
+  for (int i = 0; i < strlen(source); i++) {
+    if (source[i] == '\n') {
+      oneLine = true;
+      break;
+    }
   }
+  PyObject* result = nullptr;
+  PyObject* globals = py_backend::getGlobalDict();
+  if (oneLine) {
+    result = PyRun_StringFlags(source, Py_single_input, globals, nullptr, nullptr);
+  } else {
+    result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
+  }
+  if (result == nullptr) {
+    checkException();
+  }
+  return Local<Value>(result);
 }
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
-  if (scriptFile.toString().empty()) throw Exception("script file no found");
+  std::string sourceFilePath = scriptFile.toString();
+  if (sourceFilePath.empty()) throw Exception("script file no found");
   Local<Value> content = internal::readAllFileContent(scriptFile);
   if (content.isNull()) throw Exception("can't load script file");
 
-  std::string sourceFilePath = scriptFile.toString();
   std::size_t pathSymbol = sourceFilePath.rfind("/");
   if (pathSymbol != -1)
     sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
