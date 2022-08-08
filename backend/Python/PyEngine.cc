@@ -89,7 +89,7 @@ void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
     throw Exception("Fail to get globals");
   }
   int result =
-      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::peekLocal(value));
+      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getLocal(value));
   if (result != 0) {
     checkException();
   }

@@ -32,9 +32,12 @@ class PyEngine : public ScriptEngine {
  private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
 
-  static PyThreadState* mainThreadState;  // Global thread state of main interpreter
+  // Global thread state of main interpreter
+  inline static PyThreadState* mainThreadState = nullptr;
   PyInterpreterState* subInterpreterState;
-  PyTssStorage subThreadState;  // Sub thread state of this sub interpreter (in TLS)
+  // Sub thread state of this sub interpreter (in TLS)
+  PyTssStorage subThreadState;
+  std::unordered_map<const void*, Global<Value>> nativeDefineRegistry_;
 
   // When you use EngineScope to enter a new engine(subinterpreter)
   // and find that there is an existing thread state owned by another engine,
@@ -83,8 +86,29 @@ class PyEngine : public ScriptEngine {
 
  private:
   template <typename T>
-  bool registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    return false;
+  void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
+    PyType_Slot slots[] = {PyType_Slot(Py_tp_new), PyType_Slot(Py_tp_dealloc), PyType_Slot(0)};
+    PyType_Spec spec{classDefine->className.c_str(), sizeof(T), 0, Py_TPFLAGS_HEAPTYPE, slots};
+    PyObject* type = PyType_FromSpec(&spec);
+    if (type == nullptr) {
+      checkException();
+      throw Exception("Failed to create type for class " + classDefine->className);
+    }
+    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
+    set(String::newString(classDefine->className.c_str()), Local<Value>(type));
+  }
+
+  template <>
+  void registerNativeClassImpl(const ClassDefine<void>* classDefine) {
+    PyType_Slot slots[] = {PyType_Slot(Py_tp_new), PyType_Slot(Py_tp_dealloc), PyType_Slot(0)};
+    PyType_Spec spec{classDefine->className.c_str(), 1, 0, Py_TPFLAGS_HEAPTYPE, slots};
+    PyObject* type = PyType_FromSpec(&spec);
+    if (type == nullptr) {
+      checkException();
+      throw Exception("Failed to create type for class " + classDefine->className);
+    }
+    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
+    set(String::newString(classDefine->className.c_str()), Local<Value>(type));
   }
 
   Local<Object> getNamespaceForRegister(const std::string_view& nameSpace) {
@@ -94,7 +118,15 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
                                    const Local<Value>* args) {
-    TEMPLATE_NOT_IMPLEMENTED();
+    PyObject* tuple = PyTuple_New(size);
+    for (size_t i = 0; i < size; ++i) {
+      PyTuple_SetItem(tuple, i, py_interop::getLocal(args[i]));
+    }
+
+    PyTypeObject* type = reinterpret_cast<PyTypeObject*>(nativeDefineRegistry_[classDefine].val_);
+    PyObject* obj = PyObject_New(PyObject, type);
+    Py_DECREF(tuple);
+    return Local<Object>(obj);
   }
 
   template <typename T>
