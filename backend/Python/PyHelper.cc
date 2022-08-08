@@ -37,9 +37,6 @@ void checkException() {
 
 void rethrowException(const Exception& exception) { throw exception; }
 
-// static difinition
-PyThreadState* PyEngine::mainThreadState;
-
 PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
 PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 

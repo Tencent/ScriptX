@@ -43,6 +43,5 @@ PyEngine* currentEngine();
 PyEngine& currentEngineChecked();
 
 PyObject* getGlobalDict();
-PyObject* getLocalDict();
 
 }  // namespace script::py_backend

@@ -26,7 +26,8 @@ namespace py_backend {
 struct ArgumentsData {
   PyEngine* engine;
   PyObject* self;
-  PyObject* args;
+  PyObject* const* args;
+  Py_ssize_t nargs;
 };
 
 struct ScriptClassState {
