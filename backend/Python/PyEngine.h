@@ -42,8 +42,6 @@ class PyEngine : public ScriptEngine {
   // -- see more code in "PyScope.cc"
   std::stack<PyThreadState*> oldThreadStateStack;
 
-  py::module_ m_;
-
   friend class PyEngineScopeImpl;
   friend class PyExitEngineScopeImpl;
 
@@ -86,77 +84,7 @@ class PyEngine : public ScriptEngine {
  private:
   template <typename T>
   bool registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    if (classDefine == nullptr) {
-      return false;
-    }
-    try {
-      if constexpr (std::is_same_v<T, void>) {
-        py::class_<void*> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
-        for (auto& method : classDefine->staticDefine.functions) {
-          c.def_static(method.name.c_str(), [method](py::args args) {
-            return py_interop::asPy(method.callback(
-                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
-          });
-        }
-        return c.check();
-      } else {
-        py::class_<T> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
-        if (classDefine->instanceDefine.constructor) {
-          c.def(py::init([classDefine](py::args args) {
-            T* instance = nullptr;
-            instance = classDefine->instanceDefine.constructor(
-                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args));
-            if (instance == nullptr) {
-              throw Exception("can't create class " + classDefine->className);
-            }
-            return instance;
-          }));
-        }
-        for (auto& method : classDefine->staticDefine.functions) {
-          c.def(method.name.c_str(), [method](py::args args) {
-            return py_interop::asPy(method.callback(
-                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
-          });
-        }
-        for (auto& method : classDefine->instanceDefine.functions) {
-          c.def(method.name.c_str(), [method](T* instance, py::args args) {
-            return py_interop::asPy(method.callback(
-                instance,
-                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
-          });
-        }
-        for (auto& prop : classDefine->instanceDefine.properties) {
-          if (prop.getter) {
-            if (prop.setter) {
-              c.def_property(
-                  prop.name.c_str(),
-                  [prop](T* instance) { return py_interop::asPy(prop.getter(instance)); },
-                  [prop](T* instance, py::handle value) {
-                    prop.setter(instance, Local<Value>(value));
-                  });
-            } else {
-              c.def_property_readonly(prop.name.c_str(), [prop](T* instance) {
-                return py_interop::asPy(prop.getter(instance));
-              });
-            }
-          }
-        }
-        return c.check();
-      }
-    } catch (const py::builtin_exception& e) {
-      throw Exception(e.what());
-    } catch (const py::error_already_set& e) {
-      // Because of pybind11's e.what() use his own gil lock,
-      // we need to let pybind11 know that we have created thread state and he only need to use it,
-      // or he will twice-acquire GIL & cause dead-lock.
-      // Code below is just adaptation for pybind11's gil acquire in his internal code
-      auto& internals = py::detail::get_internals();
-      PyThreadState* tempState = (PyThreadState*)PYBIND11_TLS_GET_VALUE(internals.tstate);
-      PYBIND11_TLS_REPLACE_VALUE(internals.tstate, subThreadState.get());
-      const char* errorStr = e.what();
-      // PYBIND11_TLS_REPLACE_VALUE(internals.tstate, tempState);
-      throw Exception(errorStr);
-    }
+    return false;
   }
 
   Local<Object> getNamespaceForRegister(const std::string_view& nameSpace) {
@@ -166,30 +94,17 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
                                    const Local<Value>* args) {
-    try {
-      // 返回T指针，接收const Argument& args
-      py::tuple py_args(size);
-      for (size_t i = 0; i < size; i++) {
-        py_args[i] = py_interop::asPy(args[i]);
-      }
-      T* res = classDefine->instanceDefine.constructor(
-          py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), py_args));
-      return Local<Object>(py::cast(res));
-    } catch (const py::builtin_exception& e) {
-      throw Exception(e.what());
-    } catch (const py::error_already_set& e) {
-      throw Exception(e.what());
-    }
+    TEMPLATE_NOT_IMPLEMENTED();
   }
 
   template <typename T>
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return py::isinstance<T>(value.val_);
+    // TODO: 实现
   }
 
   template <typename T>
   T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return value.val_.cast<T*>();
+    // TODO: 实现
   }
 
  private:

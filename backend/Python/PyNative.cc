@@ -29,10 +29,10 @@ Local<Object> Arguments::thiz() const { return py_interop::makeLocal<Object>(cal
 
 bool Arguments::hasThiz() const { return bool(callbackInfo_.self); }
 
-size_t Arguments::size() const { return callbackInfo_.args.size(); }
+size_t Arguments::size() const { return PyTuple_Size(callbackInfo_.args); }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  return py_interop::makeLocal<Value>(callbackInfo_.args[i]);
+  return py_interop::makeLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
@@ -51,5 +51,5 @@ Local<Array> ScriptClass::getInternalStore() const {
 
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
-ScriptClass::~ScriptClass() {};
+ScriptClass::~ScriptClass(){};
 }  // namespace script

@@ -32,7 +32,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
-    py::initialize_interpreter();
+    Py_Initialize();
     // Enable thread support & get GIL
     PyEval_InitThreads();
     // Save main thread state & release GIL
@@ -75,11 +75,24 @@ void PyEngine::destroy() noexcept {
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
-  return Local<Value>(py::globals()[key.toString().c_str()]);
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  PyObject* value = PyDict_GetItemString(globals, key.toStringHolder().c_str());
+  return Local<Value>(value);
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
-  py::globals()[key.toString().c_str()] = value.val_;
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  int result =
+      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::peekLocal(value));
+  if (result != 0) {
+    checkException();
+  }
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script) { return eval(script, Local<Value>()); }
@@ -109,6 +122,17 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
     // PYBIND11_TLS_REPLACE_VALUE(internals.tstate, tempState);
     throw Exception(errorStr);
   }
+  PyObject* result = nullptr;
+  PyObject* globals = py_backend::getGlobalDict();
+  if (oneLine) {
+    result = PyRun_StringFlags(source, Py_single_input, globals, nullptr, nullptr);
+  } else {
+    result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
+  }
+  if (result == nullptr) {
+    checkException();
+  }
+  return Local<Value>(result);
 }
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {

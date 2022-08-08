@@ -20,10 +20,34 @@
 
 namespace script::py_backend {
 
+PyObject* checkException(PyObject* obj) {
+  if (!obj) {
+    checkException();
+  }
+  return obj;
+}
+
+void checkException() {
+  auto err = PyErr_Occurred();
+  if (err) {
+    // TODO
+    PyErr_Print();
+  }
+}
+
+void rethrowException(const Exception& exception) { throw exception; }
+
 // static difinition
 PyThreadState* PyEngine::mainThreadState;
 
 PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
 PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
+PyObject* getGlobalDict() {
+  PyObject* globals = PyEval_GetGlobals();
+  if (globals == nullptr) {
+    globals = PyModule_GetDict(PyImport_ImportModule("__main__"));
+  }
+  return globals;
+}
 }  // namespace script::py_backend
