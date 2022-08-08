@@ -93,6 +93,10 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   } catch (const py::builtin_exception& e) {
     throw Exception(e.what());
   } catch (const py::error_already_set& e) {
+    // Because of pybind11's e.what() use his own gil lock,
+    // we need to let pybind11 know that we have created thread state and he only need to use it,
+    // or he will twice-acquire GIL & cause dead-lock.
+    // Code below is just adaptation for pybind11's gil acquire in his internal code
     auto &internals = py::detail::get_internals();
     PyThreadState* tempState = (PyThreadState*)PYBIND11_TLS_GET_VALUE(internals.tstate);
     PYBIND11_TLS_REPLACE_VALUE(internals.tstate, subThreadState.get());
