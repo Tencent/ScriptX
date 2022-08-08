@@ -44,6 +44,7 @@ PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
   // acquire the GIL & swap to correct thread state
   PyEval_RestoreThread(currentThreadState);
 }
+
 PyEngineScopeImpl::~PyEngineScopeImpl() {
   PyEngine* currentEngine = py_backend::currentEngine();
   if(currentEngine != nullptr)
@@ -54,9 +55,8 @@ PyEngineScopeImpl::~PyEngineScopeImpl() {
 }
 
 PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine & engine) {
-    // Current engine need to exit
     PyEval_SaveThread();        // release GIL & clear current thread state
-    // restore old thread state saved if needed
+    // restore old thread state saved & recover GIL if needed
     auto &oldThreadStateStack = engine.oldThreadStateStack;
     if(!oldThreadStateStack.empty())
     {
