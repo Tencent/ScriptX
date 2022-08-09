@@ -130,28 +130,10 @@ class PyEngine : public ScriptEngine {
       const ClassDefine<void>* classDefine;
       void* instance;
     };
-    PyType_Slot slots[3];
-    slots[0].slot = Py_tp_init;
-    slots[0].pfunc =
-        static_cast<initproc>([](PyObject* self, PyObject* args, PyObject* kwds) -> int {
-          if (kwds) {
-            PyErr_SetString(PyExc_TypeError, "Constructor doesn't support keyword arguments");
-            return -1;
-          }
-          PyEngine* engine = EngineScope::currentEngineAs<PyEngine>();
-          ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
-          ArgumentsData callbackInfo{engine, self, args};
-          thiz->instance = thiz->classDefine->instanceDefine.constructor(Arguments(callbackInfo));
-          return 0;
-        });
-    slots[1].slot = Py_tp_dealloc;
-    slots[1].pfunc = static_cast<destructor>([](PyObject* self) {
-      ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
-      delete thiz->instance;
-      Py_TYPE(self)->tp_free(self);
-    });
-    slots[2].slot = 0;
-    slots[2].pfunc = nullptr;
+
+    PyType_Slot slots[] = {
+        {0, nullptr},
+    };
     PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject), 0,
                      Py_TPFLAGS_HEAPTYPE, slots};
     PyObject* type = PyType_FromSpec(&spec);
@@ -159,6 +141,17 @@ class PyEngine : public ScriptEngine {
       checkException();
       throw Exception("Failed to create type for class " + classDefine->className);
     }
+    // Add static methods
+    for (const auto& method : classDefine->staticDefine.functions) {
+      PyObject_SetAttrString(
+          type, method.name.c_str(),
+          warpFunction(method.name.c_str(), nullptr, METH_VARARGS | METH_STATIC, method.callback));
+    }
+    // Add static properties
+    // for (const auto& property : classDefine->staticDefine.properties) {
+    //   PyObject_SetAttrString(type, property.name.c_str(),
+    //                          warpProperty(property.name.c_str(), nullptr, property.callback));
+    // }
     nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
     set(String::newString(classDefine->className.c_str()), Local<Value>(type));
   }
@@ -176,11 +169,11 @@ class PyEngine : public ScriptEngine {
     }
 
     PyTypeObject* type = reinterpret_cast<PyTypeObject*>(nativeDefineRegistry_[classDefine].val_);
-    PyObject* obj = _PyObject_New(type);
-    int result = obj->ob_type->tp_init(obj, tuple, nullptr);
-    if (result < 0) {
+    PyObject* obj = type->tp_new(type, tuple, nullptr);
+    if (obj == nullptr) {
       checkException();
     }
+
     Py_DECREF(tuple);
     return Local<Object>(obj);
   }

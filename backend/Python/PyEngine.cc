@@ -158,5 +158,4 @@ ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
 bool PyEngine::isDestroying() const { return false; }
-
 }  // namespace script::py_backend
