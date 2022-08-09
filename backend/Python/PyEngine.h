@@ -145,7 +145,7 @@ class PyEngine : public ScriptEngine {
     for (const auto& method : classDefine->staticDefine.functions) {
       PyObject_SetAttrString(
           type, method.name.c_str(),
-          warpFunction(method.name.c_str(), nullptr, METH_VARARGS | METH_STATIC, method.callback));
+          warpFunction(method.name.c_str(), nullptr, METH_VARARGS, method.callback));
     }
     // Add static properties
     // for (const auto& property : classDefine->staticDefine.properties) {

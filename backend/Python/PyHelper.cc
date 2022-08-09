@@ -43,29 +43,31 @@ PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<Py
 PyObject* getGlobalDict() {
   PyObject* globals = PyEval_GetGlobals();
   if (globals == nullptr) {
-    globals = PyModule_GetDict(PyImport_ImportModule("__main__"));
+    PyObject* __main__ = PyImport_ImportModule("__main__");
+    globals = PyModule_GetDict(__main__);
+    Py_DECREF(__main__);
   }
   return globals;
 }
 
-PyObject* warpFunction(const char* name, const char* doc, int flags,
-                       const FunctionCallback& callback) {
+PyObject* warpFunction(const char* name, const char* doc, int flags, FunctionCallback callback) {
   // Function name can be nullptr
   // https://docs.python.org/zh-cn/3/c-api/capsule.html
 
   struct FunctionData {
-    const FunctionCallback& function;
+    FunctionCallback function;
     py_backend::PyEngine* engine;
   };
 
-  FunctionData* callbackIns = new FunctionData{callback, py_backend::currentEngine()};
+  FunctionData* callbackIns = new FunctionData{std::move(callback), py_backend::currentEngine()};
 
   PyMethodDef* method = new PyMethodDef();
   method->ml_name = name;
   method->ml_doc = doc;
   method->ml_flags = flags;
   method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
-    void* ptr = PyCapsule_GetPointer(self, "ScriptX_Function");
+    if (!PyCapsule_IsValid(self, nullptr)) throw Exception("Invalid function data");
+    void* ptr = PyCapsule_GetPointer(self, nullptr);
     if (ptr == nullptr) {
       PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
     } else {
@@ -80,14 +82,14 @@ PyObject* warpFunction(const char* name, const char* doc, int flags,
     return nullptr;
   };
 
-  PyObject* ctx = PyCapsule_New(callbackIns, "ScriptX_Function", [](PyObject* cap) {
-    void* ptr = PyCapsule_GetPointer(cap, "ScriptX_Function");
+  PyObject* ctx = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
+    void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
   py_backend::checkException(ctx);
   callbackIns = nullptr;
 
-  PyObject* closure = PyCFunction_New(method, ctx);
+  PyObject* closure = PyCFunction_NewEx(method, ctx, nullptr);
   Py_XDECREF(ctx);
   py_backend::checkException(closure);
 
