@@ -41,12 +41,12 @@ PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
 PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
 PyObject* getGlobalDict() {
-  PyObject* globals = PyEval_GetGlobals();
-  if (globals == nullptr) {
-    PyObject* __main__ = PyImport_ImportModule("__main__");
-    globals = PyModule_GetDict(__main__);
-    Py_DECREF(__main__);
+  static PyObject* __main__ = nullptr;
+  if (__main__ == nullptr) {
+    __main__ = PyImport_ImportModule("__main__");
+    //Py_DECREF(__main__);
   }
+  PyObject* globals = PyModule_GetDict(__main__);
   return globals;
 }
 
