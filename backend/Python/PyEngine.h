@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include <stack>
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
 #include "../../src/utils/MessageQueue.h"
 #include "PyHelper.hpp"
+#include <stack>
 
 namespace script::py_backend {
 
@@ -31,19 +31,17 @@ class PyTssStorage;
 class PyEngine : public ScriptEngine {
  private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
-
-  static PyThreadState* mainThreadState;  // Global thread state of main interpreter
+  
+  static PyThreadState* mainThreadState;    // Global thread state of main interpreter
   PyInterpreterState* subInterpreterState;
-  PyTssStorage subThreadState;  // Sub thread state of this sub interpreter (in TLS)
+  PyTssStorage subThreadState;      // Sub thread state of this sub interpreter (in TLS)
 
   // When you use EngineScope to enter a new engine(subinterpreter)
   // and find that there is an existing thread state owned by another engine,
   // we need to push its thread state to stack and release GIL to avoid dead-lock
   // -- see more code in "PyScope.cc"
   std::stack<PyThreadState*> oldThreadStateStack;
-
-  py::module_ m_;
-
+  
   friend class PyEngineScopeImpl;
   friend class PyExitEngineScopeImpl;
 
@@ -86,10 +84,10 @@ class PyEngine : public ScriptEngine {
  private:
   template <typename T>
   bool registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    if (classDefine == nullptr) {
-      return false;
-    }
     try {
+      if (classDefine == nullptr) {
+        return false;
+      }
       if constexpr (std::is_same_v<T, void>) {
         py::class_<void*> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
         for (auto& method : classDefine->staticDefine.functions) {
@@ -146,16 +144,7 @@ class PyEngine : public ScriptEngine {
     } catch (const py::builtin_exception& e) {
       throw Exception(e.what());
     } catch (const py::error_already_set& e) {
-      // Because of pybind11's e.what() use his own gil lock,
-      // we need to let pybind11 know that we have created thread state and he only need to use it,
-      // or he will twice-acquire GIL & cause dead-lock.
-      // Code below is just adaptation for pybind11's gil acquire in his internal code
-      auto& internals = py::detail::get_internals();
-      PyThreadState* tempState = (PyThreadState*)PYBIND11_TLS_GET_VALUE(internals.tstate);
-      PYBIND11_TLS_REPLACE_VALUE(internals.tstate, subThreadState.get());
-      const char* errorStr = e.what();
-      // PYBIND11_TLS_REPLACE_VALUE(internals.tstate, tempState);
-      throw Exception(errorStr);
+      throw Exception(e.what());
     }
   }
 
