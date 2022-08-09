@@ -87,8 +87,36 @@ class PyEngine : public ScriptEngine {
  private:
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    PyType_Slot slots[] = {PyType_Slot(Py_tp_new), PyType_Slot(Py_tp_dealloc), PyType_Slot(0)};
-    PyType_Spec spec{classDefine->className.c_str(), sizeof(T), 0, Py_TPFLAGS_HEAPTYPE, slots};
+    struct ScriptXHeapTypeObject {
+      PyObject_HEAD;
+      const ClassDefine<T>* classDefine;
+      T* instance;
+    };
+    PyType_Slot slots[] = {
+        {Py_tp_new, nullptr},
+        {Py_tp_dealloc, static_cast<destructor>([](PyObject* self) {
+           ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
+           delete thiz->instance;
+           Py_TYPE(self)->tp_free(self);
+         })},
+        {Py_tp_init,
+         static_cast<initproc>([](PyObject* self, PyObject* args, PyObject* kwds) -> int {
+           if (kwds) {
+             PyErr_SetString(PyExc_TypeError, "Constructor doesn't support keyword arguments");
+             return -1;
+           }
+           PyEngine* engine = EngineScope::currentEngineAs<PyEngine>();
+           ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
+           if (thiz->classDefine->instanceDefine.constructor) {
+             thiz->instance = thiz->classDefine->instanceDefine.constructor(
+                 py_interop::makeArguments(engine, self, args));
+           }
+           return 0;
+         })},
+        {0, nullptr},
+    };
+    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject), 0,
+                     Py_TPFLAGS_HEAPTYPE, slots};
     PyObject* type = PyType_FromSpec(&spec);
     if (type == nullptr) {
       checkException();
@@ -100,8 +128,35 @@ class PyEngine : public ScriptEngine {
 
   template <>
   void registerNativeClassImpl(const ClassDefine<void>* classDefine) {
-    PyType_Slot slots[] = {PyType_Slot(Py_tp_new), PyType_Slot(Py_tp_dealloc), PyType_Slot(0)};
-    PyType_Spec spec{classDefine->className.c_str(), 1, 0, Py_TPFLAGS_HEAPTYPE, slots};
+    struct ScriptXHeapTypeObject {
+      PyObject_HEAD;
+      const ClassDefine<void>* classDefine;
+      void* instance;
+    };
+    PyType_Slot slots[3];
+    slots[0].slot = Py_tp_init;
+    slots[0].pfunc =
+        static_cast<initproc>([](PyObject* self, PyObject* args, PyObject* kwds) -> int {
+          if (kwds) {
+            PyErr_SetString(PyExc_TypeError, "Constructor doesn't support keyword arguments");
+            return -1;
+          }
+          PyEngine* engine = EngineScope::currentEngineAs<PyEngine>();
+          ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
+          ArgumentsData callbackInfo{engine, self, args};
+          thiz->instance = thiz->classDefine->instanceDefine.constructor(Arguments(callbackInfo));
+          return 0;
+        });
+    slots[1].slot = Py_tp_dealloc;
+    slots[1].pfunc = static_cast<destructor>([](PyObject* self) {
+      ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
+      delete thiz->instance;
+      Py_TYPE(self)->tp_free(self);
+    });
+    slots[2].slot = 0;
+    slots[2].pfunc = nullptr;
+    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject), 0,
+                     Py_TPFLAGS_HEAPTYPE, slots};
     PyObject* type = PyType_FromSpec(&spec);
     if (type == nullptr) {
       checkException();
@@ -124,7 +179,11 @@ class PyEngine : public ScriptEngine {
     }
 
     PyTypeObject* type = reinterpret_cast<PyTypeObject*>(nativeDefineRegistry_[classDefine].val_);
-    PyObject* obj = PyObject_New(PyObject, type);
+    PyObject* obj = _PyObject_New(type);
+    int result = obj->ob_type->tp_init(obj, tuple, nullptr);
+    if (result < 0) {
+      checkException();
+    }
     Py_DECREF(tuple);
     return Local<Object>(obj);
   }

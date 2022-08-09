@@ -49,9 +49,8 @@ struct py_interop {
     return ref.val_;
   }
 
-  static Arguments makeArguments(py_backend::PyEngine* engine, PyObject* self,
-                                 PyObject* const* args, Py_ssize_t nargs) {
-    return Arguments(py_backend::ArgumentsData{engine, self, args, nargs});
+  static Arguments makeArguments(py_backend::PyEngine* engine, PyObject* self, PyObject* args) {
+    return Arguments(py_backend::ArgumentsData{engine, self, args});
   }
 };
 
