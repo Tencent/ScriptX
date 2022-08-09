@@ -21,13 +21,6 @@
 
 namespace script::py_backend {
 
-static PyObject* PyInit_scriptx() {
-  auto m = py::module_("scriptx");
-  // Register exception translation
-  py::register_exception<Exception>(m, "ScriptXException");
-  return m.ptr();
-}
-
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
@@ -35,31 +28,33 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     Py_Initialize();
     // Enable thread support & get GIL
     PyEval_InitThreads();
+    // Register exception translation
+    py::register_exception<Exception>(py::module_::import("builtins"), "ScriptXException");
     // Save main thread state & release GIL
     mainThreadState = PyEval_SaveThread();
   }
 
   PyThreadState* oldState = nullptr;
-  if (py_backend::currentEngine() != nullptr) {
+  if(py_backend::currentEngine() != nullptr)
+  {
     // Another thread state exists, save it temporarily & release GIL
-    // Need to save it here because Py_NewInterpreter need main thread state stored at
-    // initialization
+    // Need to save it here because Py_NewInterpreter need main thread state stored at initialization
     oldState = PyEval_SaveThread();
   }
 
   // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState);
+  PyEval_RestoreThread(mainThreadState);     
   PyThreadState* newSubState = Py_NewInterpreter();
-  if (!newSubState) throw Exception("Fail to create sub interpreter");
+  if(!newSubState)
+    throw Exception("Fail to create sub interpreter");
   subInterpreterState = newSubState->interp;
 
-  // Add module to sub interpreter
-  PyImport_AppendInittab("scriptx", PyInit_scriptx);
   // Store created new sub thread state & release GIL
-  subThreadState.set(PyEval_SaveThread());
+  subThreadState.set(PyEval_SaveThread());  
 
   // Recover old thread state stored before & recover GIL if needed
-  if (oldState) {
+  if(oldState)
+  {
     PyEval_RestoreThread(oldState);
   }
 }
@@ -115,7 +110,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
     // we need to let pybind11 know that we have created thread state and he only need to use it,
     // or he will twice-acquire GIL & cause dead-lock.
     // Code below is just adaptation for pybind11's gil acquire in his internal code
-    auto& internals = py::detail::get_internals();
+    auto &internals = py::detail::get_internals();
     PyThreadState* tempState = (PyThreadState*)PYBIND11_TLS_GET_VALUE(internals.tstate);
     PYBIND11_TLS_REPLACE_VALUE(internals.tstate, subThreadState.get());
     const char* errorStr = e.what();
@@ -136,11 +131,11 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
 }
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
-  std::string sourceFilePath = scriptFile.toString();
-  if (sourceFilePath.empty()) throw Exception("script file no found");
+  if (scriptFile.toString().empty()) throw Exception("script file no found");
   Local<Value> content = internal::readAllFileContent(scriptFile);
   if (content.isNull()) throw Exception("can't load script file");
 
+  std::string sourceFilePath = scriptFile.toString();
   std::size_t pathSymbol = sourceFilePath.rfind("/");
   if (pathSymbol != -1)
     sourceFilePath = sourceFilePath.substr(pathSymbol + 1);

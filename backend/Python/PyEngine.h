@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include <stack>
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
 #include "../../src/utils/MessageQueue.h"
 #include "PyHelper.hpp"
+#include <stack>
 
 namespace script::py_backend {
 
@@ -31,20 +31,17 @@ class PyTssStorage;
 class PyEngine : public ScriptEngine {
  private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
-
-  // Global thread state of main interpreter
-  inline static PyThreadState* mainThreadState = nullptr;
+  
+  static PyThreadState* mainThreadState;    // Global thread state of main interpreter
   PyInterpreterState* subInterpreterState;
-  // Sub thread state of this sub interpreter (in TLS)
-  PyTssStorage subThreadState;
-  std::unordered_map<const void*, Global<Value>> nativeDefineRegistry_;
+  PyTssStorage subThreadState;      // Sub thread state of this sub interpreter (in TLS)
 
   // When you use EngineScope to enter a new engine(subinterpreter)
   // and find that there is an existing thread state owned by another engine,
   // we need to push its thread state to stack and release GIL to avoid dead-lock
   // -- see more code in "PyScope.cc"
   std::stack<PyThreadState*> oldThreadStateStack;
-
+  
   friend class PyEngineScopeImpl;
   friend class PyExitEngineScopeImpl;
 
@@ -86,26 +83,68 @@ class PyEngine : public ScriptEngine {
 
  private:
   template <typename T>
-  void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    PyType_Slot slots[] = {PyType_Slot(Py_tp_new), PyType_Slot(Py_tp_dealloc), PyType_Slot(0)};
-    PyType_Spec spec{classDefine->className.c_str(), sizeof(T), 0, Py_TPFLAGS_HEAPTYPE, slots};
-    PyObject* type = PyType_FromSpec(&spec);
-    if (type == nullptr) {
-      checkException();
-      throw Exception("Failed to create type for class " + classDefine->className);
-    }
-    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
-    set(String::newString(classDefine->className.c_str()), Local<Value>(type));
-  }
-
-  template <>
-  void registerNativeClassImpl(const ClassDefine<void>* classDefine) {
-    PyType_Slot slots[] = {PyType_Slot(Py_tp_new), PyType_Slot(Py_tp_dealloc), PyType_Slot(0)};
-    PyType_Spec spec{classDefine->className.c_str(), 1, 0, Py_TPFLAGS_HEAPTYPE, slots};
-    PyObject* type = PyType_FromSpec(&spec);
-    if (type == nullptr) {
-      checkException();
-      throw Exception("Failed to create type for class " + classDefine->className);
+  bool registerNativeClassImpl(const ClassDefine<T>* classDefine) {
+    try {
+      if (classDefine == nullptr) {
+        return false;
+      }
+      if constexpr (std::is_same_v<T, void>) {
+        py::class_<void*> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
+        for (auto& method : classDefine->staticDefine.functions) {
+          c.def_static(method.name.c_str(), [method](py::args args) {
+            return py_interop::asPy(method.callback(
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
+          });
+        }
+        return c.check();
+      } else {
+        py::class_<T> c(py::module_::import("builtins"), classDefine->getClassName().c_str());
+        if (classDefine->instanceDefine.constructor) {
+          c.def(py::init([classDefine](py::args args) {
+            T* instance = nullptr;
+            instance = classDefine->instanceDefine.constructor(
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args));
+            if (instance == nullptr) {
+              throw Exception("can't create class " + classDefine->className);
+            }
+            return instance;
+          }));
+        }
+        for (auto& method : classDefine->staticDefine.functions) {
+          c.def(method.name.c_str(), [method](py::args args) {
+            return py_interop::asPy(method.callback(
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
+          });
+        }
+        for (auto& method : classDefine->instanceDefine.functions) {
+          c.def(method.name.c_str(), [method](T* instance, py::args args) {
+            return py_interop::asPy(method.callback(
+                instance,
+                py_interop::makeArguments(&py_backend::currentEngineChecked(), py::dict(), args)));
+          });
+        }
+        for (auto& prop : classDefine->instanceDefine.properties) {
+          if (prop.getter) {
+            if (prop.setter) {
+              c.def_property(
+                  prop.name.c_str(),
+                  [prop](T* instance) { return py_interop::asPy(prop.getter(instance)); },
+                  [prop](T* instance, py::handle value) {
+                    prop.setter(instance, Local<Value>(value));
+                  });
+            } else {
+              c.def_property_readonly(prop.name.c_str(), [prop](T* instance) {
+                return py_interop::asPy(prop.getter(instance));
+              });
+            }
+          }
+        }
+        return c.check();
+      }
+    } catch (const py::builtin_exception& e) {
+      throw Exception(e.what());
+    } catch (const py::error_already_set& e) {
+      throw Exception(e.what());
     }
     nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
     set(String::newString(classDefine->className.c_str()), Local<Value>(type));
