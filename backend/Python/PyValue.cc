@@ -91,54 +91,9 @@ Local<Boolean> Boolean::newBoolean(bool value) {
   return checkAndMakeLocal<Boolean>(PyBool_FromLong(value));
 }
 
-namespace {
-
-static constexpr const char* kFunctionDataName = "_ScriptX_function_data";
-
-struct FunctionData {
-  FunctionCallback function;
-  py_backend::PyEngine* engine = nullptr;
-};
-
-}  // namespace
-
-Local<Function> Function::newFunction(script::FunctionCallback callback) {
-  FunctionData* callbackIns = new FunctionData();
-  callbackIns->engine = py_backend::currentEngine();
-  callbackIns->function = std::move(callback);
-
-  PyMethodDef* method = new PyMethodDef();
-  method->ml_name = "ScriptX_native_method";
-  method->ml_flags = METH_FASTCALL;
-  method->ml_doc = "ScriptX Function::newFunction";
-  method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
-    auto ptr = PyCapsule_GetPointer(self, kFunctionDataName);
-    if (ptr == nullptr) {
-      PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
-    } else {
-      auto data = static_cast<FunctionData*>(ptr);
-      try {
-        auto ret = data->function(py_interop::makeArguments(data->engine, self, args));
-        return py_interop::getLocal(ret);
-      } catch (const Exception& e) {
-        py_backend::rethrowException(e);
-      }
-    }
-    return nullptr;
-  };
-
-  PyObject* ctx = PyCapsule_New(callbackIns, kFunctionDataName, [](PyObject* cap) {
-    void* ptr = PyCapsule_GetPointer(cap, kFunctionDataName);
-    delete static_cast<FunctionData*>(ptr);
-  });
-  py_backend::checkException(ctx);
-  callbackIns = nullptr;
-
-  PyObject* closure = PyCFunction_New(method, ctx);
-  Py_XDECREF(ctx);
-  py_backend::checkException(closure);
-
-  return Local<Function>(closure);
+Local<Function> Function::newFunction(FunctionCallback callback) {
+  return checkAndMakeLocal<Function>(
+      py_backend::warpFunction("ScriptX_Function", nullptr, METH_VARARGS, callback));
 }
 
 Local<Array> Array::newArray(size_t size) { return checkAndMakeLocal<Array>(PyList_New(size)); }

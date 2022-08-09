@@ -43,5 +43,7 @@ PyEngine* currentEngine();
 PyEngine& currentEngineChecked();
 
 PyObject* getGlobalDict();
+PyObject* warpFunction(const char* name, const char* doc, int flags,
+                       const FunctionCallback& callback);
 
 }  // namespace script::py_backend
