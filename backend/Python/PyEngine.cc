@@ -96,10 +96,10 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   // Limitation: only support one statement or statements
   // TODO: imporve eval support
   const char* source = script.toStringHolder().c_str();
-  bool oneLine = false;
+  bool oneLine = true;
   for (int i = 0; i < strlen(source); i++) {
     if (source[i] == '\n') {
-      oneLine = true;
+      oneLine = false;
       break;
     }
   }
