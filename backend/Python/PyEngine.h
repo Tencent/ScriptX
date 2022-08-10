@@ -145,7 +145,9 @@ class PyEngine : public ScriptEngine {
     for (const auto& method : classDefine->staticDefine.functions) {
       PyObject_SetAttrString(
           type, method.name.c_str(),
-          warpFunction(method.name.c_str(), nullptr, METH_VARARGS, method.callback));
+          py_backend::incRef(warpFunction(method.name.c_str(), nullptr, METH_VARARGS | METH_STATIC,
+                                          method.callback, PyImport_AddModule("__main__"),
+                                          (PyTypeObject*)nullptr)));
     }
     // Add static properties
     // for (const auto& property : classDefine->staticDefine.properties) {
@@ -181,11 +183,13 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
     // TODO: 实现
+    TEMPLATE_NOT_IMPLEMENTED();
   }
 
   template <typename T>
   T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
     // TODO: 实现
+    TEMPLATE_NOT_IMPLEMENTED();
   }
 
  private:
