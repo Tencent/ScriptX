@@ -35,11 +35,12 @@ endif ()
 
 if ("${SCRIPTX_BACKEND}" STREQUAL "")
     ### choose your backend
-    set(SCRIPTX_BACKEND V8 CACHE STRING "" FORCE)
+    #set(SCRIPTX_BACKEND V8 CACHE STRING "" FORCE)
     #set(SCRIPTX_BACKEND JavaScriptCore CACHE STRING "" FORCE)
     #set(SCRIPTX_BACKEND Lua CACHE STRING "" FORCE)
     #set(SCRIPTX_BACKEND WebAssembly CACHE STRING "" FORCE)
     #set(SCRIPTX_BACKEND QuickJs CACHE STRING "" FORCE)
+    set(SCRIPTX_BACKEND Python CACHE STRING "" FORCE)
     #set(SCRIPTX_BACKEND Empty CACHE STRING "" FORCE)
 endif ()
 
@@ -146,9 +147,24 @@ elseif (${SCRIPTX_BACKEND} STREQUAL QuickJs)
     include("${SCRIPTX_TEST_LIBS}/quickjs/CMakeLists.txt")
     set(DEVOPS_LIBS_LIBPATH QuickJs CACHE STRING "" FORCE)
 elseif (${SCRIPTX_BACKEND} STREQUAL Python)
-    set(DEVOPS_LIBS_INCLUDE
-            "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Headers/"
-                CACHE STRING "" FORCE)
-    set(DEVOPS_LIBS_LIBPATH "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Versions/Current/lib/libpython3.10.dylib" CACHE STRING "" FORCE)
+    if (WIN32)
+        set(DEVOPS_LIBS_INCLUDE
+            "${SCRIPTX_TEST_LIBS}/python/win64/include"
+            CACHE STRING "" FORCE)
+
+        set(DEVOPS_LIBS_LIBPATH
+            "${SCRIPTX_TEST_LIBS}/python/win64/python310.lib"
+            CACHE STRING "" FORCE)
+
+        add_custom_command(TARGET UnitTests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${SCRIPTX_TEST_LIBS}/python/win64/dll" $<TARGET_FILE_DIR:UnitTests>
+            )
+    else ()
+        set(DEVOPS_LIBS_INCLUDE
+                "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Headers/"
+                    CACHE STRING "" FORCE)
+        set(DEVOPS_LIBS_LIBPATH "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Versions/Current/lib/libpython3.10.dylib" CACHE STRING "" FORCE)
+    endif ()
 endif ()
 

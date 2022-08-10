@@ -25,13 +25,14 @@ namespace py_backend {
 
 struct ArgumentsData {
   PyEngine* engine;
-  py::object self;
-  py::args args;
+  PyObject* self;
+  PyObject* args;
 };
 
 struct ScriptClassState {
-  ScriptEngine* scriptEngine_ = nullptr;
-  // Weak<Object> weakRef_;
+  ScriptEngine* engine = nullptr;
+  PyObject* script_obj;
+  PyObject* storage;
 };
 
 }  // namespace py_backend

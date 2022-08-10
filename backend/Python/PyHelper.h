@@ -25,16 +25,25 @@
 // https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
 
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
-#include <pybind11/embed.h>
-#include <pybind11/stl.h>
+#include <Python.h>
 SCRIPTX_END_INCLUDE_LIBRARY
-
-namespace py = pybind11;
 
 namespace script::py_backend {
 
+inline PyObject* incRef(PyObject* ref) { return Py_XNewRef(ref); }
+
+inline void decRef(PyObject* ref) { Py_XDECREF(ref); }
+
 class PyEngine;
 
-PyEngine& currentEngine();
+PyObject* checkException(PyObject* obj);
+void checkException();
+void rethrowException(const Exception& exception);
+PyEngine* currentEngine();
+PyEngine& currentEngineChecked();
+
+PyObject* getGlobalDict();
+PyObject* warpFunction(const char* name, const char* doc, int flags, FunctionCallback callback,
+                       PyObject* module, PyTypeObject* type);
 
 }  // namespace script::py_backend

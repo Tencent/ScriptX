@@ -17,23 +17,25 @@
 
 #pragma once
 #include <utility>
+#include "PyHelper.hpp"
 
 namespace script {
 
 template <typename T>
-Global<T>::Global() noexcept : val_() {}
+Global<T>::Global() noexcept : val_(nullptr) {}
 
 template <typename T>
-Global<T>::Global(const script::Local<T>& localReference) : val_(localReference) {}
+Global<T>::Global(const script::Local<T>& localReference)
+    : val_(py_backend::incRef(localReference.val_)) {}
 
 template <typename T>
-Global<T>::Global(const script::Weak<T>& weak) {}
+Global<T>::Global(const script::Weak<T>& weak) : val_(weak.val_) {}
 
 template <typename T>
 Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {}
 
 template <typename T>
-Global<T>::Global(script::Global<T>&& move) noexcept : val_(move.val_) {}
+Global<T>::Global(script::Global<T>&& move) noexcept : val_(std::move(move.val_)) {}
 
 template <typename T>
 Global<T>::~Global() {}
@@ -51,7 +53,9 @@ Global<T>& Global<T>::operator=(script::Global<T>&& move) noexcept {
 }
 
 template <typename T>
-void Global<T>::swap(Global& rhs) noexcept {}
+void Global<T>::swap(Global& rhs) noexcept {
+  std::swap(val_, rhs.val_);
+}
 
 template <typename T>
 Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
@@ -61,22 +65,22 @@ Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
 
 template <typename T>
 Local<T> Global<T>::get() const {
-  return val_;
+  return Local<T>(val_);
 }
 
 template <typename T>
 Local<Value> Global<T>::getValue() const {
-  return val_;
+  return Local<Value>(val_);
 }
 
 template <typename T>
 bool Global<T>::isEmpty() const {
-  return val_.IsEmpty();
+  return val_ == nullptr;
 }
 
 template <typename T>
 void Global<T>::reset() {
-  val_.Reset();
+  val_ = nullptr;
 }
 
 // == Weak ==
@@ -85,12 +89,15 @@ template <typename T>
 Weak<T>::Weak() noexcept : val_() {}
 
 template <typename T>
-Weak<T>::~Weak() {}
+Weak<T>::~Weak() {
+  val_ = nullptr;
+}
 
 template <typename T>
-Weak<T>::Weak(const script::Local<T>& localReference) : val_(localReference) {}
+Weak<T>::Weak(const script::Local<T>& localReference) : val_(localReference.val_) {}
+
 template <typename T>
-Weak<T>::Weak(const script::Global<T>& globalReference) : val_(globalReference) {}
+Weak<T>::Weak(const script::Global<T>& globalReference) : val_(globalReference.val_) {}
 
 template <typename T>
 Weak<T>::Weak(const script::Weak<T>& copy) : val_(copy.val_) {}
@@ -124,23 +131,23 @@ Weak<T>& Weak<T>::operator=(const script::Local<T>& assign) {
 template <typename T>
 Local<T> Weak<T>::get() const {
   if (isEmpty()) throw Exception("get on empty Weak");
-  TEMPLATE_NOT_IMPLEMENTED();
+  return Local<T>(val_);
 }
 
 template <typename T>
 Local<Value> Weak<T>::getValue() const {
   if (isEmpty()) throw Exception("getValue on empty Weak");
-  return val_;
+  return Local<Value>(val_);
 }
 
 template <typename T>
 bool Weak<T>::isEmpty() const {
-  return val_.IsEmpty();
+  return val_ == nullptr;
 }
 
 template <typename T>
 void Weak<T>::reset() noexcept {
-  val_.Reset();
+  val_ = nullptr;
 }
 
 }  // namespace script

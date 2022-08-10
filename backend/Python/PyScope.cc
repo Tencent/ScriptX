@@ -16,16 +16,50 @@
  */
 
 #include "PyScope.h"
+#include "PyEngine.h"
 
 // reference
 // https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
+// https://stackoverflow.com/questions/26061298/python-multi-thread-multi-interpreter-c-api
+// https://stackoverflow.com/questions/15470367/pyeval-initthreads-in-python-3-how-when-to-call-it-the-saga-continues-ad-naus
 
 namespace script::py_backend {
 
-EngineScopeImpl::EngineScopeImpl(PyEngine &, PyEngine *) : gilState_(PyGILState_Ensure()) {}
-EngineScopeImpl::~EngineScopeImpl() { PyGILState_Release(gilState_); }
+PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
+  PyThreadState *currentThreadState = (PyThreadState *)engine.subThreadState.get();
+  if (currentThreadState == NULL) {
+    // create a new thread state for the the sub interpreter in the new thread
+    currentThreadState = PyThreadState_New(engine.subInterpreterState);
+    // save to TLS storage
+    engine.subThreadState.set(currentThreadState);
+  }
 
-ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &) : threadState(PyEval_SaveThread()) {}
-ExitEngineScopeImpl::~ExitEngineScopeImpl() { PyEval_RestoreThread(threadState); }
+  if (py_backend::currentEngine() != nullptr) {
+    // Another engine is entered
+    // Push his thread state into stack & release GIL to avoid dead-lock
+    engine.oldThreadStateStack.push(PyEval_SaveThread());
+  }
+
+  // acquire the GIL & swap to correct thread state
+  PyEval_RestoreThread(currentThreadState);
+}
+
+PyEngineScopeImpl::~PyEngineScopeImpl() {
+  PyEngine *currentEngine = py_backend::currentEngine();
+  if (currentEngine != nullptr) {
+    // Engine existing. Need to exit
+    PyExitEngineScopeImpl exitEngine(*currentEngine);
+  }
+}
+
+PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &engine) {
+  PyEval_SaveThread();  // release GIL & clear current thread state
+  // restore old thread state saved & recover GIL if needed
+  auto &oldThreadStateStack = engine.oldThreadStateStack;
+  if (!oldThreadStateStack.empty()) {
+    PyEval_RestoreThread(oldThreadStateStack.top());
+    oldThreadStateStack.pop();
+  }
+}
 
 }  // namespace script::py_backend

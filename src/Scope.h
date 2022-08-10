@@ -88,7 +88,7 @@ class EngineScope final {
   static T* currentEngineAs() {
     auto currentScope = getCurrent();
     if (currentScope) {
-      return internal::scriptDynamicCast<T*>(getCurrent()->engine_);
+      return internal::scriptDynamicCast<T*>(currentScope->engine_);
     }
     return nullptr;
   }

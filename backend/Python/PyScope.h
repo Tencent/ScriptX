@@ -23,27 +23,23 @@ namespace script::py_backend {
 
 class PyEngine;
 
-class EngineScopeImpl {
-  PyGILState_STATE gilState_;
-
+class PyEngineScopeImpl {
  public:
-  explicit EngineScopeImpl(PyEngine &, PyEngine *);
+  explicit PyEngineScopeImpl(PyEngine &, PyEngine *);
 
-  ~EngineScopeImpl();
+  ~PyEngineScopeImpl();
 };
 
-class ExitEngineScopeImpl {
-  PyThreadState *threadState;
-
+class PyExitEngineScopeImpl {
  public:
-  explicit ExitEngineScopeImpl(PyEngine &);
+  explicit PyExitEngineScopeImpl(PyEngine &);
 
-  ~ExitEngineScopeImpl();
+  ~PyExitEngineScopeImpl() = default;
 };
 
-class StackFrameScopeImpl {
+class PyStackFrameScopeImpl {
  public:
-  explicit StackFrameScopeImpl(PyEngine &) {}
+  explicit PyStackFrameScopeImpl(PyEngine &) {}
 
   template <typename T>
   Local<T> returnValue(const Local<T> &localRef) {

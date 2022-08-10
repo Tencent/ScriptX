@@ -17,26 +17,73 @@
 
 #include "PyEngine.h"
 #include "../../src/Utils.h"
+#include "../../src/utils/Helper.hpp"
 
 namespace script::py_backend {
 
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
-  py::initialize_interpreter();
+  if (Py_IsInitialized() == 0) {
+    // Python not initialized. Init main interpreter
+    Py_Initialize();
+    // Enable thread support & get GIL
+    PyEval_InitThreads();
+    // Save main thread state & release GIL
+    mainThreadState = PyEval_SaveThread();
+  }
+
+  PyThreadState* oldState = nullptr;
+  if (py_backend::currentEngine() != nullptr) {
+    // Another thread state exists, save it temporarily & release GIL
+    // Need to save it here because Py_NewInterpreter need main thread state stored at
+    // initialization
+    oldState = PyEval_SaveThread();
+  }
+
+  // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
+  PyEval_RestoreThread(mainThreadState);
+  PyThreadState* newSubState = Py_NewInterpreter();
+  if (!newSubState) throw Exception("Fail to create sub interpreter");
+  subInterpreterState = newSubState->interp;
+
+  // Store created new sub thread state & release GIL
+  subThreadState.set(PyEval_SaveThread());
+
+  // Recover old thread state stored before & recover GIL if needed
+  if (oldState) {
+    PyEval_RestoreThread(oldState);
+  }
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
 
-void PyEngine::destroy() noexcept { ScriptEngine::destroyUserData(); }
+void PyEngine::destroy() noexcept {
+  PyEval_AcquireThread((PyThreadState*)subThreadState.get());
+  Py_EndInterpreter((PyThreadState*)subThreadState.get());
+  ScriptEngine::destroyUserData();
+}
 
 Local<Value> PyEngine::get(const Local<String>& key) {
-  return Local<Value>(py::globals()[key.toString().c_str()]);
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  PyObject* value = PyDict_GetItemString(globals, key.toStringHolder().c_str());
+  return Local<Value>(value);
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
-  py::globals()[key.toString().c_str()] = value.val_;
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  int result =
+      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getLocal(value));
+  if (result != 0) {
+    checkException();
+  }
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script) { return eval(script, Local<Value>()); }
@@ -46,11 +93,44 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  std::string source = script.toString();
-  if (source.find('\n') != std::string::npos)
-    return Local<Value>(py::eval<py::eval_statements>(source));
-  else
-    return Local<Value>(py::eval<py::eval_single_statement>(source));
+  // Limitation: only support one statement or statements
+  // TODO: imporve eval support
+  const char* source = script.toStringHolder().c_str();
+  bool oneLine = true;
+  for (int i = 0; i < strlen(source); i++) {
+    if (source[i] == '\n') {
+      oneLine = false;
+      break;
+    }
+  }
+  PyObject* result = nullptr;
+  PyObject* globals = py_backend::getGlobalDict();
+  if (oneLine) {
+    result = PyRun_StringFlags(source, Py_single_input, globals, nullptr, nullptr);
+  } else {
+    result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
+  }
+  if (result == nullptr) {
+    checkException();
+  }
+  return Local<Value>(result);
+}
+
+Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
+  std::string sourceFilePath = scriptFile.toString();
+  if (sourceFilePath.empty()) throw Exception("script file no found");
+  Local<Value> content = internal::readAllFileContent(scriptFile);
+  if (content.isNull()) throw Exception("can't load script file");
+
+  std::size_t pathSymbol = sourceFilePath.rfind("/");
+  if (pathSymbol != -1)
+    sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  else {
+    pathSymbol = sourceFilePath.rfind("\\");
+    if (pathSymbol != -1) sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  }
+  Local<String> sourceFileName = String::newString(sourceFilePath);
+  return eval(content.asString(), sourceFileName);
 }
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }
@@ -64,5 +144,4 @@ ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
 bool PyEngine::isDestroying() const { return false; }
-
 }  // namespace script::py_backend
