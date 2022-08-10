@@ -93,7 +93,8 @@ Local<Boolean> Boolean::newBoolean(bool value) {
 
 Local<Function> Function::newFunction(FunctionCallback callback) {
   return checkAndMakeLocal<Function>(
-      py_backend::warpFunction("ScriptX_Function", nullptr, METH_VARARGS, std::move(callback)));
+      py_backend::warpFunction("ScriptX_Function", nullptr, METH_VARARGS, std::move(callback),
+                               PyImport_AddModule("__main__"), nullptr));
 }
 
 Local<Array> Array::newArray(size_t size) { return checkAndMakeLocal<Array>(PyList_New(size)); }
