@@ -18,6 +18,7 @@
 #include "PyEngine.h"
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
+#include <cstring>
 
 namespace script::py_backend {
 
@@ -100,13 +101,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   // Limitation: only support one statement or statements
   // TODO: imporve eval support
   const char* source = script.toStringHolder().c_str();
-  bool oneLine = true;
-  for (int i = 0; i < strlen(source); i++) {
-    if (source[i] == '\n') {
-      oneLine = false;
-      break;
-    }
-  }
+  bool oneLine = (strstr(source,"\n") == NULL);
   PyObject* result = nullptr;
   PyObject* globals = py_backend::getGlobalDict();
   if (oneLine) {
