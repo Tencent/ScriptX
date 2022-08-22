@@ -74,27 +74,24 @@ static PyObject* pyFunctionCallback(PyObject* self, PyObject* args, PyObject* kw
   return nullptr;
 }
 
-PyObject* warpFunction(const char* name, const char* doc, int flags, FunctionCallback callback,
-                       PyObject* module, PyTypeObject* type) {
+PyObject* warpFunction(const char* name, const char* doc, int flags, FunctionCallback callback) {
   // Function name can be nullptr
   // https://docs.python.org/zh-cn/3/c-api/capsule.html
 
   FunctionData* callbackIns = new FunctionData{std::move(callback), py_backend::currentEngine()};
 
-  PyMethodDef* method = new PyMethodDef();
-  method->ml_name = name;
-  method->ml_doc = doc;
-  method->ml_flags = flags;
-  method->ml_meth = reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(pyFunctionCallback));
+  PyMethodDef* method = new PyMethodDef{
+      name, reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(pyFunctionCallback)), flags,
+      doc};
 
   PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
     void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
   py_backend::checkException(capsule);
-  // callbackIns = nullptr;
+  callbackIns = nullptr;
 
-  PyObject* closure = PyCMethod_New(method, capsule, module, type);
+  PyObject* closure = PyCFunction_New(method, capsule);
   Py_XDECREF(capsule);
   py_backend::checkException(closure);
 
