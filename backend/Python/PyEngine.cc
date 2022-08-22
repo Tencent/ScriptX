@@ -27,8 +27,6 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
-    // Enable thread support & get GIL
-    PyEval_InitThreads();
     // Save main thread state & release GIL
     mainThreadState = PyEval_SaveThread();
   }
@@ -44,7 +42,9 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
   PyEval_RestoreThread(mainThreadState);
   PyThreadState* newSubState = Py_NewInterpreter();
-  if (!newSubState) throw Exception("Fail to create sub interpreter");
+  if (!newSubState) {
+    throw Exception("Fail to create sub interpreter");
+  }
   subInterpreterState = newSubState->interp;
 
   // Store created new sub thread state & release GIL
@@ -59,6 +59,10 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
 PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
+
+inline Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
+  TEMPLATE_NOT_IMPLEMENTED();
+}
 
 void PyEngine::destroy() noexcept {
   PyEval_AcquireThread((PyThreadState*)subThreadState.get());
@@ -112,9 +116,9 @@ Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
   if (content.isNull()) throw Exception("can't load script file");
 
   std::size_t pathSymbol = sourceFilePath.rfind("/");
-  if (pathSymbol != -1)
+  if (pathSymbol != -1) {
     sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
-  else {
+  } else {
     pathSymbol = sourceFilePath.rfind("\\");
     if (pathSymbol != -1) sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
   }

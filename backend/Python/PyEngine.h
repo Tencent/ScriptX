@@ -113,11 +113,13 @@ class PyEngine : public ScriptEngine {
            }
            return 0;
          })},
+        {Py_tp_getset, registerStaticProperty(classDefine)},
         {0, nullptr},
     };
     PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject), 0,
                      Py_TPFLAGS_HEAPTYPE, slots};
     PyObject* type = PyType_FromSpec(&spec);
+    registerStaticFunction(classDefine, type);
     if (type == nullptr) {
       checkException();
       throw Exception("Failed to create type for class " + classDefine->className);
@@ -126,47 +128,78 @@ class PyEngine : public ScriptEngine {
     set(String::newString(classDefine->className.c_str()), Local<Value>(type));
   }
 
-  template <>
-  void registerNativeClassImpl(const ClassDefine<void>* classDefine) {
-    struct ScriptXHeapTypeObject {
-      PyObject_HEAD;
-      const ClassDefine<void>* classDefine;
-      void* instance;
-    };
-
-    PyType_Slot slots[] = {
-        {0, nullptr},
-    };
-    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject), 0,
-                     Py_TPFLAGS_HEAPTYPE, slots};
-    PyObject* type = PyType_FromSpec(&spec);
-    if (type == nullptr) {
-      checkException();
-      throw Exception("Failed to create type for class " + classDefine->className);
+  template <typename T>
+  PyGetSetDef* registerStaticProperty(const ClassDefine<T>* classDefine) {
+    auto&& properties = classDefine->staticDefine.properties;
+    size_t size = properties.size();
+    PyGetSetDef* getset = new PyGetSetDef[size + 1];
+    for (size_t i = 0; i < size; i++) {
+      auto&& name = properties[i].name;
+      auto&& getter = properties[i].getter;
+      auto&& setter = properties[i].setter;
+      getset[i] = {name.c_str(),
+                   [](PyObject* self, void* closure) -> PyObject* {
+                     internal::StaticDefine::PropertyDefine* data =
+                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
+                     return py_interop::getLocal(data->getter());
+                   },
+                   [](PyObject* self, PyObject* value, void* closure) -> int {
+                     internal::StaticDefine::PropertyDefine* data =
+                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
+                     data->setter(py_interop::makeLocal<Value>(value));
+                     return 0;
+                   },
+                   nullptr, const_cast<internal::StaticDefine::PropertyDefine*>(&properties[i])};
     }
+    getset[size] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+    return getset;
+  }
+
+  template <typename T>
+  PyGetSetDef* registerInstanceProperty(const ClassDefine<T>* classDefine) {
+    auto&& properties = classDefine->staticDefine.properties;
+    size_t size = properties.size();
+    PyGetSetDef* getset = new PyGetSetDef[size + 1];
+    for (size_t i = 0; i < size; i++) {
+      getset[i] = {properties[i].name.c_str(),
+                   [](PyObject* self, void* closure) -> PyObject* {
+                     internal::StaticDefine::PropertyDefine* data =
+                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
+                     return py_interop::getLocal(data->getter());
+                   },
+                   [](PyObject* self, PyObject* value, void* closure) -> int {
+                     internal::StaticDefine::PropertyDefine* data =
+                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
+                     data->setter(py_interop::makeLocal<Value>(value));
+                     return 0;
+                   },
+                   nullptr, const_cast<internal::StaticDefine::PropertyDefine*>(&properties[i])};
+    }
+    getset[size] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+    return getset;
+  }
+
+  template <typename T>
+  void registerStaticFunction(const ClassDefine<T>* classDefine, PyObject* type) {
     // Add static methods
     for (const auto& method : classDefine->staticDefine.functions) {
-      PyObject_SetAttrString(
-          type, method.name.c_str(),
-          PyStaticMethod_New(warpFunction(method.name.c_str(), nullptr, METH_VARARGS,
-                                          method.callback, PyImport_AddModule("__main__"),
-                                          (PyTypeObject*)nullptr)));
-          //py_backend::incRef(warpFunction(method.name.c_str(), nullptr, METH_VARARGS,
-           //                               method.callback, PyImport_AddModule("__main__"),
-           //                               (PyTypeObject*)nullptr)));
+      PyObject_SetAttrString(type, method.name.c_str(),
+                             PyStaticMethod_New(warpFunction(method.name.c_str(), nullptr,
+                                                             METH_VARARGS, method.callback)));
     }
-    // Add static properties
-    // for (const auto& property : classDefine->staticDefine.properties) {
-    //   PyObject_SetAttrString(type, property.name.c_str(),
-    //                          warpProperty(property.name.c_str(), nullptr, property.callback));
-    // }
-    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
-    set(String::newString(classDefine->className.c_str()), Local<Value>(type));
   }
 
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace) {
-    TEMPLATE_NOT_IMPLEMENTED();
+  template <typename T>
+  void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
+    // Add static methods
+    for (const auto& method : classDefine->staticDefine.functions) {
+      PyObject_SetAttrString(type, method.name.c_str(),
+                             PyMethod_Function(warpFunction(method.name.c_str(), nullptr,
+                                                            METH_VARARGS, method.callback)));
+    }
   }
+
+  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
 
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
@@ -188,13 +221,11 @@ class PyEngine : public ScriptEngine {
 
   template <typename T>
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    // TODO: 实现
     TEMPLATE_NOT_IMPLEMENTED();
   }
 
   template <typename T>
   T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    // TODO: 实现
     TEMPLATE_NOT_IMPLEMENTED();
   }
 
