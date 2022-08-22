@@ -148,9 +148,12 @@ class PyEngine : public ScriptEngine {
     for (const auto& method : classDefine->staticDefine.functions) {
       PyObject_SetAttrString(
           type, method.name.c_str(),
-          py_backend::incRef(warpFunction(method.name.c_str(), nullptr, METH_VARARGS | METH_STATIC,
+          PyStaticMethod_New(warpFunction(method.name.c_str(), nullptr, METH_VARARGS,
                                           method.callback, PyImport_AddModule("__main__"),
                                           (PyTypeObject*)nullptr)));
+          //py_backend::incRef(warpFunction(method.name.c_str(), nullptr, METH_VARARGS,
+           //                               method.callback, PyImport_AddModule("__main__"),
+           //                               (PyTypeObject*)nullptr)));
     }
     // Add static properties
     // for (const auto& property : classDefine->staticDefine.properties) {
