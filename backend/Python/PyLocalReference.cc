@@ -33,20 +33,30 @@ void valueConstructorCheck(PyObject* value) {
 }
 }  // namespace py_backend
 
-#define REF_IMPL_BASIC_FUNC(ValueType)                                                           \
-  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(py_backend::incRef(copy.val_)) {} \
-  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {                  \
-    move.val_ = nullptr;                                                                         \
-  }                                                                                              \
-  Local<ValueType>::~Local() { py_backend::decRef(val_); }                                       \
-  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                             \
-    Local(from).swap(*this);                                                                     \
-    return *this;                                                                                \
-  }                                                                                              \
-  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {                         \
-    Local(std::move(move)).swap(*this);                                                          \
-    return *this;                                                                                \
-  }                                                                                              \
+#define REF_IMPL_BASIC_FUNC(ValueType)                                                          \
+  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(py_backend::incRef(copy.val_)) { \
+    printf("construct %p\trefc is %d\tvalue is %s\n", val_, Py_REFCNT(val_),                    \
+           PyUnicode_AsUTF8(PyObject_Repr(val_)));                                              \
+  }                                                                                             \
+  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {                 \
+    move.val_ = nullptr;                                                                        \
+  }                                                                                             \
+  Local<ValueType>::~Local() {                                                                  \
+    if (val_) {                                                                                 \
+      printf("deconstruct %p\trefc is %d\tvalue is %s\n", val_, Py_REFCNT(val_),                \
+             PyUnicode_AsUTF8(PyObject_Repr(val_)));                                            \
+      py_backend::decRef(val_);                                                                 \
+    }                                                                                           \
+  }                                                                                             \
+  Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                            \
+    puts("copy");                                                                               \
+    Local(from).swap(*this);                                                                    \
+    return *this;                                                                               \
+  }                                                                                             \
+  Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {                        \
+    Local(std::move(move)).swap(*this);                                                         \
+    return *this;                                                                               \
+  }                                                                                             \
   void Local<ValueType>::swap(Local& rhs) noexcept { std::swap(val_, rhs.val_); }
 
 #define REF_IMPL_BASIC_EQUALS(ValueType)                                               \
