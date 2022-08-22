@@ -93,23 +93,11 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  // Limitation: only support one statement or statements
+  // Limitation: only support file input
   // TODO: imporve eval support
   const char* source = script.toStringHolder().c_str();
-  bool oneLine = true;
-  for (int i = 0; i < strlen(source); i++) {
-    if (source[i] == '\n') {
-      oneLine = false;
-      break;
-    }
-  }
-  PyObject* result = nullptr;
   PyObject* globals = py_backend::getGlobalDict();
-  if (oneLine) {
-    result = PyRun_StringFlags(source, Py_single_input, globals, nullptr, nullptr);
-  } else {
-    result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
-  }
+  PyObject* result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
   if (result == nullptr) {
     checkException();
   }
