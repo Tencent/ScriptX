@@ -16,6 +16,7 @@
  */
 
 #include "PyEngine.h"
+#include <cstring>
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
 #include <cstring>
