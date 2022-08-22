@@ -58,8 +58,8 @@ static PyObject* pyFunctionCallback(PyObject* self, PyObject* args, PyObject* kw
   if (self == nullptr) {
     return nullptr;
   }
-  if (!PyCapsule_IsValid(self, nullptr)) throw Exception("Invalid function data");
-  void* ptr = PyCapsule_GetPointer(self, nullptr);
+  if (!PyCapsule_IsValid(self, "data")) throw Exception("Invalid function data");
+  void* ptr = PyCapsule_GetPointer(self, "data");
   if (ptr == nullptr) {
     PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
   } else {
@@ -87,15 +87,15 @@ PyObject* warpFunction(const char* name, const char* doc, int flags, FunctionCal
   method->ml_flags = flags;
   method->ml_meth = reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(pyFunctionCallback));
 
-  PyObject* ctx = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
-    void* ptr = PyCapsule_GetPointer(cap, nullptr);
+  PyObject* capsule = PyCapsule_New(callbackIns, "data", [](PyObject* cap) {
+    void* ptr = PyCapsule_GetPointer(cap, "data");
     delete static_cast<FunctionData*>(ptr);
   });
-  py_backend::checkException(ctx);
-  callbackIns = nullptr;
+  py_backend::checkException(capsule);
+  //callbackIns = nullptr;
 
-  PyObject* closure = PyCMethod_New(method, ctx, module, type);
-  Py_XDECREF(ctx);
+  PyObject* closure = PyCMethod_New(method, capsule, module, type);
+  Py_XDECREF(capsule);
   py_backend::checkException(closure);
 
   return closure;
