@@ -42,7 +42,9 @@ PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<Py
 PyObject* getGlobalDict() {
   PyObject* globals = PyEval_GetGlobals();
   if (globals == nullptr) {
-    PyObject* __main__ = PyImport_GetModule(PyUnicode_FromString("__main__"));
+    PyObject* mainName = PyUnicode_FromString("__main__");
+    PyObject* __main__ = PyImport_GetModule(mainName);
+    decRef(mainName);
     if(__main__ == nullptr)
       __main__ = PyImport_AddModule("__main__");
     if(__main__ == nullptr) {
