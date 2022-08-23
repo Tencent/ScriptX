@@ -91,7 +91,7 @@ class PyEngine : public ScriptEngine {
     for (const auto& property : classDefine->staticDefine.properties) {
       PyObject* args = PyTuple_Pack(4, warpGetter("getter", nullptr, METH_VARARGS, property.getter),
                                     warpSetter("setter", nullptr, METH_VARARGS, property.setter),
-                                    Py_None, Py_None);
+                                    Py_None, PyUnicode_FromString(""));
       PyObject* warpped_property = PyObject_Call(g_scriptx_property_type, args, nullptr);
       PyObject_SetAttrString(type, property.name.c_str(), warpped_property);
     }
@@ -100,9 +100,10 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->instanceDefine.properties) {
-      PyObject* args = PyTuple_Pack(
-          4, (warpInstanceGetter("getter", nullptr, METH_VARARGS, property.getter)),
-          (warpInstanceSetter("setter", nullptr, METH_VARARGS, property.setter)), Py_None, Py_None);
+      PyObject* args =
+          PyTuple_Pack(4, warpInstanceGetter("getter", nullptr, METH_VARARGS, property.getter),
+                       warpInstanceSetter("setter", nullptr, METH_VARARGS, property.setter),
+                       Py_None, PyUnicode_FromString(""));
       PyObject* warpped_property = PyObject_Call((PyObject*)&PyProperty_Type, args, nullptr);
       PyObject_SetAttrString(type, property.name.c_str(), warpped_property);
     }
