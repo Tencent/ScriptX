@@ -122,7 +122,7 @@ class PyEngine : public ScriptEngine {
     registerStaticFunction(classDefine, type);
     registerInstanceFunction(classDefine, type);
     nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
-    set(String::newString(classDefine->className.c_str()), Local<Value>(type));
+    set(classDefine->className.c_str(), Local<Value>(type));
   }
   template <>
   void registerNativeClassImpl(const ClassDefine<void>* classDefine) {
@@ -139,7 +139,7 @@ class PyEngine : public ScriptEngine {
     registerStaticProperty(classDefine, type);
     registerStaticFunction(classDefine, type);
     nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
-    set(String::newString(classDefine->className.c_str()), Local<Value>(type));
+    set(classDefine->className.c_str(), Local<Value>(type));
   }
 
   template <typename T>
