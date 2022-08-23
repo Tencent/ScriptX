@@ -120,7 +120,7 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& method : classDefine->instanceDefine.functions) {
-      PyObject* function = PyClassMethod_New(
+      PyObject* function = PyInstanceMethod_New(
           warpInstanceFunction(method.name.c_str(), nullptr, METH_VARARGS, method.callback));
       PyObject_SetAttrString(type, method.name.c_str(), function);
     }
@@ -201,7 +201,6 @@ class PyEngine : public ScriptEngine {
 
     PyTypeObject* type = reinterpret_cast<PyTypeObject*>(nativeDefineRegistry_[classDefine].val_);
     PyObject* obj = type->tp_new(type, tuple, nullptr);
-    puts(PyUnicode_AsUTF8(PyObject_Repr(obj)));
     Py_DECREF(tuple);
     return Local<Object>(obj);
   }

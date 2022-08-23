@@ -145,7 +145,6 @@ inline PyObject* warpInstanceFunction(const char* name, const char* doc, int fla
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            puts(PyUnicode_AsUTF8(PyObject_Repr(args)));
             T* thiz =
                 reinterpret_cast<ScriptXHeapTypeObject<T>*>(PyTuple_GetItem(args, 0))->instance;
             PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
@@ -331,8 +330,6 @@ PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            puts(PyUnicode_AsUTF8(PyObject_Repr(args)));
-
             T* thiz =
                 reinterpret_cast<ScriptXHeapTypeObject<T>*>(PyTuple_GetItem(args, 0))->instance;
             data->function(thiz, py_interop::makeLocal<Value>(PyTuple_GetItem(args, 1)));
