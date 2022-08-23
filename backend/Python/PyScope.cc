@@ -26,18 +26,18 @@
 namespace script::py_backend {
 
 PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
-  PyThreadState *currentThreadState = (PyThreadState *)engine.subThreadState.get();
+  PyThreadState *currentThreadState = (PyThreadState *)engine.subThreadState_.get();
   if (currentThreadState == NULL) {
     // create a new thread state for the the sub interpreter in the new thread
-    currentThreadState = PyThreadState_New(engine.subInterpreterState);
+    currentThreadState = PyThreadState_New(engine.subInterpreterState_);
     // save to TLS storage
-    engine.subThreadState.set(currentThreadState);
+    engine.subThreadState_.set(currentThreadState);
   }
 
   if (py_backend::currentEngine() != nullptr) {
     // Another engine is entered
     // Push his thread state into stack & release GIL to avoid dead-lock
-    engine.oldThreadStateStack.push(PyEval_SaveThread());
+    engine.oldThreadStateStack_.push(PyEval_SaveThread());
   }
 
   // acquire the GIL & swap to correct thread state
@@ -55,7 +55,7 @@ PyEngineScopeImpl::~PyEngineScopeImpl() {
 PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &engine) {
   PyEval_SaveThread();  // release GIL & clear current thread state
   // restore old thread state saved & recover GIL if needed
-  auto &oldThreadStateStack = engine.oldThreadStateStack;
+  auto &oldThreadStateStack = engine.oldThreadStateStack_;
   if (!oldThreadStateStack.empty()) {
     PyEval_RestoreThread(oldThreadStateStack.top());
     oldThreadStateStack.pop();

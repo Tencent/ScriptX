@@ -19,7 +19,6 @@
 #include <cstring>
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
-#include <cstring>
 
 namespace script::py_backend {
 
@@ -28,32 +27,32 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
-    // Save main thread state & release GIL
-    mainThreadState = PyEval_SaveThread();
+    g_scriptx_property_type = makeStaticPropertyType();
+    //  Save main thread state & release GIL
+    mainThreadState_ = PyEval_SaveThread();
   }
 
   PyThreadState* oldState = nullptr;
-  if(py_backend::currentEngine() != nullptr)
-  {
+  if (py_backend::currentEngine() != nullptr) {
     // Another thread state exists, save it temporarily & release GIL
-    // Need to save it here because Py_NewInterpreter need main thread state stored at initialization
+    // Need to save it here because Py_NewInterpreter need main thread state stored at
+    // initialization
     oldState = PyEval_SaveThread();
   }
 
   // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState);     
+  PyEval_RestoreThread(mainThreadState_);
   PyThreadState* newSubState = Py_NewInterpreter();
   if (!newSubState) {
     throw Exception("Fail to create sub interpreter");
   }
-  subInterpreterState = newSubState->interp;
+  subInterpreterState_ = newSubState->interp;
 
   // Store created new sub thread state & release GIL
-  subThreadState.set(PyEval_SaveThread());  
+  subThreadState_.set(PyEval_SaveThread());
 
   // Recover old thread state stored before & recover GIL if needed
-  if(oldState)
-  {
+  if (oldState) {
     PyEval_RestoreThread(oldState);
   }
 }
@@ -67,8 +66,8 @@ inline Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& n
 }
 
 void PyEngine::destroy() noexcept {
-  PyEval_AcquireThread((PyThreadState*)subThreadState.get());
-  Py_EndInterpreter((PyThreadState*)subThreadState.get());
+  PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
+  Py_EndInterpreter((PyThreadState*)subThreadState_.get());
   ScriptEngine::destroyUserData();
 }
 
@@ -112,11 +111,11 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
 }
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
-  if (scriptFile.toString().empty()) throw Exception("script file no found");
+  std::string sourceFilePath = scriptFile.toString();
+  if (sourceFilePath.empty()) throw Exception("script file no found");
   Local<Value> content = internal::readAllFileContent(scriptFile);
   if (content.isNull()) throw Exception("can't load script file");
 
-  std::string sourceFilePath = scriptFile.toString();
   std::size_t pathSymbol = sourceFilePath.rfind("/");
   if (pathSymbol != -1) {
     sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
