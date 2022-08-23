@@ -20,10 +20,38 @@
 
 namespace script::py_backend {
 
-// static difinition
-PyThreadState* PyEngine::mainThreadState;
+PyObject* checkException(PyObject* obj) {
+  if (!obj) {
+    checkException();
+  }
+  return obj;
+}
+
+void checkException() {
+  if (PyErr_Occurred()) {
+    PyErr_Print();
+    throw Exception("Python Error!");
+  }
+}
+
+void rethrowException(const Exception& exception) { throw exception; }
 
 PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
 PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
+PyObject* getGlobalDict() {
+  PyObject* globals = PyEval_GetGlobals();
+  if (globals == nullptr) {
+    PyObject* mainName = PyUnicode_FromString("__main__");
+    PyObject* __main__ = PyImport_GetModule(mainName);
+    decRef(mainName);
+    if(__main__ == nullptr)
+      __main__ = PyImport_AddModule("__main__");
+    if(__main__ == nullptr) {
+      throw Exception("Empty __main__ in getGlobalDict!");
+    }
+    globals = PyModule_GetDict(checkException(__main__));
+  }
+  return globals;
+}
 }  // namespace script::py_backend

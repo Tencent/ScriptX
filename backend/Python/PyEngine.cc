@@ -16,6 +16,7 @@
  */
 
 #include "PyEngine.h"
+#include <cstring>
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
 
@@ -25,36 +26,33 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
-    py::initialize_interpreter();
-    // Enable thread support & get GIL
-    PyEval_InitThreads();
-    // Register exception translation
-    py::register_exception<Exception>(py::module_::import("builtins"), "ScriptXException");
-    // Save main thread state & release GIL
-    mainThreadState = PyEval_SaveThread();
+    Py_Initialize();
+    g_scriptx_property_type = makeStaticPropertyType();
+    //  Save main thread state & release GIL
+    mainThreadState_ = PyEval_SaveThread();
   }
 
   PyThreadState* oldState = nullptr;
-  if(py_backend::currentEngine() != nullptr)
-  {
+  if (py_backend::currentEngine() != nullptr) {
     // Another thread state exists, save it temporarily & release GIL
-    // Need to save it here because Py_NewInterpreter need main thread state stored at initialization
+    // Need to save it here because Py_NewInterpreter need main thread state stored at
+    // initialization
     oldState = PyEval_SaveThread();
   }
 
   // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState);     
+  PyEval_RestoreThread(mainThreadState_);
   PyThreadState* newSubState = Py_NewInterpreter();
-  if(!newSubState)
+  if (!newSubState) {
     throw Exception("Fail to create sub interpreter");
-  subInterpreterState = newSubState->interp;
+  }
+  subInterpreterState_ = newSubState->interp;
 
   // Store created new sub thread state & release GIL
-  subThreadState.set(PyEval_SaveThread());  
+  subThreadState_.set(PyEval_SaveThread());
 
   // Recover old thread state stored before & recover GIL if needed
-  if(oldState)
-  {
+  if (oldState) {
     PyEval_RestoreThread(oldState);
   }
 }
@@ -63,18 +61,35 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
 
+inline Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
+  TEMPLATE_NOT_IMPLEMENTED();
+}
+
 void PyEngine::destroy() noexcept {
-  PyEval_AcquireThread((PyThreadState*)subThreadState.get());
-  Py_EndInterpreter((PyThreadState*)subThreadState.get());
+  PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
+  Py_EndInterpreter((PyThreadState*)subThreadState_.get());
   ScriptEngine::destroyUserData();
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
-  return Local<Value>(py::globals()[key.toString().c_str()]);
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  PyObject* value = PyDict_GetItemString(globals, key.toStringHolder().c_str());
+  return Local<Value>(value);
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
-  py::globals()[key.toString().c_str()] = value.val_;
+  PyObject* globals = getGlobalDict();
+  if (globals == nullptr) {
+    throw Exception("Fail to get globals");
+  }
+  int result =
+      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getLocal(value));
+  if (result != 0) {
+    checkException();
+  }
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script) { return eval(script, Local<Value>()); }
@@ -84,38 +99,27 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  try {
-    std::string source = script.toString();
-    if (source.find('\n') != std::string::npos)
-      return Local<Value>(py::eval<py::eval_statements>(source));
-    else
-      return Local<Value>(py::eval<py::eval_single_statement>(source));
-  } catch (const py::builtin_exception& e) {
-    throw Exception(e.what());
-  } catch (const py::error_already_set& e) {
-    // Because of pybind11's e.what() use his own gil lock,
-    // we need to let pybind11 know that we have created thread state and he only need to use it,
-    // or he will twice-acquire GIL & cause dead-lock.
-    // Code below is just adaptation for pybind11's gil acquire in his internal code
-    auto &internals = py::detail::get_internals();
-    PyThreadState* tempState = (PyThreadState*)PYBIND11_TLS_GET_VALUE(internals.tstate);
-    PYBIND11_TLS_REPLACE_VALUE(internals.tstate, subThreadState.get());
-    const char* errorStr = e.what();
-    // PYBIND11_TLS_REPLACE_VALUE(internals.tstate, tempState);
-    throw Exception(errorStr);
+  // Limitation: only support file input
+  // TODO: imporve eval support
+  const char* source = script.toStringHolder().c_str();
+  PyObject* globals = py_backend::getGlobalDict();
+  PyObject* result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
+  if (result == nullptr) {
+    checkException();
   }
+  return Local<Value>(result);
 }
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
-  if (scriptFile.toString().empty()) throw Exception("script file no found");
+  std::string sourceFilePath = scriptFile.toString();
+  if (sourceFilePath.empty()) throw Exception("script file no found");
   Local<Value> content = internal::readAllFileContent(scriptFile);
   if (content.isNull()) throw Exception("can't load script file");
 
-  std::string sourceFilePath = scriptFile.toString();
   std::size_t pathSymbol = sourceFilePath.rfind("/");
-  if (pathSymbol != -1)
+  if (pathSymbol != -1) {
     sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
-  else {
+  } else {
     pathSymbol = sourceFilePath.rfind("\\");
     if (pathSymbol != -1) sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
   }
@@ -134,5 +138,4 @@ ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
 bool PyEngine::isDestroying() const { return false; }
-
 }  // namespace script::py_backend
