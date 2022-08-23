@@ -54,9 +54,7 @@ struct py_interop {
   }
 };
 
-}  // namespace script
-
-namespace script::py_backend {
+namespace py_backend {
 
 class PyTssStorage {
  private:
@@ -74,4 +72,139 @@ class PyTssStorage {
   bool isValid() { return PyThread_tss_is_created(&key) > 0; }
 };
 
-}  // namespace script::py_backend
+template <typename T>
+struct ScriptXHeapTypeObject {
+  PyObject_HEAD;
+  const ClassDefine<T>* classDefine;
+  T* instance;
+};
+
+inline PyObject* warpFunction(const char* name, const char* doc, int flags,
+                              FunctionCallback callback) {
+  // Function name can be nullptr
+  // https://docs.python.org/zh-cn/3/c-api/capsule.html
+
+  struct FunctionData {
+    FunctionCallback function;
+    py_backend::PyEngine* engine;
+  };
+
+  FunctionData* callbackIns = new FunctionData{std::move(callback), py_backend::currentEngine()};
+
+  PyMethodDef* method = new PyMethodDef{
+      name,
+      [](PyObject* self, PyObject* args) -> PyObject* {
+        if (!PyCapsule_IsValid(self, nullptr)) {
+          throw Exception("Invalid function data");
+        }
+        void* ptr = PyCapsule_GetPointer(self, nullptr);
+        if (ptr == nullptr) {
+          PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
+        } else {
+          auto data = static_cast<FunctionData*>(ptr);
+          try {
+            auto ret = data->function(py_interop::makeArguments(data->engine, self, args));
+            return py_interop::getLocal(ret);
+          } catch (const Exception& e) {
+            py_backend::rethrowException(e);
+          }
+        }
+        return nullptr;
+      },
+      flags, doc};
+
+  PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
+    void* ptr = PyCapsule_GetPointer(cap, nullptr);
+    delete static_cast<FunctionData*>(ptr);
+  });
+  py_backend::checkException(capsule);
+  callbackIns = nullptr;
+
+  PyObject* closure = PyCFunction_New(method, capsule);
+  Py_XDECREF(capsule);
+  py_backend::checkException(closure);
+
+  return closure;
+}
+
+template <typename T>
+PyObject* warpInstanceFunction(const char* name, const char* doc, int flags,
+                               InstanceFunctionCallback<T> callback) {
+  // Function name can be nullptr
+  // https://docs.python.org/zh-cn/3/c-api/capsule.html
+
+  struct FunctionData {
+    InstanceFunctionCallback<T> function;
+    py_backend::PyEngine* engine;
+  };
+
+  FunctionData* callbackIns = new FunctionData{std::move(callback), py_backend::currentEngine()};
+
+  PyMethodDef* method = new PyMethodDef{
+      name,
+      [](PyObject* self, PyObject* args) -> PyObject* {
+        if (!PyCapsule_IsValid(self, nullptr)) {
+          throw Exception("Invalid function data");
+        }
+        void* ptr = PyCapsule_GetPointer(self, nullptr);
+        if (ptr == nullptr) {
+          PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
+        } else {
+          auto data = static_cast<FunctionData*>(ptr);
+          try {
+            T* thiz =
+                reinterpret_cast<ScriptXHeapTypeObject<T>*>(PyTuple_GetItem(args, 0))->instance;
+            auto ret = data->function(thiz, py_interop::makeArguments(data->engine, self, args));
+            return py_interop::getLocal(ret);
+          } catch (const Exception& e) {
+            py_backend::rethrowException(e);
+          }
+        }
+        return nullptr;
+      },
+      flags, doc};
+
+  PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
+    void* ptr = PyCapsule_GetPointer(cap, nullptr);
+    delete static_cast<FunctionData*>(ptr);
+  });
+  py_backend::checkException(capsule);
+  callbackIns = nullptr;
+
+  PyObject* closure = PyCFunction_New(method, capsule);
+  Py_XDECREF(capsule);
+  py_backend::checkException(closure);
+
+  return closure;
+}
+
+/// `scriptx_static_property.__get__()`: Always pass the class instead of the instance.
+extern "C" inline PyObject* scriptx_static_get(PyObject* self, PyObject* /*ob*/, PyObject* cls) {
+  return PyProperty_Type.tp_descr_get(self, cls, cls);
+}
+
+/// `scriptx_static_property.__set__()`: Just like the above `__get__()`.
+extern "C" inline int scriptx_static_set(PyObject* self, PyObject* obj, PyObject* value) {
+  PyObject* cls = PyType_Check(obj) ? obj : (PyObject*)Py_TYPE(obj);
+  return PyProperty_Type.tp_descr_set(self, cls, value);
+}
+/** A `static_property` is the same as a `property` but the `__get__()` and `__set__()`
+      methods are modified to always use the object type instead of a concrete instance.
+      Return value: New reference. */
+inline PyObject* makeStaticPropertyType() {
+  PyType_Slot slots[] = {
+      {Py_tp_base, py_backend::incRef((PyObject*)&PyProperty_Type)},
+      {Py_tp_descr_get, scriptx_static_get},
+      {Py_tp_descr_set, scriptx_static_set},
+      {0, nullptr},
+  };
+  PyType_Spec spec{"scriptx_static_property", PyProperty_Type.tp_basicsize,
+                   PyProperty_Type.tp_itemsize,
+                   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE, slots};
+  PyObject* type = PyType_FromSpec(&spec);
+  return type;
+}
+inline PyObject* g_scriptx_property_type = nullptr;
+
+}  // namespace py_backend
+}  // namespace script

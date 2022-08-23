@@ -33,17 +33,18 @@ class PyEngine : public ScriptEngine {
   std::shared_ptr<::script::utils::MessageQueue> queue_;
 
   // Global thread state of main interpreter
-  inline static PyThreadState* mainThreadState = nullptr;
-  PyInterpreterState* subInterpreterState;
+  inline static PyThreadState* mainThreadState_ = nullptr;
+  PyInterpreterState* subInterpreterState_;
   // Sub thread state of this sub interpreter (in TLS)
-  PyTssStorage subThreadState;
+  PyTssStorage subThreadState_;
+
   std::unordered_map<const void*, Global<Value>> nativeDefineRegistry_;
 
   // When you use EngineScope to enter a new engine(subinterpreter)
   // and find that there is an existing thread state owned by another engine,
   // we need to push its thread state to stack and release GIL to avoid dead-lock
   // -- see more code in "PyScope.cc"
-  std::stack<PyThreadState*> oldThreadStateStack;
+  std::stack<PyThreadState*> oldThreadStateStack_;
 
   friend class PyEngineScopeImpl;
   friend class PyExitEngineScopeImpl;
@@ -87,15 +88,10 @@ class PyEngine : public ScriptEngine {
  private:
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    struct ScriptXHeapTypeObject {
-      PyObject_HEAD;
-      const ClassDefine<T>* classDefine;
-      T* instance;
-    };
     PyType_Slot slots[] = {
         {Py_tp_new, nullptr},
         {Py_tp_dealloc, static_cast<destructor>([](PyObject* self) {
-           ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
+           auto thiz = reinterpret_cast<ScriptXHeapTypeObject<T>*>(self);
            delete thiz->instance;
            Py_TYPE(self)->tp_free(self);
          })},
@@ -105,97 +101,72 @@ class PyEngine : public ScriptEngine {
              PyErr_SetString(PyExc_TypeError, "Constructor doesn't support keyword arguments");
              return -1;
            }
-           PyEngine* engine = EngineScope::currentEngineAs<PyEngine>();
-           ScriptXHeapTypeObject* thiz = reinterpret_cast<ScriptXHeapTypeObject*>(self);
+           auto thiz = reinterpret_cast<ScriptXHeapTypeObject<T>*>(self);
            if (thiz->classDefine->instanceDefine.constructor) {
              thiz->instance = thiz->classDefine->instanceDefine.constructor(
-                 py_interop::makeArguments(engine, self, args));
+                 py_interop::makeArguments(currentEngine(), self, args));
            }
            return 0;
          })},
-        {Py_tp_getset, registerStaticProperty(classDefine)},
         {0, nullptr},
     };
-    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject), 0,
+    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject<T>), 0,
                      Py_TPFLAGS_HEAPTYPE, slots};
     PyObject* type = PyType_FromSpec(&spec);
-    registerStaticFunction(classDefine, type);
     if (type == nullptr) {
       checkException();
       throw Exception("Failed to create type for class " + classDefine->className);
     }
+    registerStaticProperty(classDefine, type);
+    registerInstanceProperty(classDefine, type);
+    registerStaticFunction(classDefine, type);
+    registerInstanceFunction(classDefine, type);
+    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
+    set(String::newString(classDefine->className.c_str()), Local<Value>(type));
+  }
+  template <>
+  void registerNativeClassImpl(const ClassDefine<void>* classDefine) {
+    PyType_Slot slots[] = {
+        {0, nullptr},
+    };
+    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject<void>), 0,
+                     Py_TPFLAGS_HEAPTYPE, slots};
+    PyObject* type = PyType_FromSpec(&spec);
+    if (type == nullptr) {
+      checkException();
+      throw Exception("Failed to create type for class " + classDefine->className);
+    }
+    registerStaticProperty(classDefine, type);
+    registerStaticFunction(classDefine, type);
     nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
     set(String::newString(classDefine->className.c_str()), Local<Value>(type));
   }
 
   template <typename T>
-  PyGetSetDef* registerStaticProperty(const ClassDefine<T>* classDefine) {
+  void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     auto&& properties = classDefine->staticDefine.properties;
-    size_t size = properties.size();
-    PyGetSetDef* getset = new PyGetSetDef[size + 1];
-    for (size_t i = 0; i < size; i++) {
-      auto&& name = properties[i].name;
-      auto&& getter = properties[i].getter;
-      auto&& setter = properties[i].setter;
-      getset[i] = {name.c_str(),
-                   [](PyObject* self, void* closure) -> PyObject* {
-                     internal::StaticDefine::PropertyDefine* data =
-                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
-                     return py_interop::getLocal(data->getter());
-                   },
-                   [](PyObject* self, PyObject* value, void* closure) -> int {
-                     internal::StaticDefine::PropertyDefine* data =
-                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
-                     data->setter(py_interop::makeLocal<Value>(value));
-                     return 0;
-                   },
-                   nullptr, const_cast<internal::StaticDefine::PropertyDefine*>(&properties[i])};
-    }
-    getset[size] = {nullptr, nullptr, nullptr, nullptr, nullptr};
-    return getset;
   }
 
   template <typename T>
-  PyGetSetDef* registerInstanceProperty(const ClassDefine<T>* classDefine) {
-    auto&& properties = classDefine->staticDefine.properties;
-    size_t size = properties.size();
-    PyGetSetDef* getset = new PyGetSetDef[size + 1];
-    for (size_t i = 0; i < size; i++) {
-      getset[i] = {properties[i].name.c_str(),
-                   [](PyObject* self, void* closure) -> PyObject* {
-                     internal::StaticDefine::PropertyDefine* data =
-                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
-                     return py_interop::getLocal(data->getter());
-                   },
-                   [](PyObject* self, PyObject* value, void* closure) -> int {
-                     internal::StaticDefine::PropertyDefine* data =
-                         reinterpret_cast<internal::StaticDefine::PropertyDefine*>(closure);
-                     data->setter(py_interop::makeLocal<Value>(value));
-                     return 0;
-                   },
-                   nullptr, const_cast<internal::StaticDefine::PropertyDefine*>(&properties[i])};
-    }
-    getset[size] = {nullptr, nullptr, nullptr, nullptr, nullptr};
-    return getset;
+  void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
+    auto&& properties = classDefine->instanceDefine.properties;
   }
 
   template <typename T>
   void registerStaticFunction(const ClassDefine<T>* classDefine, PyObject* type) {
-    // Add static methods
     for (const auto& method : classDefine->staticDefine.functions) {
-      PyObject_SetAttrString(type, method.name.c_str(),
-                             PyStaticMethod_New(warpFunction(method.name.c_str(), nullptr,
-                                                             METH_VARARGS, method.callback)));
+      PyObject* function = PyStaticMethod_New(
+          warpFunction(method.name.c_str(), nullptr, METH_VARARGS, method.callback));
+      PyObject_SetAttrString(type, method.name.c_str(), function);
     }
   }
 
   template <typename T>
   void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
-    // Add static methods
-    for (const auto& method : classDefine->staticDefine.functions) {
-      PyObject_SetAttrString(type, method.name.c_str(),
-                             PyMethod_Function(warpFunction(method.name.c_str(), nullptr,
-                                                            METH_VARARGS, method.callback)));
+    for (const auto& method : classDefine->instanceDefine.functions) {
+      PyObject* function = PyMethod_Function(
+          warpInstanceFunction(method.name.c_str(), nullptr, METH_VARARGS, method.callback));
+      PyObject_SetAttrString(type, method.name.c_str(), function);
     }
   }
 

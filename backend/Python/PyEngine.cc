@@ -27,8 +27,9 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
-    // Save main thread state & release GIL
-    mainThreadState = PyEval_SaveThread();
+    g_scriptx_property_type = makeStaticPropertyType();
+    //  Save main thread state & release GIL
+    mainThreadState_ = PyEval_SaveThread();
   }
 
   PyThreadState* oldState = nullptr;
@@ -40,15 +41,15 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   }
 
   // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState);
+  PyEval_RestoreThread(mainThreadState_);
   PyThreadState* newSubState = Py_NewInterpreter();
   if (!newSubState) {
     throw Exception("Fail to create sub interpreter");
   }
-  subInterpreterState = newSubState->interp;
+  subInterpreterState_ = newSubState->interp;
 
   // Store created new sub thread state & release GIL
-  subThreadState.set(PyEval_SaveThread());
+  subThreadState_.set(PyEval_SaveThread());
 
   // Recover old thread state stored before & recover GIL if needed
   if (oldState) {
@@ -65,8 +66,8 @@ inline Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& n
 }
 
 void PyEngine::destroy() noexcept {
-  PyEval_AcquireThread((PyThreadState*)subThreadState.get());
-  Py_EndInterpreter((PyThreadState*)subThreadState.get());
+  PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
+  Py_EndInterpreter((PyThreadState*)subThreadState_.get());
   ScriptEngine::destroyUserData();
 }
 
