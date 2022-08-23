@@ -16,6 +16,7 @@
  */
 
 #include "PyEngine.h"
+#include <cstring>
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
 
@@ -26,10 +27,9 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
-    // Enable thread support & get GIL
-    PyEval_InitThreads();
-    // Save main thread state & release GIL
-    mainThreadState = PyEval_SaveThread();
+    g_scriptx_property_type = makeStaticPropertyType();
+    //  Save main thread state & release GIL
+    mainThreadState_ = PyEval_SaveThread();
   }
 
   PyThreadState* oldState = nullptr;
@@ -41,13 +41,15 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   }
 
   // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState);
+  PyEval_RestoreThread(mainThreadState_);
   PyThreadState* newSubState = Py_NewInterpreter();
-  if (!newSubState) throw Exception("Fail to create sub interpreter");
-  subInterpreterState = newSubState->interp;
+  if (!newSubState) {
+    throw Exception("Fail to create sub interpreter");
+  }
+  subInterpreterState_ = newSubState->interp;
 
   // Store created new sub thread state & release GIL
-  subThreadState.set(PyEval_SaveThread());
+  subThreadState_.set(PyEval_SaveThread());
 
   // Recover old thread state stored before & recover GIL if needed
   if (oldState) {
@@ -59,9 +61,13 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
 
+inline Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
+  TEMPLATE_NOT_IMPLEMENTED();
+}
+
 void PyEngine::destroy() noexcept {
-  PyEval_AcquireThread((PyThreadState*)subThreadState.get());
-  Py_EndInterpreter((PyThreadState*)subThreadState.get());
+  PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
+  Py_EndInterpreter((PyThreadState*)subThreadState_.get());
   ScriptEngine::destroyUserData();
 }
 
@@ -93,23 +99,11 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  // Limitation: only support one statement or statements
+  // Limitation: only support file input
   // TODO: imporve eval support
   const char* source = script.toStringHolder().c_str();
-  bool oneLine = true;
-  for (int i = 0; i < strlen(source); i++) {
-    if (source[i] == '\n') {
-      oneLine = false;
-      break;
-    }
-  }
-  PyObject* result = nullptr;
   PyObject* globals = py_backend::getGlobalDict();
-  if (oneLine) {
-    result = PyRun_StringFlags(source, Py_single_input, globals, nullptr, nullptr);
-  } else {
-    result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
-  }
+  PyObject* result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
   if (result == nullptr) {
     checkException();
   }
@@ -123,9 +117,9 @@ Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
   if (content.isNull()) throw Exception("can't load script file");
 
   std::size_t pathSymbol = sourceFilePath.rfind("/");
-  if (pathSymbol != -1)
+  if (pathSymbol != -1) {
     sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
-  else {
+  } else {
     pathSymbol = sourceFilePath.rfind("\\");
     if (pathSymbol != -1) sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
   }
