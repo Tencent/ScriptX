@@ -80,7 +80,11 @@ bool Global<T>::isEmpty() const {
 
 template <typename T>
 void Global<T>::reset() {
-  val_ = nullptr;
+  if(val_)
+  {
+    py_backend::decRef(val_);
+    val_ = nullptr;
+  }
 }
 
 // == Weak ==
