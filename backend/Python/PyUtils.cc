@@ -19,8 +19,13 @@
 
 namespace script {
 
-StringHolder::StringHolder(const script::Local<script::String> &string)
-    : internalHolder_(string.val_) {}
+StringHolder::StringHolder(const script::Local<script::String> &string) {
+  if (PyUnicode_Check(string.val_)) {
+    internalHolder_ = string.val_;
+  } else {
+    throw Exception("StringHolder require PyUnicodeObject!");
+  }
+}
 
 StringHolder::~StringHolder() = default;
 

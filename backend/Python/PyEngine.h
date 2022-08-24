@@ -218,7 +218,7 @@ class PyEngine : public ScriptEngine {
 
   template <typename T>
   T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    if (isInstanceOfImpl(value, classDefine)) {
+    if (!isInstanceOfImpl(value, classDefine)) {
       throw Exception("Unmatched type of the value!");
     }
     return reinterpret_cast<ScriptXPyObject<T>*>(py_interop::peekLocal(value))->instance;
