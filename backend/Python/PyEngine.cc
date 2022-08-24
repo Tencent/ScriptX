@@ -82,7 +82,9 @@ Local<Value> PyEngine::get(const Local<String>& key) {
   if (globals == nullptr) {
     throw Exception("Fail to get globals");
   }
-  return py_interop::toLocal<Value>(PyDict_GetItemString(globals, key.toStringHolder().c_str()));
+  PyObject* item = PyDict_GetItemString(globals, key.toStringHolder().c_str());
+  decRef(globals);
+  return py_interop::toLocal<Value>(item);
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
@@ -92,6 +94,7 @@ void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
   }
   int result =
       PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getPy(value));
+  decRef(globals);
   if (result != 0) {
     checkException();
   }
@@ -109,6 +112,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   const char* source = script.toStringHolder().c_str();
   PyObject* globals = getGlobalDict();
   PyObject* result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
+  decRef(globals);
   if (result == nullptr) {
     checkException();
   }
