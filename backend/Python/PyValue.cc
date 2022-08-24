@@ -54,7 +54,7 @@ Local<String> String::newString(std::string_view utf8) {
 }
 
 Local<String> String::newString(const std::string& utf8) {
-  return checkAndMakeLocal<String>(PyUnicode_FromStringAndSize(utf8.data(), utf8.size()));
+  return newString(std::string_view(utf8));
 }
 
 #if defined(__cpp_char8_t)

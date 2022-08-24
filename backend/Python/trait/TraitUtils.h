@@ -25,7 +25,6 @@ struct py_interop;
 
 template <>
 struct internal::ImplType<StringHolder> {
-  // PyUnicode
   using type = PyObject*;
 };
 
