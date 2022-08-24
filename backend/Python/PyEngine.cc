@@ -27,10 +27,8 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
+    // Initialize type
     g_scriptx_property_type = makeStaticPropertyType();
-    if (PyType_Ready(&g_scriptx_namespace_type) < 0) {
-      throw Exception("faild to initialize namespace type");
-    }
     //  Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
   }
@@ -63,13 +61,6 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
 PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
-
-Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
-  // pydict can't be indexed by '.'
-  PyObject* ns = _PyObject_New(&g_scriptx_namespace_type);
-  ns = PyObject_Init(ns, &g_scriptx_namespace_type);
-  return py_interop::asLocal<Object>(ns);
-}
 
 void PyEngine::destroy() noexcept {
   PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
