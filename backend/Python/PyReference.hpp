@@ -132,13 +132,13 @@ Weak<T>& Weak<T>::operator=(const script::Local<T>& assign) {
 template <typename T>
 Local<T> Weak<T>::get() const {
   if (isEmpty()) throw Exception("get on empty Weak");
-  return Local<T>(val_);
+  return py_interop::toLocal<T>(val_);
 }
 
 template <typename T>
 Local<Value> Weak<T>::getValue() const {
   if (isEmpty()) throw Exception("getValue on empty Weak");
-  return Local<Value>(val_);
+  return py_interop::toLocal<Value>(val_);
 }
 
 template <typename T>
