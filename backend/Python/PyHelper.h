@@ -48,7 +48,7 @@ PyEngine* currentEngine();
 PyEngine& currentEngineChecked();
 
 /**
- * @return new ref
+ * @return borrowed ref
  */
 PyObject* getGlobalDict();
 }  // namespace script::py_backend

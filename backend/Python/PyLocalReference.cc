@@ -153,7 +153,9 @@ bool Local<Value>::isArray() const { return PyList_Check(val_); }
 
 bool Local<Value>::isByteBuffer() const { return PyByteArray_Check(val_); }
 
-bool Local<Value>::isObject() const { return PyDict_Check(val_); }
+bool Local<Value>::isObject() const {
+  return PyDict_Check(val_) || Py_Is(Py_TYPE(val_), &py_backend::g_scriptx_namespace_type);
+}
 
 bool Local<Value>::isUnsupported() const { return val_ == nullptr; }
 
@@ -203,7 +205,11 @@ bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
 Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Repr(val_)); }
 
 Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
-  return py_interop::toLocal<Value>(PyDict_GetItem(val_, key.val_));
+  PyObject* item = PyDict_GetItem(val_, key.val_);
+  if (item)
+    return py_interop::toLocal<Value>(item);
+  else
+    return py_interop::toLocal<Value>(Py_None);
 }
 
 void Local<Object>::set(const script::Local<script::String>& key,

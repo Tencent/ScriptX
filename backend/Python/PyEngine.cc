@@ -78,23 +78,16 @@ void PyEngine::destroy() noexcept {
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
-  PyObject* globals = getGlobalDict();
-  if (globals == nullptr) {
-    throw Exception("Fail to get globals");
-  }
-  PyObject* item = PyDict_GetItemString(globals, key.toStringHolder().c_str());
-  decRef(globals);
-  return py_interop::toLocal<Value>(item);
+  PyObject* item = PyDict_GetItemString(getGlobalDict(), key.toStringHolder().c_str());
+  if (item)
+    return py_interop::toLocal<Value>(item);
+  else
+    return py_interop::toLocal<Value>(Py_None);
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
-  PyObject* globals = getGlobalDict();
-  if (globals == nullptr) {
-    throw Exception("Fail to get globals");
-  }
   int result =
-      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getPy(value));
-  decRef(globals);
+      PyDict_SetItemString(getGlobalDict(), key.toStringHolder().c_str(), py_interop::getPy(value));
   if (result != 0) {
     checkException();
   }
@@ -110,9 +103,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   // Limitation: only support file input
   // TODO: imporve eval support
   const char* source = script.toStringHolder().c_str();
-  PyObject* globals = getGlobalDict();
-  PyObject* result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
-  decRef(globals);
+  PyObject* result = PyRun_StringFlags(source, Py_file_input, getGlobalDict(), nullptr, nullptr);
   if (result == nullptr) {
     checkException();
   }
