@@ -20,6 +20,7 @@
 #include <stack>
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
+#include "../../src/utils/Helper.hpp"
 #include "../../src/utils/MessageQueue.h"
 #include "PyHelper.hpp"
 
@@ -89,9 +90,11 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->staticDefine.properties) {
-      PyObject* args = PyTuple_Pack(4, warpGetter("getter", nullptr, METH_VARARGS, property.getter),
-                                    warpSetter("setter", nullptr, METH_VARARGS, property.setter),
-                                    Py_None, PyUnicode_FromString(""));
+      PyObject* doc = PyUnicode_InternFromString("");
+      PyObject* args =
+          PyTuple_Pack(4, warpGetter("getter", nullptr, METH_VARARGS, property.getter),
+                       warpSetter("setter", nullptr, METH_VARARGS, property.setter), Py_None, doc);
+      decRef(doc);
       PyObject* warpped_property = PyObject_Call(g_scriptx_property_type, args, nullptr);
       PyObject_SetAttrString(type, property.name.c_str(), warpped_property);
     }
@@ -100,10 +103,11 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->instanceDefine.properties) {
-      PyObject* args =
-          PyTuple_Pack(4, warpInstanceGetter("getter", nullptr, METH_VARARGS, property.getter),
-                       warpInstanceSetter("setter", nullptr, METH_VARARGS, property.setter),
-                       Py_None, PyUnicode_FromString(""));
+      PyObject* doc = PyUnicode_InternFromString("");
+      PyObject* args = PyTuple_Pack(
+          4, warpInstanceGetter("getter", nullptr, METH_VARARGS, property.getter),
+          warpInstanceSetter("setter", nullptr, METH_VARARGS, property.setter), Py_None, doc);
+      decRef(doc);
       PyObject* warpped_property = PyObject_Call((PyObject*)&PyProperty_Type, args, nullptr);
       PyObject_SetAttrString(type, property.name.c_str(), warpped_property);
     }
@@ -129,75 +133,66 @@ class PyEngine : public ScriptEngine {
 
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    PyType_Slot slots[] = {
-        {Py_tp_new, static_cast<newfunc>(
-                        [](PyTypeObject* subtype, PyObject* args, PyObject* kwds) -> PyObject* {
-                          PyObject* thiz = subtype->tp_alloc(subtype, subtype->tp_basicsize);
-                          subtype->tp_init(thiz, args, kwds);
-                          return thiz;
-                        })},
-        {Py_tp_dealloc, static_cast<destructor>([](PyObject* self) {
-           auto thiz = reinterpret_cast<ScriptXHeapTypeObject<T>*>(self);
-           delete thiz->instance;
-           Py_TYPE(self)->tp_free(self);
-         })},
-        {Py_tp_init,
-         static_cast<initproc>([](PyObject* self, PyObject* args, PyObject* kwds) -> int {
-           auto classDefine = reinterpret_cast<const ClassDefine<T>*>(PyCapsule_GetPointer(
-               PyObject_GetAttrString((PyObject*)self->ob_type, "class_define"), nullptr));
-           auto thiz = reinterpret_cast<ScriptXHeapTypeObject<T>*>(self);
-           if (classDefine->instanceDefine.constructor) {
-             thiz->instance = classDefine->instanceDefine.constructor(
-                 py_interop::makeArguments(currentEngine(), self, args));
-           }
-           return 0;
-         })},
-        {0, nullptr},
-    };
-    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject<T>), 0,
-                     Py_TPFLAGS_HEAPTYPE, slots};
-    PyObject* type = PyType_FromSpec(&spec);
-    if (type == nullptr) {
-      checkException();
-      throw Exception("Failed to create type for class " + classDefine->className);
-    }
-    PyObject_SetAttrString(type, "class_define",
-                           PyCapsule_New((void*)classDefine, nullptr, nullptr));
-    registerStaticProperty(classDefine, type);
-    registerInstanceProperty(classDefine, type);
-    registerStaticFunction(classDefine, type);
-    registerInstanceFunction(classDefine, type);
-    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
-    set(classDefine->className.c_str(), Local<Value>(type));
-  }
-  template <>
-  void registerNativeClassImpl(const ClassDefine<void>* classDefine) {
-    PyType_Slot slots[] = {
-        {0, nullptr},
-    };
-    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXHeapTypeObject<void>), 0,
-                     Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION, slots};
-    PyObject* type = PyType_FromSpec(&spec);
-    if (type == nullptr) {
-      checkException();
-      throw Exception("Failed to create type for class " + classDefine->className);
-    }
-    PyObject_SetAttrString(type, "class_define",
-                           PyCapsule_New((void*)classDefine, nullptr, nullptr));
-    registerStaticProperty(classDefine, type);
-    registerStaticFunction(classDefine, type);
-    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
-    set(classDefine->className.c_str(), Local<Value>(type));
-  }
+    auto ns = internal::getNamespaceObject(this, classDefine->getNameSpace(),
+                                           py_interop::toLocal<Value>(getGlobalDict()))
+                  .asObject();
+    auto hasInstance = classDefine->instanceDefine.constructor;
 
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
+    PyType_Slot slots[4]{};
+    if (hasInstance) {
+      slots[0] = {Py_tp_new, static_cast<newfunc>([](PyTypeObject* subtype, PyObject* args,
+                                                     PyObject* kwds) -> PyObject* {
+                    PyObject* thiz = subtype->tp_alloc(subtype, subtype->tp_basicsize);
+                    subtype->tp_init(thiz, args, kwds);
+                    return thiz;
+                  })};
+      slots[1] = {Py_tp_dealloc, static_cast<destructor>([](PyObject* self) {
+                    auto thiz = reinterpret_cast<ScriptXPyObject<T>*>(self);
+                    delete thiz->instance;
+                    Py_TYPE(self)->tp_free(self);
+                  })};
+      slots[2] = {
+          Py_tp_init,
+          static_cast<initproc>([](PyObject* self, PyObject* args, PyObject* kwds) -> int {
+            auto classDefine = reinterpret_cast<const ClassDefine<T>*>(PyCapsule_GetPointer(
+                PyObject_GetAttrString((PyObject*)self->ob_type, g_class_define_string), nullptr));
+            auto thiz = reinterpret_cast<ScriptXPyObject<T>*>(self);
+            if (classDefine->instanceDefine.constructor) {
+              thiz->instance = classDefine->instanceDefine.constructor(
+                  py_interop::makeArguments(currentEngine(), self, args));
+            }
+            return 0;
+          })};
+      slots[3] = {0, nullptr};
+    } else {
+      slots[0] = {0, nullptr};
+    }
+    int flags =
+        hasInstance ? Py_TPFLAGS_HEAPTYPE : Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION;
+    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXPyObject<T>), 0, flags, slots};
+    PyObject* type = PyType_FromSpec(&spec);
+    if (type == nullptr) {
+      checkException();
+      throw Exception("Failed to create type for class " + classDefine->className);
+    }
+    PyObject_SetAttrString(type, g_class_define_string,
+                           PyCapsule_New((void*)classDefine, nullptr, nullptr));
+    registerStaticProperty(classDefine, type);
+    registerStaticFunction(classDefine, type);
+    if (hasInstance) {
+      registerInstanceProperty(classDefine, type);
+      registerInstanceFunction(classDefine, type);
+    }
+    nativeDefineRegistry_.emplace(classDefine, Global<Value>(py_interop::asLocal<Value>(type)));
+    ns.set(classDefine->className.c_str(), py_interop::asLocal<Value>(type));
+  }
 
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
                                    const Local<Value>* args) {
     PyObject* tuple = PyTuple_New(size);
     for (size_t i = 0; i < size; ++i) {
-      PyTuple_SetItem(tuple, i, py_interop::getLocal(args[i]));
+      PyTuple_SetItem(tuple, i, py_interop::getPy(args[i]));
     }
 
     PyTypeObject* type = reinterpret_cast<PyTypeObject*>(nativeDefineRegistry_[classDefine].val_);
@@ -208,12 +203,18 @@ class PyEngine : public ScriptEngine {
 
   template <typename T>
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    TEMPLATE_NOT_IMPLEMENTED();
+    PyObject* capsule = PyObject_GetAttrString((PyObject*)py_interop::peekPy(value)->ob_type,
+                                               g_class_define_string);
+    if (capsule == nullptr) return false;
+    return PyCapsule_GetPointer(capsule, nullptr) == classDefine;
   }
 
   template <typename T>
   T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    TEMPLATE_NOT_IMPLEMENTED();
+    if (!isInstanceOfImpl(value, classDefine)) {
+      throw Exception("Unmatched type of the value!");
+    }
+    return reinterpret_cast<ScriptXPyObject<T>*>(py_interop::peekPy(value))->instance;
   }
 
  private:

@@ -16,25 +16,106 @@
  */
 
 #include <ScriptX/ScriptX.h>
+#include "PyHelper.h"
 
 namespace script {
 
-Exception::Exception(std::string msg) : std::exception(), exception_({}) {
-  exception_.message_ = std::move(msg);
+namespace py_backend {
+
+void ExceptionFields::fillMessage() const noexcept {
+  if (exception_.isEmpty() || exception_.getValue().isString()) {
+    return;
+  }
+  PyObject *capsule = py_interop::peekPy(exception_.getValue());
+  if (!PyCapsule_IsValid(capsule, nullptr)) {
+    return;
+  }
+  PyExceptionInfoStruct *errStruct =
+      (PyExceptionInfoStruct *)PyCapsule_GetPointer(capsule, nullptr);
+
+  PyTypeObject *typeObj = (PyTypeObject *)(errStruct->pType);
+  PyObject *formattedMsg = PyObject_Str(errStruct->pValue);
+  if (!formattedMsg) {
+    return;
+  }
+  // NameError: name 'hello' is not defined
+  message_ = std::string(typeObj->tp_name) + ": " + PyUnicode_AsUTF8(formattedMsg);
+  hasMessage_ = true;
 }
 
-Exception::Exception(const script::Local<script::String>& message)
-    : std::exception(), exception_() {}
+void ExceptionFields::fillStacktrace() const noexcept {
+  if (exception_.isEmpty() || exception_.getValue().isString()) {
+    return;
+  }
+  PyObject *capsule = py_interop::peekPy(exception_.getValue());
+  if (!PyCapsule_IsValid(capsule, nullptr)) {
+    return;
+  }
+  PyExceptionInfoStruct *errStruct =
+      (PyExceptionInfoStruct *)PyCapsule_GetPointer(capsule, nullptr);
 
-Exception::Exception(const script::Local<script::Value>& exception)
-    : std::exception(), exception_({}) {}
+  PyTracebackObject *tb = (PyTracebackObject *)(errStruct->pTraceback);
+  // Get the deepest trace possible.
+  while (tb->tb_next) {
+    tb = tb->tb_next;
+  }
+  PyFrameObject *frame = tb->tb_frame;
+  Py_XINCREF(frame);
+  stacktrace_ = "Traceback (most recent call last):";
+  while (frame) {
+    stacktrace_ += '\n';
+    PyCodeObject *f_code = PyFrame_GetCode(frame);
+    int lineno = PyFrame_GetLineNumber(frame);
+    stacktrace_ += "  File \"";
+    stacktrace_ += PyUnicode_AsUTF8(f_code->co_filename);
+    stacktrace_ += "\", line ";
+    stacktrace_ += std::to_string(lineno);
+    stacktrace_ += ", in ";
+    stacktrace_ += PyUnicode_AsUTF8(f_code->co_name);
+    Py_DECREF(f_code);
+    frame = frame->f_back;
+  }
+  hasStacktrace_ = true;
+}
 
-Local<Value> Exception::exception() const { return {}; }
+}  // namespace py_backend
 
-std::string Exception::message() const noexcept { return exception_.message_; }
+Exception::Exception(std::string msg) : std::exception(), exception_() {
+  exception_.message_ = msg;
+  exception_.hasMessage_ = true;
+}
 
-std::string Exception::stacktrace() const noexcept { return "[no stacktrace]"; }
+Exception::Exception(const script::Local<script::String> &message)
+    : std::exception(), exception_() {
+  exception_.exception_ = message;
+  exception_.hasMessage_ = true;
+}
 
-const char* Exception::what() const noexcept { return exception_.message_.c_str(); }
+Exception::Exception(const script::Local<script::Value> &exception)
+    : std::exception(), exception_({}) {
+  exception_.exception_ = exception;
+}
+
+Local<Value> Exception::exception() const {
+  if (exception_.exception_.isEmpty()) {
+    exception_.exception_ = String::newString(exception_.message_);
+  }
+  return exception_.exception_.getValue();
+}
+
+std::string Exception::message() const noexcept {
+  exception_.fillMessage();
+  return exception_.hasMessage_ ? exception_.message_ : "[No Exception Message]";
+}
+
+std::string Exception::stacktrace() const noexcept {
+  exception_.fillStacktrace();
+  return exception_.hasStacktrace_ ? exception_.stacktrace_ : "[No Stacktrace]";
+}
+
+const char *Exception::what() const noexcept {
+  exception_.fillMessage();
+  return exception_.hasMessage_ ? exception_.message_.c_str() : "[No Exception Message]";
+}
 
 }  // namespace script

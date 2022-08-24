@@ -25,14 +25,14 @@ Arguments::Arguments(InternalCallbackInfoType callbackInfo) : callbackInfo_(call
 
 Arguments::~Arguments() = default;
 
-Local<Object> Arguments::thiz() const { return py_interop::makeLocal<Object>(callbackInfo_.self); }
+Local<Object> Arguments::thiz() const { return py_interop::toLocal<Object>(callbackInfo_.self); }
 
 bool Arguments::hasThiz() const { return callbackInfo_.self; }
 
 size_t Arguments::size() const { return PyTuple_Size(callbackInfo_.args); }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  return py_interop::makeLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
+  return py_interop::toLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
@@ -42,11 +42,11 @@ ScriptClass::ScriptClass(const Local<Object>& scriptObject) : internalState_() {
 }
 
 Local<Object> ScriptClass::getScriptObject() const {
-  return py_interop::makeLocal<Object>(internalState_.script_obj);
+  return py_interop::toLocal<Object>(internalState_.script_obj);
 }
 
 Local<Array> ScriptClass::getInternalStore() const {
-  return py_interop::makeLocal<Array>(internalState_.storage);
+  return py_interop::toLocal<Array>(internalState_.storage);
 }
 
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }

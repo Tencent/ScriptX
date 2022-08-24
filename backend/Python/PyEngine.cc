@@ -27,13 +27,14 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
+    // Initialize type
     g_scriptx_property_type = makeStaticPropertyType();
     //  Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
   }
 
   PyThreadState* oldState = nullptr;
-  if (py_backend::currentEngine() != nullptr) {
+  if (currentEngine() != nullptr) {
     // Another thread state exists, save it temporarily & release GIL
     // Need to save it here because Py_NewInterpreter need main thread state stored at
     // initialization
@@ -61,10 +62,6 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
 
-inline Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
-  TEMPLATE_NOT_IMPLEMENTED();
-}
-
 void PyEngine::destroy() noexcept {
   PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
   Py_EndInterpreter((PyThreadState*)subThreadState_.get());
@@ -72,21 +69,16 @@ void PyEngine::destroy() noexcept {
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
-  PyObject* globals = getGlobalDict();
-  if (globals == nullptr) {
-    throw Exception("Fail to get globals");
-  }
-  PyObject* value = PyDict_GetItemString(globals, key.toStringHolder().c_str());
-  return Local<Value>(value);
+  PyObject* item = PyDict_GetItemString(getGlobalDict(), key.toStringHolder().c_str());
+  if (item)
+    return py_interop::toLocal<Value>(item);
+  else
+    return py_interop::toLocal<Value>(Py_None);
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
-  PyObject* globals = getGlobalDict();
-  if (globals == nullptr) {
-    throw Exception("Fail to get globals");
-  }
   int result =
-      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getLocal(value));
+      PyDict_SetItemString(getGlobalDict(), key.toStringHolder().c_str(), py_interop::getPy(value));
   if (result != 0) {
     checkException();
   }
@@ -102,19 +94,22 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   // Limitation: only support file input
   // TODO: imporve eval support
   const char* source = script.toStringHolder().c_str();
-  PyObject* globals = py_backend::getGlobalDict();
-  PyObject* result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
+  PyObject* result = PyRun_StringFlags(source, Py_file_input, getGlobalDict(), nullptr, nullptr);
   if (result == nullptr) {
     checkException();
   }
-  return Local<Value>(result);
+  return py_interop::asLocal<Value>(result);
 }
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
   std::string sourceFilePath = scriptFile.toString();
-  if (sourceFilePath.empty()) throw Exception("script file no found");
+  if (sourceFilePath.empty()) {
+    throw Exception("script file no found");
+  }
   Local<Value> content = internal::readAllFileContent(scriptFile);
-  if (content.isNull()) throw Exception("can't load script file");
+  if (content.isNull()) {
+    throw Exception("can't load script file");
+  }
 
   std::size_t pathSymbol = sourceFilePath.rfind("/");
   if (pathSymbol != -1) {

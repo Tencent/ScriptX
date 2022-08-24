@@ -29,7 +29,7 @@ Global<T>::Global(const script::Local<T>& localReference)
     : val_(py_backend::incRef(localReference.val_)) {}
 
 template <typename T>
-Global<T>::Global(const script::Weak<T>& weak) : val_(weak.val_) {}
+Global<T>::Global(const script::Weak<T>& weak) : val_(py_backend::incRef(weak.val_)) {}
 
 template <typename T>
 Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {}
@@ -65,12 +65,12 @@ Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
 
 template <typename T>
 Local<T> Global<T>::get() const {
-  return Local<T>(val_);
+  return py_interop::toLocal<T>(val_);
 }
 
 template <typename T>
 Local<Value> Global<T>::getValue() const {
-  return Local<Value>(val_);
+  return py_interop::toLocal<Value>(val_);
 }
 
 template <typename T>
@@ -80,6 +80,7 @@ bool Global<T>::isEmpty() const {
 
 template <typename T>
 void Global<T>::reset() {
+  py_backend::decRef(val_);
   val_ = nullptr;
 }
 
@@ -131,13 +132,13 @@ Weak<T>& Weak<T>::operator=(const script::Local<T>& assign) {
 template <typename T>
 Local<T> Weak<T>::get() const {
   if (isEmpty()) throw Exception("get on empty Weak");
-  return Local<T>(val_);
+  return py_interop::toLocal<T>(val_);
 }
 
 template <typename T>
 Local<Value> Weak<T>::getValue() const {
   if (isEmpty()) throw Exception("getValue on empty Weak");
-  return Local<Value>(val_);
+  return py_interop::toLocal<Value>(val_);
 }
 
 template <typename T>
