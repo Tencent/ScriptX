@@ -205,6 +205,7 @@ class PyEngine : public ScriptEngine {
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
     PyObject* capsule = PyObject_GetAttrString((PyObject*)py_interop::peekPy(value)->ob_type,
                                                g_class_define_string);
+    if (capsule == nullptr) return false;
     return PyCapsule_GetPointer(capsule, nullptr) == classDefine;
   }
 
