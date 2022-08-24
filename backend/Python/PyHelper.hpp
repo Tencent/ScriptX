@@ -26,18 +26,26 @@ class PyEngine;
 
 struct py_interop {
   /**
-   * @return stolen ref(passing ownership).
+   * @return new ref
    */
   template <typename T>
-  static Local<T> makeLocal(PyObject* ref) {
+  static Local<T> toLocal(PyObject* ref) {
+    return Local<T>(py_backend::incRef(ref));
+  }
+
+  /**
+   * @return borrowed ref
+   */
+  template <typename T>
+  static Local<T> asLocal(PyObject* ref) {
     return Local<T>(ref);
   }
 
   /**
-   * @return stolen ref.
+   * @return new ref.
    */
   template <typename T>
-  static PyObject* getLocal(const Local<T>& ref) {
+  static PyObject* getPy(const Local<T>& ref) {
     return py_backend::incRef(ref.val_);
   }
 
@@ -45,7 +53,7 @@ struct py_interop {
    * @return borrowed ref.
    */
   template <typename T>
-  static PyObject* peekLocal(const Local<T>& ref) {
+  static PyObject* peekPy(const Local<T>& ref) {
     return ref.val_;
   }
 
@@ -99,7 +107,7 @@ inline PyObject* warpFunction(const char* name, const char* doc, int flags,
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            return py_interop::peekLocal(
+            return py_interop::peekPy(
                 data->function(py_interop::makeArguments(data->engine, self, args)));
           } catch (const Exception& e) {
             rethrowException(e);
@@ -150,7 +158,7 @@ inline PyObject* warpInstanceFunction(const char* name, const char* doc, int fla
             auto ret =
                 data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
             decRef(real_args);
-            return py_interop::peekLocal(ret);
+            return py_interop::peekPy(ret);
           } catch (const Exception& e) {
             rethrowException(e);
           }
@@ -193,7 +201,7 @@ inline PyObject* warpGetter(const char* name, const char* doc, int flags, Getter
                         } else {
                           auto data = static_cast<FunctionData*>(ptr);
                           try {
-                            return py_interop::peekLocal(data->function());
+                            return py_interop::peekPy(data->function());
                           } catch (const Exception& e) {
                             rethrowException(e);
                           }
@@ -239,7 +247,7 @@ inline PyObject* warpInstanceGetter(const char* name, const char* doc, int flags
           auto data = static_cast<FunctionData*>(ptr);
           try {
             T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
-            return py_interop::peekLocal(data->function(thiz));
+            return py_interop::peekPy(data->function(thiz));
           } catch (const Exception& e) {
             rethrowException(e);
           }
@@ -282,7 +290,7 @@ inline PyObject* warpSetter(const char* name, const char* doc, int flags, Setter
                         } else {
                           auto data = static_cast<FunctionData*>(ptr);
                           try {
-                            data->function(py_interop::makeLocal<Value>(PyTuple_GetItem(args, 0)));
+                            data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 0)));
                             Py_RETURN_NONE;
                           } catch (const Exception& e) {
                             rethrowException(e);
@@ -329,7 +337,7 @@ PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
           auto data = static_cast<FunctionData*>(ptr);
           try {
             T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
-            data->function(thiz, py_interop::makeLocal<Value>(PyTuple_GetItem(args, 1)));
+            data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
             Py_RETURN_NONE;
           } catch (const Exception& e) {
             rethrowException(e);
@@ -380,6 +388,7 @@ inline PyObject* makeStaticPropertyType() {
   return type;
 }
 inline PyObject* g_scriptx_property_type = nullptr;
+inline PyTypeObject g_scriptx_namespace_type{.tp_name = "namespace"};
 inline constexpr const char* g_class_define_string = "class_define";
 }  // namespace py_backend
 }  // namespace script

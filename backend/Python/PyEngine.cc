@@ -28,6 +28,9 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     // Python not initialized. Init main interpreter
     Py_Initialize();
     g_scriptx_property_type = makeStaticPropertyType();
+    if (PyType_Ready(&g_scriptx_namespace_type) < 0) {
+      throw Exception("faild to initialize namespace type");
+    }
     //  Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
   }
@@ -61,8 +64,11 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 
 PyEngine::~PyEngine() = default;
 
-inline Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
-  TEMPLATE_NOT_IMPLEMENTED();
+Local<Object> PyEngine::getNamespaceForRegister(const std::string_view& nameSpace) {
+  // pydict can't be indexed by '.'
+  PyObject* ns = _PyObject_New(&g_scriptx_namespace_type);
+  ns = PyObject_Init(ns, &g_scriptx_namespace_type);
+  return py_interop::asLocal<Object>(ns);
 }
 
 void PyEngine::destroy() noexcept {
@@ -86,7 +92,7 @@ void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
     throw Exception("Fail to get globals");
   }
   int result =
-      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getLocal(value));
+      PyDict_SetItemString(globals, key.toStringHolder().c_str(), py_interop::getPy(value));
   if (result != 0) {
     checkException();
   }
