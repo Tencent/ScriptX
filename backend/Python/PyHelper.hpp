@@ -73,7 +73,7 @@ class PyTssStorage {
 };
 
 template <typename T>
-struct ScriptXHeapTypeObject {
+struct ScriptXPyObject {
   PyObject_HEAD;
   T* instance;
 };
@@ -99,8 +99,8 @@ inline PyObject* warpFunction(const char* name, const char* doc, int flags,
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            auto ret = data->function(py_interop::makeArguments(data->engine, self, args));
-            return py_interop::getLocal(ret);
+            return py_interop::peekLocal(
+                data->function(py_interop::makeArguments(data->engine, self, args)));
           } catch (const Exception& e) {
             rethrowException(e);
           }
@@ -145,13 +145,12 @@ inline PyObject* warpInstanceFunction(const char* name, const char* doc, int fla
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            T* thiz =
-                reinterpret_cast<ScriptXHeapTypeObject<T>*>(PyTuple_GetItem(args, 0))->instance;
+            T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
             PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
             auto ret =
                 data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
             decRef(real_args);
-            return py_interop::getLocal(ret);
+            return py_interop::peekLocal(ret);
           } catch (const Exception& e) {
             rethrowException(e);
           }
@@ -194,7 +193,7 @@ inline PyObject* warpGetter(const char* name, const char* doc, int flags, Getter
                         } else {
                           auto data = static_cast<FunctionData*>(ptr);
                           try {
-                            return py_interop::getLocal(data->function());
+                            return py_interop::peekLocal(data->function());
                           } catch (const Exception& e) {
                             rethrowException(e);
                           }
@@ -239,9 +238,8 @@ inline PyObject* warpInstanceGetter(const char* name, const char* doc, int flags
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            T* thiz =
-                reinterpret_cast<ScriptXHeapTypeObject<T>*>(PyTuple_GetItem(args, 0))->instance;
-            return py_interop::getLocal(data->function(thiz));
+            T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
+            return py_interop::peekLocal(data->function(thiz));
           } catch (const Exception& e) {
             rethrowException(e);
           }
@@ -330,8 +328,7 @@ PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            T* thiz =
-                reinterpret_cast<ScriptXHeapTypeObject<T>*>(PyTuple_GetItem(args, 0))->instance;
+            T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
             data->function(thiz, py_interop::makeLocal<Value>(PyTuple_GetItem(args, 1)));
             Py_RETURN_NONE;
           } catch (const Exception& e) {
@@ -383,6 +380,6 @@ inline PyObject* makeStaticPropertyType() {
   return type;
 }
 inline PyObject* g_scriptx_property_type = nullptr;
-
+inline constexpr const char* g_class_define_string = "class_define";
 }  // namespace py_backend
 }  // namespace script
