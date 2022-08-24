@@ -187,8 +187,6 @@ class PyEngine : public ScriptEngine {
     ns.set(classDefine->className.c_str(), py_interop::asLocal<Value>(type));
   }
 
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
-
   template <typename T>
   Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
                                    const Local<Value>* args) {

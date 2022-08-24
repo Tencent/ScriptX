@@ -153,9 +153,7 @@ bool Local<Value>::isArray() const { return PyList_Check(val_); }
 
 bool Local<Value>::isByteBuffer() const { return PyByteArray_Check(val_); }
 
-bool Local<Value>::isObject() const {
-  return PyDict_Check(val_) || Py_Is(Py_TYPE(val_), &py_backend::g_scriptx_namespace_type);
-}
+bool Local<Value>::isObject() const { return PyDict_Check(val_); }
 
 bool Local<Value>::isUnsupported() const { return val_ == nullptr; }
 

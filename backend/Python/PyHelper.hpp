@@ -388,7 +388,6 @@ inline PyObject* makeStaticPropertyType() {
   return type;
 }
 inline PyObject* g_scriptx_property_type = nullptr;
-inline PyTypeObject g_scriptx_namespace_type{.tp_name = "namespace"};
 inline constexpr const char* g_class_define_string = "class_define";
 }  // namespace py_backend
 }  // namespace script
