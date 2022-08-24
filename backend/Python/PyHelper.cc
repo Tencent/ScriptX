@@ -65,7 +65,7 @@ PyObject* getGlobalDict() {
     if (__main__ == nullptr) {
       throw Exception("Empty __main__ in getGlobalDict!");
     }
-    globals = PyModule_GetDict(__main__);
+    globals = incRef(PyModule_GetDict(__main__));
   }
   return globals;
 }
