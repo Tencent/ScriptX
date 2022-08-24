@@ -38,6 +38,9 @@ class PyEngine : public ScriptEngine {
   PyInterpreterState* subInterpreterState_;
   // Sub thread state of this sub interpreter (in TLS)
   PyTssStorage subThreadState_;
+  // Symbol to remember whether GIL is held before this engine is entered
+  // to choose how to release thread state in ExitEngineScope
+  bool isGilHeldBefore;
 
   std::unordered_map<const void*, Global<Value>> nativeDefineRegistry_;
 
