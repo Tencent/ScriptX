@@ -33,7 +33,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   }
 
   PyThreadState* oldState = nullptr;
-  if (py_backend::currentEngine() != nullptr) {
+  if (currentEngine() != nullptr) {
     // Another thread state exists, save it temporarily & release GIL
     // Need to save it here because Py_NewInterpreter need main thread state stored at
     // initialization
@@ -102,7 +102,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   // Limitation: only support file input
   // TODO: imporve eval support
   const char* source = script.toStringHolder().c_str();
-  PyObject* globals = py_backend::getGlobalDict();
+  PyObject* globals = getGlobalDict();
   PyObject* result = PyRun_StringFlags(source, Py_file_input, globals, nullptr, nullptr);
   if (result == nullptr) {
     checkException();
@@ -112,9 +112,13 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
   std::string sourceFilePath = scriptFile.toString();
-  if (sourceFilePath.empty()) throw Exception("script file no found");
+  if (sourceFilePath.empty()) {
+    throw Exception("script file no found");
+  }
   Local<Value> content = internal::readAllFileContent(scriptFile);
-  if (content.isNull()) throw Exception("can't load script file");
+  if (content.isNull()) {
+    throw Exception("can't load script file");
+  }
 
   std::size_t pathSymbol = sourceFilePath.rfind("/");
   if (pathSymbol != -1) {
