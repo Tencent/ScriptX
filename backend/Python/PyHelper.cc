@@ -28,9 +28,25 @@ PyObject* checkException(PyObject* obj) {
 }
 
 void checkException() {
-  if (PyErr_Occurred()) {
-    PyErr_Print();
-    throw Exception("Python Error!");
+  if (PyErr_Occurred())
+  {
+    PyObject *pType, *pValue, *pTraceback;
+    PyErr_Fetch(&pType, &pValue, &pTraceback);
+    PyErr_NormalizeException(&pType, &pValue, &pTraceback);
+
+    PyExceptionInfoStruct *errStruct = new PyExceptionInfoStruct;
+    errStruct->pType = pType;
+    errStruct->pValue = pValue;
+    errStruct->pTraceback = pTraceback;
+
+    PyObject* capsule = PyCapsule_New(errStruct, nullptr, [](PyObject* cap) {
+      void* ptr = PyCapsule_GetPointer(cap, nullptr);
+      delete static_cast<PyExceptionInfoStruct*>(ptr);
+    });
+
+    if(!capsule)
+      return;
+    throw Exception(py_interop::makeLocal<Value>(capsule));
   }
 }
 

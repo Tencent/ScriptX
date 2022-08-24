@@ -26,9 +26,15 @@
 
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <Python.h>
+#include "frameobject.h"
 SCRIPTX_END_INCLUDE_LIBRARY
 
 namespace script::py_backend {
+
+struct PyExceptionInfoStruct
+{
+    PyObject *pType, *pValue, *pTraceback;
+};
 
 inline PyObject* incRef(PyObject* ref) { return Py_XNewRef(ref); }
 
