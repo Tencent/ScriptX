@@ -25,7 +25,16 @@ namespace py_backend {
 
 class ExceptionFields {
  public:
+  mutable Global<Value> exception_{};   //exception capsule
+
   mutable std::string message_{};
+  mutable bool hasMessage_ = false;
+
+  mutable std::string stacktrace_{};
+  mutable bool hasStacktrace_ = false;
+
+  void fillMessage() const noexcept;
+  void fillStacktrace() const noexcept;
 };
 
 }  // namespace py_backend
