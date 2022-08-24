@@ -25,15 +25,15 @@ using script::py_interop;
 
 namespace script {
 /**
- * @return stolen ref.
+ * @return new ref.
  */
 template <typename T>
-Local<T> checkAndMakeLocal(PyObject* ref) {
-  return py_interop::makeLocal<T>(py_backend::checkException(ref));
+Local<T> checkAndToLocal(PyObject* ref) {
+  return py_interop::toLocal<T>(py_backend::checkException(ref));
 }
 
 // for python this creates an empty dict
-Local<Object> Object::newObject() { return checkAndMakeLocal<Object>(PyDict_New()); }
+Local<Object> Object::newObject() { return checkAndToLocal<Object>(PyDict_New()); }
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
@@ -42,15 +42,15 @@ Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
     throw Exception("PyDict_New failed");
   }
   // TODO
-  return checkAndMakeLocal<Object>(dict);
+  return checkAndToLocal<Object>(dict);
 }
 
 Local<String> String::newString(const char* utf8) {
-  return checkAndMakeLocal<String>(PyUnicode_FromString(utf8));
+  return checkAndToLocal<String>(PyUnicode_FromString(utf8));
 }
 
 Local<String> String::newString(std::string_view utf8) {
-  return checkAndMakeLocal<String>(PyUnicode_FromStringAndSize(utf8.data(), utf8.size()));
+  return checkAndToLocal<String>(PyUnicode_FromStringAndSize(utf8.data(), utf8.size()));
 }
 
 Local<String> String::newString(const std::string& utf8) {
@@ -76,27 +76,27 @@ Local<String> String::newString(const std::u8string& utf8) {
 Local<Number> Number::newNumber(float value) { return newNumber(static_cast<double>(value)); }
 
 Local<Number> Number::newNumber(double value) {
-  return checkAndMakeLocal<Number>(PyFloat_FromDouble(value));
+  return checkAndToLocal<Number>(PyFloat_FromDouble(value));
 }
 
 Local<Number> Number::newNumber(int32_t value) {
-  return checkAndMakeLocal<Number>(PyLong_FromLong(value));
+  return checkAndToLocal<Number>(PyLong_FromLong(value));
 }
 
 Local<Number> Number::newNumber(int64_t value) {
-  return checkAndMakeLocal<Number>(PyLong_FromLongLong(value));
+  return checkAndToLocal<Number>(PyLong_FromLongLong(value));
 }
 
 Local<Boolean> Boolean::newBoolean(bool value) {
-  return checkAndMakeLocal<Boolean>(PyBool_FromLong(value));
+  return checkAndToLocal<Boolean>(PyBool_FromLong(value));
 }
 
 Local<Function> Function::newFunction(FunctionCallback callback) {
-  return checkAndMakeLocal<Function>(
+  return checkAndToLocal<Function>(
       py_backend::warpFunction("ScriptX_Function", nullptr, METH_VARARGS, std::move(callback)));
 }
 
-Local<Array> Array::newArray(size_t size) { return checkAndMakeLocal<Array>(PyList_New(size)); }
+Local<Array> Array::newArray(size_t size) { return checkAndToLocal<Array>(PyList_New(size)); }
 
 Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
   auto list = PyList_New(size);
@@ -104,17 +104,17 @@ Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
     throw Exception("PyList_New failed");
   }
   for (size_t i = 0; i < size; ++i) {
-    PyList_SetItem(list, i, py_interop::getLocal(args[i]));
+    PyList_SetItem(list, i, py_interop::getPy(args[i]));
   }
-  return checkAndMakeLocal<Array>(list);
+  return checkAndToLocal<Array>(list);
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) {
-  return checkAndMakeLocal<ByteBuffer>(PyBytes_FromStringAndSize(nullptr, size));
+  return checkAndToLocal<ByteBuffer>(PyBytes_FromStringAndSize(nullptr, size));
 }
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {
-  return checkAndMakeLocal<ByteBuffer>(
+  return checkAndToLocal<ByteBuffer>(
       PyBytes_FromStringAndSize(static_cast<char*>(nativeBuffer), size));
 }
 

@@ -44,7 +44,7 @@ void checkException() {
     });
 
     if (!capsule) return;
-    throw Exception(py_interop::makeLocal<Value>(capsule));
+    throw Exception(py_interop::asLocal<Value>(capsule));
   }
 }
 

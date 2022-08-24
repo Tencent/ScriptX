@@ -26,7 +26,7 @@ void ExceptionFields::fillMessage() const noexcept {
   if (exception_.isEmpty() || exception_.getValue().isString()) {
     return;
   }
-  PyObject *capsule = py_interop::peekLocal(exception_.getValue());
+  PyObject *capsule = py_interop::peekPy(exception_.getValue());
   if (!PyCapsule_IsValid(capsule, nullptr)) {
     return;
   }
@@ -47,7 +47,7 @@ void ExceptionFields::fillStacktrace() const noexcept {
   if (exception_.isEmpty() || exception_.getValue().isString()) {
     return;
   }
-  PyObject *capsule = py_interop::peekLocal(exception_.getValue());
+  PyObject *capsule = py_interop::peekPy(exception_.getValue());
   if (!PyCapsule_IsValid(capsule, nullptr)) {
     return;
   }

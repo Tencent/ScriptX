@@ -29,7 +29,7 @@ Global<T>::Global(const script::Local<T>& localReference)
     : val_(py_backend::incRef(localReference.val_)) {}
 
 template <typename T>
-Global<T>::Global(const script::Weak<T>& weak) : val_(weak.val_) {}
+Global<T>::Global(const script::Weak<T>& weak) : val_(py_backend::incRef(weak.val_)) {}
 
 template <typename T>
 Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {}

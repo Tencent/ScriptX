@@ -110,7 +110,7 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 Local<Value>::Local() noexcept : val_(nullptr) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(py_backend::incRef(ref)) {}
+Local<Value>::Local(InternalLocalRef ref) : val_(ref) {}
 
 bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
