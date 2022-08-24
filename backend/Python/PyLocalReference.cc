@@ -203,7 +203,7 @@ bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
 Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Repr(val_)); }
 
 Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
-  return Local<Value>(PyDict_GetItem(val_, key.val_));
+  return py_interop::toLocal<Value>(PyDict_GetItem(val_, key.val_));
 }
 
 void Local<Object>::set(const script::Local<script::String>& key,
@@ -252,13 +252,13 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
   }
   PyObject* result = PyObject_CallObject(val_, args_tuple);
   py_backend::decRef(args_tuple);
-  return Local<Value>(result);
+  return py_interop::asLocal<Value>(result);
 }
 
 size_t Local<Array>::size() const { return PyList_Size(val_); }
 
 Local<Value> Local<Array>::get(size_t index) const {
-  return Local<Value>(PyList_GetItem(val_, index));
+  return py_interop::toLocal<Value>(PyList_GetItem(val_, index));
 }
 
 void Local<Array>::set(size_t index, const script::Local<script::Value>& value) const {
