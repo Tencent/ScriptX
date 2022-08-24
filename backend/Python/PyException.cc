@@ -48,15 +48,15 @@ void ExceptionFields::fillStacktrace() const noexcept {
   PyExceptionInfoStruct *errStruct = (PyExceptionInfoStruct*)PyCapsule_GetPointer(capsule, nullptr);
   
   PyTracebackObject *tb = (PyTracebackObject*)(errStruct->pTraceback);
-  stacktrace_.clear();
   // Get the deepest trace possible.
   while (tb->tb_next) {
       tb = tb->tb_next;
   }
   PyFrameObject *frame = tb->tb_frame;
   Py_XINCREF(frame);
-  stacktrace_ += "Traceback (most recent call last):\n";
+  stacktrace_ = "Traceback (most recent call last):";
   while (frame) {
+      stacktrace_ += '\n';
       PyCodeObject *f_code = PyFrame_GetCode(frame);
       int lineno = PyFrame_GetLineNumber(frame);
       stacktrace_ += "  File \"";
@@ -65,7 +65,6 @@ void ExceptionFields::fillStacktrace() const noexcept {
       stacktrace_ += std::to_string(lineno);
       stacktrace_ += ", in ";
       stacktrace_ += PyUnicode_AsUTF8(f_code->co_name);
-      stacktrace_ += '\n';
       Py_DECREF(f_code);
       frame = frame->f_back;
   }
