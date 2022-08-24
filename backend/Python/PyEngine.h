@@ -175,8 +175,8 @@ class PyEngine : public ScriptEngine {
     registerInstanceProperty(classDefine, type);
     registerStaticFunction(classDefine, type);
     registerInstanceFunction(classDefine, type);
-    nativeDefineRegistry_.emplace(classDefine, Global<Value>(Local<Value>(type)));
-    ns.set(classDefine->className.c_str(), Local<Value>(type));
+    nativeDefineRegistry_.emplace(classDefine, Global<Value>(py_interop::asLocal<Value>(type)));
+    ns.set(classDefine->className.c_str(), py_interop::asLocal<Value>(type));
   }
   // template <>
   // void registerNativeClassImpl(const ClassDefine<void>* classDefine) {

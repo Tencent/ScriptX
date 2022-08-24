@@ -65,12 +65,12 @@ Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
 
 template <typename T>
 Local<T> Global<T>::get() const {
-  return Local<T>(val_);
+  return py_interop::toLocal<T>(val_);
 }
 
 template <typename T>
 Local<Value> Global<T>::getValue() const {
-  return Local<Value>(val_);
+  return py_interop::toLocal<Value>(val_);
 }
 
 template <typename T>
