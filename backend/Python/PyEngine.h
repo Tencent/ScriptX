@@ -26,8 +26,6 @@
 
 namespace script::py_backend {
 
-class PyTssStorage;
-
 // an PyEngine = a subinterpreter
 class PyEngine : public ScriptEngine {
  private:
@@ -37,7 +35,7 @@ class PyEngine : public ScriptEngine {
   inline static PyThreadState* mainThreadState_ = nullptr;
   PyInterpreterState* subInterpreterState_;
   // Sub thread state of this sub interpreter (in TLS)
-  PyTssStorage subThreadState_;
+  PyTssStorage<PyThreadState> subThreadState_;
   // Symbol to remember whether GIL is held before this engine is entered
   // to choose how to release thread state in ExitEngineScope
   bool isGilHeldBefore;
@@ -48,7 +46,7 @@ class PyEngine : public ScriptEngine {
   // and find that there is an existing thread state owned by another engine,
   // we need to push its thread state to stack and release GIL to avoid dead-lock
   // -- see more code in "PyScope.cc"
-  std::stack<PyThreadState*> oldThreadStateStack_;
+  PyTssStorage<std::stack<PyThreadState*>> oldThreadStateStack_;
 
   friend class PyEngineScopeImpl;
   friend class PyExitEngineScopeImpl;

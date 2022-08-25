@@ -64,6 +64,7 @@ struct py_interop {
 
 namespace py_backend {
 
+template <typename T>
 class PyTssStorage {
  private:
   Py_tss_t key = Py_tss_NEEDS_INIT;
@@ -75,8 +76,8 @@ class PyTssStorage {
   ~PyTssStorage() {
     if (isValid()) PyThread_tss_delete(&key);
   }
-  int set(void* value) { return isValid() ? PyThread_tss_set(&key, value) : 1; }
-  void* get() { return isValid() ? PyThread_tss_get(&key) : NULL; }
+  int set(T* value) { return isValid() ? PyThread_tss_set(&key, (void*)value) : 1; }
+  T* get() { return isValid() ? (T*)PyThread_tss_get(&key) : NULL; }
   bool isValid() { return PyThread_tss_is_created(&key) > 0; }
 };
 
