@@ -64,8 +64,8 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  ScriptEngine::destroyUserData();
-  if (PyEngine::engineEnterCount == 0) {
+  ScriptEngine::destroyUserData();              // TODO: solve this problem about Py_EndInterpreter
+  /*if (PyEngine::engineEnterCount == 0) {
     // GIL is not locked. Just lock it
     PyEval_AcquireLock();
   }
@@ -78,7 +78,7 @@ void PyEngine::destroy() noexcept {
   if (PyEngine::engineEnterCount == 0) {
       // Unlock the GIL because it is not locked before
       PyEval_ReleaseLock();
-  }
+  }*/
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
