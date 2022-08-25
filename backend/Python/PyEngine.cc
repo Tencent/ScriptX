@@ -24,12 +24,11 @@ namespace script::py_backend {
 
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
-  // Init TLS data
-  oldThreadStateStack_.set(new std::stack<PyThreadState*>());
-
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
+    // Init threading environment
+    PyEval_InitThreads();
     // Initialize type
     g_scriptx_property_type = makeStaticPropertyType();
     //  Save main thread state & release GIL
@@ -69,7 +68,6 @@ void PyEngine::destroy() noexcept {
   PyEval_AcquireThread(subThreadState_.get());
   Py_EndInterpreter(subThreadState_.get());
   ScriptEngine::destroyUserData();
-  delete oldThreadStateStack_.get();
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
