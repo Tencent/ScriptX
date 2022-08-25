@@ -35,29 +35,28 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     mainThreadState_ = PyEval_SaveThread();
   }
 
-  PyThreadState* oldState = nullptr;
-  if (currentEngine() != nullptr) {
-    // Another thread state exists, save it temporarily & release GIL
-    // Need to save it here because Py_NewInterpreter need main thread state stored at
-    // initialization
-    oldState = PyEval_SaveThread();
-  }
+  // Resume main thread state (to execute Py_NewInterpreter)
+  PyThreadState* oldState = PyThreadState_Swap(mainThreadState_);
 
-  // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState_);
+  // If GIL is released, lock it
+  if (PyEngine::engineEnterCount == 0)
+  {
+      PyEval_AcquireLock();
+  }
+  // Create new interpreter
   PyThreadState* newSubState = Py_NewInterpreter();
   if (!newSubState) {
-    throw Exception("Fail to create sub interpreter");
+      throw Exception("Fail to create sub interpreter");
   }
   subInterpreterState_ = newSubState->interp;
 
-  // Store created new sub thread state & release GIL
-  subThreadState_.set(PyEval_SaveThread());
-
-  // Recover old thread state stored before & recover GIL if needed
-  if (oldState) {
-    PyEval_RestoreThread(oldState);
+  // If GIL is released before, unlock it
+  if (PyEngine::engineEnterCount == 0)
+  {
+      PyEval_ReleaseLock();
   }
+  // Store created new sub thread state & recover old thread state stored before
+  subThreadState_.set(PyThreadState_Swap(oldState));
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}

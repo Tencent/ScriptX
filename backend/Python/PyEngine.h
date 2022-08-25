@@ -48,6 +48,7 @@ class PyEngine : public ScriptEngine {
 
   // Record global EngineScope enter times to determine
   // whether it is needed to unlock GIL when exit EngineScope
+  // -- see more comments in "PyScope.cc"
   static inline int engineEnterCount;
 
   friend class PyEngineScopeImpl;
