@@ -25,8 +25,15 @@
 // https://stackoverflow.com/questions/15470367/pyeval-initthreads-in-python-3-how-when-to-call-it-the-saga-continues-ad-naus
 //
 // Because python's bad support of sub-interpreter, here to manage GIL & thread state manually.
-// One engine owns a sub-interpreter, and owns a TLS storage called engine.subThreadState_, 
-// which stores his own thread state on each thread.
+// - One engine owns a sub-interpreter, and owns a TLS storage called engine.subThreadState_, 
+// which stores his own current thread state on each thread.
+// - This "thread state" works like "CPU Context" in low-level C programs. When changing engine, 
+// "context" need to be changed to his correct thread state
+// - When entering a new EngineScope, first check that if an thread state exists. If found,
+// save it into oldThreadStateStack. When exit this EngineScope, old thread state saved before
+// will be poped and recovered.
+// - GIL is locked when any EngineScope is entered, and it is a global state (which means that 
+// this lock is shared by all threads). When the last EngineScope exited, the GIL will be released.
 // 
 // GIL keeps at one time only one engine can be running and this fucking situation is caused by 
 // bad design of Python. Hope that GIL will be removed in next versions and sub-interpreter support
@@ -36,40 +43,43 @@
 namespace script::py_backend {
 
 PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
+  // Get thread state to enter
   PyThreadState *currentThreadState = engine.subThreadState_.get();
   if (currentThreadState == NULL) {
     // New thread entered first time with no threadstate
     // Create a new thread state for the the sub interpreter in the new thread
+    // correct thread state after this
     currentThreadState = PyThreadState_New(engine.subInterpreterState_);
     // Save to TLS storage
     engine.subThreadState_.set(currentThreadState);
-    // Save GIL held situation
-    // See comments in ExitEngineScope
-    engine.isGilHeldBefore = (bool)PyGILState_Check();
-
-    std::cout << "========================= New thread state created." << std::endl;
-    return;
   }
   else
   {
       // Thread state of this engine on current thread is inited & saved in TLS
       // Check if there is another existing thread state (is another engine entered)
       
-      // PyThreadState_GET will cause FATEL error if oldState is null
+      // PyThreadState_GET will cause FATEL error if oldState is NULL
       // so here get & check oldState by swap twice
       PyThreadState* oldState = PyThreadState_Swap(NULL);
       bool isOldStateNotEmpty = oldState != nullptr;
       PyThreadState_Swap(oldState);
       if (isOldStateNotEmpty) {
           // Another engine is entered
-          // Push his thread state into stack & release GIL to avoid dead-lock
-          engine.oldThreadStateStack_.get()->push(PyEval_SaveThread());
-          std::cout << "========================= Old thread state existing. Save to stack" << std::endl;
+          // Push his thread state into stack 
+          engine.oldThreadStateStack_.push(PyThreadState_Swap(NULL));
       }
-      // acquire the GIL & swap to thread state of engine which is to enter
-      PyEval_RestoreThread(currentThreadState);
-      std::cout << "========================= Restore correct thread state." << std::endl;
+      // Swap to thread state of engine which is to enter
+      PyThreadState_Swap(currentThreadState);
   }
+
+  // First enginescope to enter, so lock GIL
+  if (PyEngine::engineEnterCount == 0)
+  {
+      PyEval_AcquireLock();
+  }
+  ++PyEngine::engineEnterCount;
+  // GIL locked & correct thread state here
+  // GIL will keep locked until last EngineScope exit
 }
 
 PyEngineScopeImpl::~PyEngineScopeImpl() {
@@ -77,37 +87,23 @@ PyEngineScopeImpl::~PyEngineScopeImpl() {
   if (currentEngine != nullptr) {
     // Engine existing. Need to exit
     PyExitEngineScopeImpl exitEngine(*currentEngine);
-    std::cout << "========================= EngineScope destructor -> to exit" << std::endl;
   }
 }
 
 PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &engine) {
-  // If one thread is entered first and GIL is held
-  // when we exit we need to avoid Release GIL to avoid that
-  // return to the original thread with GIL not held & cause crash
-  // So the situation of GIL is record before & process here
-
-    // FIX HERE!!!! PROBLEM EXISTS
-
-  if (engine.isGilHeldBefore)
+  if ((--PyEngine::engineEnterCount) == 0)
   {
-      // GIL is held before, so only clear thread state & don't release GIL
-      PyThreadState_Swap(NULL);
-      std::cout << "========================= Only clear current thread state" << std::endl;
+      // This is the last enginescope to exit, so release GIL
+      PyEval_ReleaseLock();
   }
-  else
-  {
-      // Release GIL & clear current thread state
-      PyEval_SaveThread();  
-      std::cout << "========================= Clear current thread state & release GIL" << std::endl;
-  }
+  // Swap to clear thread state
+  PyThreadState_Swap(NULL);
   
-  // Restore old thread state saved & recover GIL if needed
-  auto oldThreadStateStack = engine.oldThreadStateStack_.get();
-  if (!oldThreadStateStack->empty()) {
-      std::cout << "========================= Restore old current thread state" << std::endl;
-    PyEval_RestoreThread(oldThreadStateStack->top());
-    oldThreadStateStack->pop();
+  // Restore old thread state saved if needed
+  auto oldThreadStateStack = engine.oldThreadStateStack_;
+  if (!oldThreadStateStack.empty()) {
+    PyThreadState_Swap(oldThreadStateStack.top());
+    oldThreadStateStack.pop();
   }
 }
 
