@@ -42,7 +42,8 @@
 
 namespace script::py_backend {
 
-PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
+PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
+  managedEngine = enginePtr;
   // Get thread state to enter
   PyThreadState *currentThreadState = engine.subThreadState_.get();
   if (currentThreadState == NULL) {
@@ -84,7 +85,7 @@ PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
 
 PyEngineScopeImpl::~PyEngineScopeImpl() {
   PyEngine *currentEngine = py_backend::currentEngine();
-  if (currentEngine != nullptr) {
+  if (currentEngine == managedEngine) {
     // Engine existing. Need to exit
     PyExitEngineScopeImpl exitEngine(*currentEngine);
   }
