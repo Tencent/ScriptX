@@ -108,9 +108,11 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 // ==== value ====
 
-Local<Value>::Local() noexcept : val_(nullptr) {}
+Local<Value>::Local() noexcept : val_(py_backend::incRef(Py_None)) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(ref) {}
+Local<Value>::Local(InternalLocalRef ref) : val_(ref) {
+  if (ref == nullptr) throw Exception("Python exception occurred!");
+}
 
 bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
@@ -147,7 +149,7 @@ bool Local<Value>::isNumber() const { return PyNumber_Check(val_); }
 
 bool Local<Value>::isBoolean() const { return PyBool_Check(val_); }
 
-bool Local<Value>::isFunction() const { return PyCallable_Check(val_); }
+bool Local<Value>::isFunction() const { return PyFunction_Check(val_) || PyCFunction_Check(val_); }
 
 bool Local<Value>::isArray() const { return PyList_Check(val_); }
 
@@ -155,7 +157,7 @@ bool Local<Value>::isByteBuffer() const { return PyByteArray_Check(val_); }
 
 bool Local<Value>::isObject() const { return PyDict_Check(val_); }
 
-bool Local<Value>::isUnsupported() const { return val_ == nullptr; }
+bool Local<Value>::isUnsupported() const { return true; }
 
 Local<String> Local<Value>::asString() const {
   if (isString()) return Local<String>(val_);
@@ -207,7 +209,7 @@ Local<Value> Local<Object>::get(const script::Local<script::String>& key) const 
   if (item)
     return py_interop::toLocal<Value>(item);
   else
-    return py_interop::toLocal<Value>(Py_None);
+    return Local<Value>();
 }
 
 void Local<Object>::set(const script::Local<script::String>& key,
@@ -262,7 +264,11 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
 size_t Local<Array>::size() const { return PyList_Size(val_); }
 
 Local<Value> Local<Array>::get(size_t index) const {
-  return py_interop::toLocal<Value>(PyList_GetItem(val_, index));
+  PyObject* item = PyList_GetItem(val_, index);
+  if (item)
+    return py_interop::toLocal<Value>(item);
+  else
+    return Local<Value>();
 }
 
 void Local<Array>::set(size_t index, const script::Local<script::Value>& value) const {
