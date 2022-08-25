@@ -24,6 +24,9 @@ namespace script::py_backend {
 
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
+  // Init TLS data
+  oldThreadStateStack_.set(new std::stack<PyThreadState*>());
+
   if (Py_IsInitialized() == 0) {
     // Python not initialized. Init main interpreter
     Py_Initialize();
@@ -63,9 +66,10 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
-  Py_EndInterpreter((PyThreadState*)subThreadState_.get());
+  PyEval_AcquireThread(subThreadState_.get());
+  Py_EndInterpreter(subThreadState_.get());
   ScriptEngine::destroyUserData();
+  delete oldThreadStateStack_.get();
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {

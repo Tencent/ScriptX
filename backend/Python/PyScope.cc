@@ -36,7 +36,7 @@
 namespace script::py_backend {
 
 PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
-  PyThreadState *currentThreadState = (PyThreadState *)engine.subThreadState_.get();
+  PyThreadState *currentThreadState = engine.subThreadState_.get();
   if (currentThreadState == NULL) {
     // New thread entered first time with no threadstate
     // Create a new thread state for the the sub interpreter in the new thread
@@ -63,7 +63,7 @@ PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine *) {
       if (isOldStateNotEmpty) {
           // Another engine is entered
           // Push his thread state into stack & release GIL to avoid dead-lock
-          engine.oldThreadStateStack_.push(PyEval_SaveThread());
+          engine.oldThreadStateStack_.get()->push(PyEval_SaveThread());
           std::cout << "========================= Old thread state existing. Save to stack" << std::endl;
       }
       // acquire the GIL & swap to thread state of engine which is to enter
@@ -94,7 +94,6 @@ PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &engine) {
       // GIL is held before, so only clear thread state & don't release GIL
       PyThreadState_Swap(NULL);
       std::cout << "========================= Only clear current thread state" << std::endl;
-      return;
   }
   else
   {
@@ -104,11 +103,11 @@ PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &engine) {
   }
   
   // Restore old thread state saved & recover GIL if needed
-  auto &oldThreadStateStack = engine.oldThreadStateStack_;
-  if (!oldThreadStateStack.empty()) {
+  auto oldThreadStateStack = engine.oldThreadStateStack_.get();
+  if (!oldThreadStateStack->empty()) {
       std::cout << "========================= Restore old current thread state" << std::endl;
-    PyEval_RestoreThread(oldThreadStateStack.top());
-    oldThreadStateStack.pop();
+    PyEval_RestoreThread(oldThreadStateStack->top());
+    oldThreadStateStack->pop();
   }
 }
 
