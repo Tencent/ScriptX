@@ -29,7 +29,7 @@ namespace script {
  */
 template <typename T>
 Local<T> asLocalAndCheck(PyObject* ref) {
-  return py_interop::toLocal<T>(py_backend::checkException(ref));
+  return py_interop::asLocal<T>(py_backend::checkException(ref));
 }
 
 // for python this creates an empty dict
