@@ -65,9 +65,21 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  PyEval_AcquireThread(subThreadState_.get());
-  Py_EndInterpreter(subThreadState_.get());
   ScriptEngine::destroyUserData();
+  if (PyEngine::engineEnterCount == 0) {
+    // GIL is not locked. Just lock it
+    PyEval_AcquireLock();
+  }
+  // Swap to clear thread state & end sub interpreter
+  PyThreadState* oldThreadState = PyThreadState_Swap(subThreadState_.get());
+  Py_EndInterpreter(subThreadState_.get());
+  // Recover old thread state
+  PyThreadState_Swap(oldThreadState);
+
+  if (PyEngine::engineEnterCount == 0) {
+      // Unlock the GIL because it is not locked before
+      PyEval_ReleaseLock();
+  }
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
