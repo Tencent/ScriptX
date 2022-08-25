@@ -36,7 +36,7 @@
 // this lock is shared by all threads). When the last EngineScope exited, the GIL will be released.
 // 
 // GIL keeps at one time only one engine can be running and this fucking situation is caused by 
-// bad design of Python. Hope that GIL will be removed in next versions and sub-interpreter support
+// bad design of CPython. Hope that GIL will be removed in next versions and sub-interpreter support
 // will be public. Only that can save us from managing these annoying things manually
 //
 
