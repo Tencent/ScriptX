@@ -24,6 +24,7 @@ namespace script::py_backend {
 class PyEngine;
 
 class PyEngineScopeImpl {
+    PyEngine* managedEngine;
  public:
   explicit PyEngineScopeImpl(PyEngine &, PyEngine *);
 
