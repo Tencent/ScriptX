@@ -25,6 +25,7 @@ namespace script::py_backend {
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
+    Py_SetStandardStreamEncoding("utf-8", nullptr);
     // Python not initialized. Init main interpreter
     Py_Initialize();
     // Init threading environment
@@ -39,21 +40,19 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   PyThreadState* oldState = PyThreadState_Swap(mainThreadState_);
 
   // If GIL is released, lock it
-  if (PyEngine::engineEnterCount == 0)
-  {
-      PyEval_AcquireLock();
+  if (PyEngine::engineEnterCount == 0) {
+    PyEval_AcquireLock();
   }
   // Create new interpreter
   PyThreadState* newSubState = Py_NewInterpreter();
   if (!newSubState) {
-      throw Exception("Fail to create sub interpreter");
+    throw Exception("Fail to create sub interpreter");
   }
   subInterpreterState_ = newSubState->interp;
 
   // If GIL is released before, unlock it
-  if (PyEngine::engineEnterCount == 0)
-  {
-      PyEval_ReleaseLock();
+  if (PyEngine::engineEnterCount == 0) {
+    PyEval_ReleaseLock();
   }
   // Store created new sub thread state & recover old thread state stored before
   subThreadState_.set(PyThreadState_Swap(oldState));
@@ -64,7 +63,7 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  ScriptEngine::destroyUserData();              // TODO: solve this problem about Py_EndInterpreter
+  ScriptEngine::destroyUserData();  // TODO: solve this problem about Py_EndInterpreter
   /*if (PyEngine::engineEnterCount == 0) {
     // GIL is not locked. Just lock it
     PyEval_AcquireLock();
@@ -104,10 +103,17 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  // Limitation: only support file input
-  // TODO: imporve eval support
+  // Limitation: one line code must be expression
   const char* source = script.toStringHolder().c_str();
-  PyObject* result = PyRun_StringFlags(source, Py_file_input, getGlobalDict(), nullptr, nullptr);
+  bool oneLine = true;
+  for (const char* p = source; *p; ++p) {
+    if (*p == '\n') {
+      oneLine = false;
+      break;
+    }
+  }
+  PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
+                                       getGlobalDict(), nullptr, nullptr);
   if (result == nullptr) {
     checkException();
   }
