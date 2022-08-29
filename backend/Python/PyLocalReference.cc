@@ -143,19 +143,19 @@ ValueKind Local<Value>::getKind() const {
   }
 }
 
-bool Local<Value>::isString() const { return PyUnicode_Check(val_); }
+bool Local<Value>::isString() const { return PyUnicode_CheckExact(val_); }
 
-bool Local<Value>::isNumber() const { return PyNumber_Check(val_); }
+bool Local<Value>::isNumber() const { return PyLong_CheckExact(val_) || PyFloat_CheckExact(val_); }
 
 bool Local<Value>::isBoolean() const { return PyBool_Check(val_); }
 
-bool Local<Value>::isFunction() const { return PyFunction_Check(val_) || PyCFunction_Check(val_); }
+bool Local<Value>::isFunction() const { return PyFunction_Check(val_) || PyCFunction_CheckExact(val_); }
 
-bool Local<Value>::isArray() const { return PyList_Check(val_); }
+bool Local<Value>::isArray() const { return PyList_CheckExact(val_); }
 
-bool Local<Value>::isByteBuffer() const { return PyBytes_Check(val_); }
+bool Local<Value>::isByteBuffer() const { return PyBytes_CheckExact(val_); }
 
-bool Local<Value>::isObject() const { return PyDict_Check(val_); }
+bool Local<Value>::isObject() const { return PyDict_CheckExact(val_); }
 
 bool Local<Value>::isUnsupported() const { return true; }
 
