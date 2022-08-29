@@ -37,15 +37,7 @@ Local<Object> Object::newObject() { return asLocalAndCheck<Object>(PyDict_New())
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
-  //PyObject* tuple = PyTuple_New(size);
-  //for (size_t i = 0; i < size; ++i) {
-  //  PyTuple_SetItem(tuple, i, py_interop::getPy(args[i]));
-  //}
-
-  //PyTypeObject* pyType = reinterpret_cast<PyTypeObject*>(py_interop::peekPy(type));
-  //PyObject* obj = pyType->tp_new(pyType, tuple, nullptr);
-  //Py_DECREF(tuple);
-  //return Local<Object>(obj);
+  throw Exception("Python can't use this function");
   return Local<Object>(PyDict_New());
 }
 
