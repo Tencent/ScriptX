@@ -272,11 +272,16 @@ Local<Value> Local<Array>::get(size_t index) const {
 }
 
 void Local<Array>::set(size_t index, const script::Local<script::Value>& value) const {
-  PyList_SetItem(val_, index, value.val_);
+  size_t listSize = size();
+  if (index >= listSize)
+    for (size_t i = listSize; i <= index; ++i) {
+      PyList_Append(val_, Py_None);
+    }
+  PyList_SetItem(val_, index, py_interop::getPy(value));
 }
 
 void Local<Array>::add(const script::Local<script::Value>& value) const {
-  PyList_Append(val_, value.val_);
+  PyList_Append(val_, py_interop::peekPy(value));
 }
 
 void Local<Array>::clear() const { PyList_SetSlice(val_, 0, PyList_Size(val_), nullptr); }

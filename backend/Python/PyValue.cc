@@ -114,7 +114,10 @@ Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) {
-  return asLocalAndCheck<ByteBuffer>(PyBytes_FromStringAndSize(nullptr, size));
+  const char* bytes = new char[size]{};
+  PyObject* result = PyBytes_FromStringAndSize(bytes, size);
+  delete bytes;
+  return asLocalAndCheck<ByteBuffer>(result);
 }
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {

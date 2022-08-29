@@ -393,18 +393,14 @@ TEST_F(ValueTest, FunctionReturn) {
 }
 
 TEST_F(ValueTest, FunctionArgumentsOutOfRange) {
-  try {
-    EngineScope engineScope(engine);
-    auto func = Function::newFunction([](const Arguments& args) {
-      EXPECT_TRUE(args[-1].isNull());
-      EXPECT_TRUE(args[args.size() + 1].isNull());
-      return Local<Value>{};
-    });
+  EngineScope engineScope(engine);
+  auto func = Function::newFunction([](const Arguments& args) {
+    EXPECT_TRUE(args[-1].isNull());
+    EXPECT_TRUE(args[args.size() + 1].isNull());
+    return Local<Value>{};
+  });
 
-    func.call({});
-  } catch (const std::exception& e) {
-    puts(e.what());
-  }
+  func.call({});
 }
 
 TEST_F(ValueTest, FunctionHasALotOfArguments) {
@@ -439,14 +435,16 @@ TEST_F(ValueTest, FunctionHasThiz) {
 
   engine->set("func", func);
   auto hasThiz =
-      engine->eval(TS().js("var x = {func: func}; x.func()").lua("return func()").select())
+      engine->eval(TS().js("var x = {func: func}; x.func()").lua("return func()").py("func()").select())
           .asBoolean()
           .value();
 
 #ifdef SCRIPTX_LANG_JAVASCRIPT
   EXPECT_TRUE(hasThiz);
-#elif SCRIPTX_LANG_Lua
+#elif defined(SCRIPTX_LANG_LUA)
   EXPECT_FALSE(hasThiz);
+#elif defined(SCRIPTX_LANG_PYTHON)
+  EXPECT_TRUE(hasThiz);
 #endif
 }
 
@@ -455,9 +453,11 @@ TEST_F(ValueTest, EngineEvalReturnValue) {
   Local<Value> val;
 
 #if defined(SCRIPTX_LANG_JAVASCRIPT)
-  val = engine->eval(R"(3.14)");
+  val = engine->eval("3.14");
 #elif defined(SCRIPTX_LANG_LUA)
-  val = engine->eval(R"(return 3.14)");
+  val = engine->eval("return 3.14");
+#elif defined(SCRIPTX_LANG_PYTHON)
+  val = engine->eval("3.14");
 #else
   FAIL();
 #endif
