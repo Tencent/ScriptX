@@ -157,7 +157,7 @@ bool Local<Value>::isByteBuffer() const { return PyBytes_CheckExact(val_); }
 
 bool Local<Value>::isObject() const { return PyDict_CheckExact(val_); }
 
-bool Local<Value>::isUnsupported() const { return true; }
+bool Local<Value>::isUnsupported() const { return getKind() == ValueKind::kUnsupported; }
 
 Local<String> Local<Value>::asString() const {
   if (isString()) return Local<String>(val_);
@@ -195,6 +195,7 @@ Local<Object> Local<Value>::asObject() const {
 }
 
 Local<Unsupported> Local<Value>::asUnsupported() const {
+  if (isUnsupported()) return Local<Unsupported>(val_);
   throw Exception("can't cast value as Unsupported");
 }
 
