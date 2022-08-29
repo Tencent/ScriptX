@@ -103,15 +103,13 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  // Limitation: one line code must be expression
+  // Limitation: one line code must be expression (no "\n", no "=")
   const char* source = script.toStringHolder().c_str();
   bool oneLine = true;
-  for (const char* p = source; *p; ++p) {
-    if (*p == '\n') {
+  if (strstr(source, "\n") != NULL)
       oneLine = false;
-      break;
-    }
-  }
+  else if (strstr(source, " = ") != NULL)
+      oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
   if (result == nullptr) {

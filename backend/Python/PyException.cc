@@ -55,6 +55,9 @@ void ExceptionFields::fillStacktrace() const noexcept {
       (PyExceptionInfoStruct *)PyCapsule_GetPointer(capsule, nullptr);
 
   PyTracebackObject *tb = (PyTracebackObject *)(errStruct->pTraceback);
+  if (tb == nullptr)
+      return;
+
   // Get the deepest trace possible.
   while (tb->tb_next) {
     tb = tb->tb_next;
