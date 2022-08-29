@@ -29,7 +29,11 @@ StringHolder::StringHolder(const script::Local<script::String> &string) {
 
 StringHolder::~StringHolder() = default;
 
-size_t StringHolder::length() const { return PyUnicode_GET_LENGTH(internalHolder_); }
+size_t StringHolder::length() const {
+  Py_ssize_t size = 0;
+  PyUnicode_AsUTF8AndSize(internalHolder_, &size);
+  return (size_t)size;
+}
 
 const char *StringHolder::c_str() const { return PyUnicode_AsUTF8(internalHolder_); }
 

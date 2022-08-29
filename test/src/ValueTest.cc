@@ -63,7 +63,8 @@ f;
 )";
 
 const auto kPyClassScript =
-    "{'name':'my name', 'age': 11, 'greet': lambda self : 'Hello, I\\'m '+self['name']+' '+str(self['age'])+' years old.'}";
+    "{'name':'my name', 'age': 11, 'greet': lambda self : 'Hello, I\\'m '+self['name']+' "
+    "'+str(self['age'])+' years old.'}";
 
 #ifndef SCRIPTX_LANG_PYTHON
 TEST_F(ValueTest, Object_NewObject) {
@@ -186,7 +187,10 @@ TEST_F(ValueTest, String) {
   EXPECT_STREQ(string, str.describeUtf8().c_str());
   EXPECT_EQ(strVal, str);
 
-  str = engine->eval(TS().js("'hello world'").lua("return 'hello world'").py("'hello world'").select()).asString();
+  str =
+      engine
+          ->eval(TS().js("'hello world'").lua("return 'hello world'").py("'hello world'").select())
+          .asString();
   EXPECT_STREQ(string, str.toString().c_str());
 }
 
@@ -197,11 +201,13 @@ TEST_F(ValueTest, U8String) {
   std::u8string string = u8"你好, 世界";
 
   auto str = String::newString(string);
-  std::u8string ssss = str.toU8string();
   EXPECT_EQ(string, str.toU8string());
 
   str =
-      engine->eval(TS().js(u8"'你好, 世界'").lua(u8"return '你好, 世界'").py(u8"'你好, 世界'").select()).asString();
+      engine
+          ->eval(
+              TS().js(u8"'你好, 世界'").lua(u8"return '你好, 世界'").py(u8"'你好, 世界'").select())
+          .asString();
   EXPECT_EQ(string, str.toU8string());
 }
 
@@ -217,6 +223,10 @@ TEST_F(ValueTest, InstanceOf) {
 #elif defined(SCRIPTX_LANG_LUA)
     auto f = engine->eval(kLuaClassScript);
     auto ins = engine->eval("return f()");
+    EXPECT_TRUE(ins.asObject().instanceOf(f));
+#elif defined(SCRIPTX_LANG_PYTHON)
+    auto f = engine->eval("{}");
+    auto ins = engine->eval("dict()");
     EXPECT_TRUE(ins.asObject().instanceOf(f));
 #else
     FAIL() << "add test impl here";
@@ -318,6 +328,8 @@ TEST_F(ValueTest, FunctionReceiver) {
 }
 
 TEST_F(ValueTest, FunctionCall) {
+#ifndef SCRIPTX_LANG_PYTHON
+
   EngineScope engineScope(engine);
   engine->eval(TS().js(R"(
 function unitTestFuncCall(arg1, arg2) {
@@ -336,6 +348,7 @@ function unitTestFuncCall(arg1, arg2)
   end
 end
 )")
+                   .py(R"(lambda arg1,arg2:)")
                    .select());
 
   auto func = engine->get("unitTestFuncCall").asFunction();
@@ -347,6 +360,7 @@ end
   ret = func.call({}, 1, "x");
   ASSERT_TRUE(ret.isString());
   EXPECT_STREQ(ret.asString().toString().c_str(), "hello X");
+#endif
 }
 
 TEST_F(ValueTest, FunctionReturn) {
@@ -379,14 +393,18 @@ TEST_F(ValueTest, FunctionReturn) {
 }
 
 TEST_F(ValueTest, FunctionArgumentsOutOfRange) {
-  EngineScope engineScope(engine);
-  auto func = Function::newFunction([](const Arguments& args) {
-    EXPECT_TRUE(args[-1].isNull());
-    EXPECT_TRUE(args[args.size() + 1].isNull());
-    return Local<Value>{};
-  });
+  try {
+    EngineScope engineScope(engine);
+    auto func = Function::newFunction([](const Arguments& args) {
+      EXPECT_TRUE(args[-1].isNull());
+      EXPECT_TRUE(args[args.size() + 1].isNull());
+      return Local<Value>{};
+    });
 
-  func.call({});
+    func.call({});
+  } catch (const std::exception& e) {
+    puts(e.what());
+  }
 }
 
 TEST_F(ValueTest, FunctionHasALotOfArguments) {
