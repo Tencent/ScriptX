@@ -202,7 +202,7 @@ bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
   return PyObject_RichCompareBool(val_, other.val_, Py_EQ);
 }
 
-Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Repr(val_)); }
+Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Str(val_)); }
 
 Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
   PyObject* item = PyDict_GetItem(val_, key.val_);

@@ -386,7 +386,7 @@ inline PyObject* makeStaticPropertyType() {
                    PyProperty_Type.tp_itemsize,
                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE, slots};
   PyObject* type = PyType_FromSpec(&spec);
-  PyObject_SetAttrString(type, "__module__", PyUnicode_InternFromString("__builtins__"));
+  PyObject_SetAttrString(type, "__module__", PyUnicode_InternFromString("builtins"));
   return type;
 }
 inline PyObject* g_scriptx_property_type = nullptr;

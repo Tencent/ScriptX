@@ -45,9 +45,8 @@ return f;
 
 )";
 
-TEST_F(ValueTest, Object_NewObject) {
-  EngineScope engineScope(engine);
-  Local<Value> func = engine->eval(TS().js(u8R"(
+constexpr auto kJsClassScript =
+    u8R"(
 function f(name, age) {
     this.name = name;
     this.age = age;
@@ -61,10 +60,16 @@ f.prototype.greet = function() {
 
 f;
 
-)")
-                                       .lua(kLuaClassScript)
-                                       .select());
+)";
 
+const auto kPyClassScript =
+    "{'name':'my name', 'age': 11, 'greet': lambda self : 'Hello, I\\'m '+self['name']+' '+str(self['age'])+' years old.'}";
+
+#ifndef SCRIPTX_LANG_PYTHON
+TEST_F(ValueTest, Object_NewObject) {
+  EngineScope engineScope(engine);
+  Local<Value> func =
+      engine->eval(TS().js(kJsClassScript).lua(kLuaClassScript).py(kPyClassScript).select());
   ASSERT_TRUE(func.isObject());
 
   std::initializer_list<Local<Object>> jennyList{
@@ -95,6 +100,7 @@ f;
     ASSERT_STREQ(greetRet.asString().toString().c_str(), "Hello, I'm Jenny 5 years old.");
   }
 }
+#endif
 
 TEST_F(ValueTest, Object) {
   EngineScope engineScope(engine);
@@ -180,7 +186,7 @@ TEST_F(ValueTest, String) {
   EXPECT_STREQ(string, str.describeUtf8().c_str());
   EXPECT_EQ(strVal, str);
 
-  str = engine->eval(TS().js("'hello world'").lua("return 'hello world'").select()).asString();
+  str = engine->eval(TS().js("'hello world'").lua("return 'hello world'").py("'hello world'").select()).asString();
   EXPECT_STREQ(string, str.toString().c_str());
 }
 
@@ -191,9 +197,11 @@ TEST_F(ValueTest, U8String) {
   std::u8string string = u8"你好, 世界";
 
   auto str = String::newString(string);
+  std::u8string ssss = str.toU8string();
   EXPECT_EQ(string, str.toU8string());
 
-  str = engine->eval(TS().js(u8"'你好, 世界'").lua(u8"return '你好, 世界'").select()).asString();
+  str =
+      engine->eval(TS().js(u8"'你好, 世界'").lua(u8"return '你好, 世界'").py(u8"'你好, 世界'").select()).asString();
   EXPECT_EQ(string, str.toU8string());
 }
 
