@@ -435,7 +435,9 @@ TEST_F(ValueTest, FunctionHasThiz) {
 
   engine->set("func", func);
   auto hasThiz =
-      engine->eval(TS().js("var x = {func: func}; x.func()").lua("return func()").py("func()").select())
+      engine
+          ->eval(
+              TS().js("var x = {func: func}; x.func()").lua("return func()").py("func()").select())
           .asBoolean()
           .value();
 
@@ -657,6 +659,8 @@ TEST_F(ValueTest, Unsupported) {
   auto lua = lua_interop::currentEngineLua();
   lua_newuserdata(lua, 4);
   auto strange = lua_interop::makeLocal<Value>(lua_gettop(lua));
+#elif defined(SCRIPTX_LANG_PYTHON)
+  auto strange = py_interop::asLocal<Value>(PyImport_AddModule("__main__"));
 #else
   FAIL() << "add test here";
   auto strange = Local<Value>();
