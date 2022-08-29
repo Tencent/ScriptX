@@ -153,7 +153,7 @@ bool Local<Value>::isFunction() const { return PyFunction_Check(val_) || PyCFunc
 
 bool Local<Value>::isArray() const { return PyList_Check(val_); }
 
-bool Local<Value>::isByteBuffer() const { return PyByteArray_Check(val_); }
+bool Local<Value>::isByteBuffer() const { return PyBytes_Check(val_); }
 
 bool Local<Value>::isObject() const { return PyDict_Check(val_); }
 
