@@ -32,7 +32,11 @@ bool Arguments::hasThiz() const { return callbackInfo_.self; }
 size_t Arguments::size() const { return PyTuple_Size(callbackInfo_.args); }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  return py_interop::toLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
+  if (i > size()) {
+    return Local<Value>();
+  } else {
+    return py_interop::toLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
+  }
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
