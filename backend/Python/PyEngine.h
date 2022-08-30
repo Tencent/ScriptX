@@ -119,8 +119,9 @@ class PyEngine : public ScriptEngine {
           }
           PyObject_SetAttrString(sub, name.c_str(), incRef(value));
         } else /*namespace type*/ {
-          sub = PyObject_GetAttrString(nameSpaceObj, key.c_str());
-          if (sub == nullptr) {
+          if (PyObject_HasAttrString(nameSpaceObj, key.c_str())) {
+            sub = PyObject_GetAttrString(nameSpaceObj, key.c_str());
+          } else {
             PyObject* args = PyTuple_New(0);
             PyTypeObject* type = reinterpret_cast<PyTypeObject*>(g_scriptx_namespace_type);
             sub = type->tp_new(type, args, nullptr);
@@ -213,7 +214,9 @@ class PyEngine : public ScriptEngine {
     }
     int flags =
         hasInstance ? Py_TPFLAGS_HEAPTYPE : Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION;
-    PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXPyObject<T>), 0, flags, slots};
+    std::string className = "__main__." + classDefine->className;
+    PyType_Spec spec{className.c_str(), sizeof(ScriptXPyObject<T>), 0,
+                     flags, slots};
     PyObject* type = PyType_FromSpec(&spec);
     checkException(type);
     PyObject_SetAttrString(type, g_class_define_string,

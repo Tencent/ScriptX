@@ -106,13 +106,13 @@ void testStatic(ScriptEngine* engine) {
   // prop: get version
   auto getVersion = engine->eval(TS().js("script.engine.test.TestClass.version")
                                      .lua("return script.engine.test.TestClass.version")
-                                     .py("script.engine.test['TestClass'].version")
+                                     .py("script.engine.test.TestClass.version")
                                      .select());
   ASSERT_TRUE(getVersion.isString());
   EXPECT_EQ(getVersion.asString().toString(), version);
 
   // prop: set version
-  engine->eval("script.engine.test.TestClass['version'] = '1.0-beta' ");
+  engine->eval("script.engine.test.TestClass.version = '1.0-beta'");
   EXPECT_EQ(std::string("1.0-beta"), version);
 
   // function: add
@@ -174,7 +174,7 @@ TEST_F(NativeTest, All) {
   engine->registerNativeClass<TestClass>(TestClassDefAll);
   auto ret = engine->eval(TS().js("script.engine.test.TestClass")
                               .lua("return script.engine.test.TestClass")
-                              .py("script['engine']['test']['TestClass']")
+                              .py("script.engine.test.TestClass")
                               .select());
   ASSERT_TRUE(ret.isObject());
 
@@ -192,8 +192,10 @@ TEST_F(NativeTest, Static) {
 
   engine->registerNativeClass<TestClass>(TestClassDefStatic);
 
-  auto ret = engine->eval(
-      TS().js("script.engine.test.TestClass").lua("return script.engine.test.TestClass").select());
+  auto ret = engine->eval(TS().js("script.engine.test.TestClass")
+                              .lua("return script.engine.test.TestClass")
+                              .py("script.engine.test.TestClass")
+                              .select());
   ASSERT_TRUE(ret.isObject());
 
   testStatic(engine);
@@ -206,6 +208,7 @@ TEST_F(NativeTest, Instance) {
 
     auto ret = engine->eval(TS().js("script.engine.test.TestClass")
                                 .lua("return script.engine.test.TestClass")
+                                .py("script.engine.test.TestClass")
                                 .select());
     ASSERT_TRUE(ret.isObject());
 
@@ -243,8 +246,10 @@ TEST_F(NativeTest, NativeRegister) {
   script::EngineScope engineScope(engine);
   auto reg = NativeRegisterDef.getNativeRegister();
   reg.registerNativeClass(engine);
-  auto ret = engine->eval(
-      TS().js("script.engine.test.TestClass").lua("return script.engine.test.TestClass").select());
+  auto ret = engine->eval(TS().js("script.engine.test.TestClass")
+                              .lua("return script.engine.test.TestClass")
+                              .py("script.engine.test.TestClass")
+                              .select());
   ASSERT_TRUE(ret.isObject());
 
   testStatic(engine);
@@ -263,8 +268,10 @@ TEST_F(NativeTest, NativeRegister2) {
   script::EngineScope engineScope(engine);
   auto reg = NativeRegisterDef.getNativeRegister();
   engine->registerNativeClass(reg);
-  auto ret = engine->eval(
-      TS().js("script.engine.test.TestClass").lua("return script.engine.test.TestClass").select());
+  auto ret = engine->eval(TS().js("script.engine.test.TestClass")
+                              .lua("return script.engine.test.TestClass")
+                              .py("script.engine.test.TestClass")
+                              .select());
   ASSERT_TRUE(ret.isObject());
 
   testStatic(engine);
