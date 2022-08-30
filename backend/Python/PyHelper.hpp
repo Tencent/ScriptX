@@ -382,10 +382,9 @@ inline PyObject* makeStaticPropertyType() {
       {Py_tp_descr_set, scriptx_static_set},
       {0, nullptr},
   };
-  PyType_Spec spec{"static_property", PyProperty_Type.tp_basicsize, PyProperty_Type.tp_itemsize,
+  PyType_Spec spec{"__main__.static_property", PyProperty_Type.tp_basicsize, PyProperty_Type.tp_itemsize,
                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE, slots};
   PyObject* type = PyType_FromSpec(&spec);
-  PyObject_SetAttrString(type, "__module__", PyUnicode_InternFromString("__main__"));
   return type;
 }
 /// dynamic_attr: Support for `d = instance.__dict__`.
@@ -442,11 +441,10 @@ inline PyObject* makeNamespaceType() {
       {Py_tp_members, members},
       {0, nullptr},
   };
-  PyType_Spec spec{"namespace", PyBaseObject_Type.tp_basicsize + sizeof(PyObject*),
+  PyType_Spec spec{"__main__.namespace", PyBaseObject_Type.tp_basicsize + sizeof(PyObject*),
                    PyBaseObject_Type.tp_itemsize,
                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_HAVE_GC, slots};
   PyObject* type = PyType_FromSpec(&spec);
-  PyObject_SetAttrString(type, "__module__", PyUnicode_InternFromString("__main__"));
   return type;
 }
 inline PyObject* g_scriptx_property_type = nullptr;
