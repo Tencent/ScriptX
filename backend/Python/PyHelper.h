@@ -26,7 +26,8 @@
 
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <Python.h>
-#include "frameobject.h"
+#include <frameobject.h>
+#include <structmember.h>
 SCRIPTX_END_INCLUDE_LIBRARY
 
 namespace script::py_backend {

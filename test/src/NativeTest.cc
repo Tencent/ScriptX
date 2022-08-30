@@ -106,6 +106,7 @@ void testStatic(ScriptEngine* engine) {
   // prop: get version
   auto getVersion = engine->eval(TS().js("script.engine.test.TestClass.version")
                                      .lua("return script.engine.test.TestClass.version")
+                                     .py("script.engine.test['TestClass'].version")
                                      .select());
   ASSERT_TRUE(getVersion.isString());
   EXPECT_EQ(getVersion.asString().toString(), version);
@@ -171,8 +172,10 @@ TEST_F(NativeTest, All) {
   script::EngineScope engineScope(engine);
 
   engine->registerNativeClass<TestClass>(TestClassDefAll);
-  auto ret = engine->eval(
-      TS().js("script.engine.test.TestClass").lua("return script.engine.test.TestClass").select());
+  auto ret = engine->eval(TS().js("script.engine.test.TestClass")
+                              .lua("return script.engine.test.TestClass")
+                              .py("script['engine']['test']['TestClass']")
+                              .select());
   ASSERT_TRUE(ret.isObject());
 
   testStatic(engine);
