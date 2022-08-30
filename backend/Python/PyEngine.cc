@@ -31,6 +31,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     // Init threading environment
     PyEval_InitThreads();
     // Initialize type
+    g_scriptx_namespace_type = makeNamespaceType();
     g_scriptx_property_type = makeStaticPropertyType();
     //  Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
@@ -107,9 +108,9 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   const char* source = script.toStringHolder().c_str();
   bool oneLine = true;
   if (strstr(source, "\n") != NULL)
-      oneLine = false;
+    oneLine = false;
   else if (strstr(source, " = ") != NULL)
-      oneLine = false;
+    oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
   if (result == nullptr) {

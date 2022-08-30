@@ -92,6 +92,50 @@ class PyEngine : public ScriptEngine {
 
  private:
   template <typename T>
+  void nameSpaceSet(const ClassDefine<T>* classDefine, const std::string& name, PyObject* value) {
+    std::string nameSpace = classDefine->getNameSpace();
+    PyObject* nameSpaceObj = getGlobalDict();
+
+    if (nameSpace.empty()) {
+      PyDict_SetItemString(nameSpaceObj, name.c_str(), value);
+    } else {  // namespace can be aaa.bbb.ccc
+      std::size_t begin = 0;
+      while (begin < nameSpace.size()) {
+        auto index = nameSpace.find('.', begin);
+        if (index == std::string::npos) {
+          index = nameSpace.size();
+        }
+
+        PyObject* sub = nullptr;
+        auto key = nameSpace.substr(begin, index - begin);
+        if (PyDict_CheckExact(nameSpaceObj)) {
+          sub = PyDict_GetItemString(nameSpaceObj, key.c_str());
+          if (sub == nullptr) {
+            PyObject* args = PyTuple_New(0);
+            PyTypeObject* type = reinterpret_cast<PyTypeObject*>(g_scriptx_namespace_type);
+            sub = type->tp_new(type, args, nullptr);
+            decRef(args);
+            PyDict_SetItemString(nameSpaceObj, key.c_str(), incRef(sub));
+          }
+          PyObject_SetAttrString(sub, name.c_str(), incRef(value));
+        } else /*namespace type*/ {
+          sub = PyObject_GetAttrString(nameSpaceObj, key.c_str());
+          if (sub == nullptr) {
+            PyObject* args = PyTuple_New(0);
+            PyTypeObject* type = reinterpret_cast<PyTypeObject*>(g_scriptx_namespace_type);
+            sub = type->tp_new(type, args, nullptr);
+            decRef(args);
+            PyObject_SetAttrString(nameSpaceObj, key.c_str(), incRef(sub));
+          }
+          PyObject_SetAttrString(sub, name.c_str(), incRef(value));
+        }
+        nameSpaceObj = sub;
+        begin = index + 1;
+      }
+    }
+  }
+
+  template <typename T>
   void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->staticDefine.properties) {
       PyObject* doc = PyUnicode_InternFromString("");
@@ -137,11 +181,7 @@ class PyEngine : public ScriptEngine {
 
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    auto ns = internal::getNamespaceObject(this, classDefine->getNameSpace(),
-                                           py_interop::toLocal<Value>(getGlobalDict()))
-                  .asObject();
-    auto hasInstance = classDefine->instanceDefine.constructor;
-
+    bool hasInstance = bool(classDefine->instanceDefine.constructor);
     PyType_Slot slots[4]{};
     if (hasInstance) {
       slots[0] = {Py_tp_new, static_cast<newfunc>([](PyTypeObject* subtype, PyObject* args,
@@ -175,20 +215,18 @@ class PyEngine : public ScriptEngine {
         hasInstance ? Py_TPFLAGS_HEAPTYPE : Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION;
     PyType_Spec spec{classDefine->className.c_str(), sizeof(ScriptXPyObject<T>), 0, flags, slots};
     PyObject* type = PyType_FromSpec(&spec);
-    if (type == nullptr) {
-      checkException();
-      throw Exception("Failed to create type for class " + classDefine->className);
-    }
+    checkException(type);
     PyObject_SetAttrString(type, g_class_define_string,
                            PyCapsule_New((void*)classDefine, nullptr, nullptr));
-    registerStaticProperty(classDefine, type);
-    registerStaticFunction(classDefine, type);
+    this->registerStaticProperty(classDefine, type);
+    this->registerStaticFunction(classDefine, type);
     if (hasInstance) {
-      registerInstanceProperty(classDefine, type);
-      registerInstanceFunction(classDefine, type);
+      this->registerInstanceProperty(classDefine, type);
+      this->registerInstanceFunction(classDefine, type);
     }
-    nativeDefineRegistry_.emplace(classDefine, Global<Value>(py_interop::asLocal<Value>(type)));
-    ns.set(classDefine->className.c_str(), py_interop::asLocal<Value>(type));
+    this->nativeDefineRegistry_.emplace(classDefine,
+                                        Global<Value>(py_interop::asLocal<Value>(type)));
+    this->nameSpaceSet(classDefine, classDefine->className.c_str(), type);
   }
 
   template <typename T>

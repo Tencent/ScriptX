@@ -382,14 +382,75 @@ inline PyObject* makeStaticPropertyType() {
       {Py_tp_descr_set, scriptx_static_set},
       {0, nullptr},
   };
-  PyType_Spec spec{"scriptx_static_property", PyProperty_Type.tp_basicsize,
-                   PyProperty_Type.tp_itemsize,
+  PyType_Spec spec{"static_property", PyProperty_Type.tp_basicsize, PyProperty_Type.tp_itemsize,
                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE, slots};
   PyObject* type = PyType_FromSpec(&spec);
-  PyObject_SetAttrString(type, "__module__", PyUnicode_InternFromString("builtins"));
+  PyObject_SetAttrString(type, "__module__", PyUnicode_InternFromString("__main__"));
+  return type;
+}
+/// dynamic_attr: Support for `d = instance.__dict__`.
+extern "C" inline PyObject* scriptx_get_dict(PyObject* self, void*) {
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  if (!dict) {
+    dict = PyDict_New();
+  }
+  Py_XINCREF(dict);
+  return dict;
+}
+
+/// dynamic_attr: Support for `instance.__dict__ = dict()`.
+extern "C" inline int scriptx_set_dict(PyObject* self, PyObject* new_dict, void*) {
+  if (!PyDict_Check(new_dict)) {
+    PyErr_SetString(PyExc_TypeError, "__dict__ must be set to a dictionary");
+    return -1;
+  }
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  Py_INCREF(new_dict);
+  Py_CLEAR(dict);
+  dict = new_dict;
+  return 0;
+}
+
+/// dynamic_attr: Allow the garbage collector to traverse the internal instance `__dict__`.
+extern "C" inline int scriptx_traverse(PyObject* self, visitproc visit, void* arg) {
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  Py_VISIT(dict);
+// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_traverse
+#if PY_VERSION_HEX >= 0x03090000
+  Py_VISIT(Py_TYPE(self));
+#endif
+  return 0;
+}
+
+/// dynamic_attr: Allow the GC to clear the dictionary.
+extern "C" inline int scriptx_clear(PyObject* self) {
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  Py_CLEAR(dict);
+  return 0;
+}
+
+inline PyObject* makeNamespaceType() {
+  static PyGetSetDef getset[] = {{"__dict__", scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
+                                 {nullptr, nullptr, nullptr, nullptr, nullptr}};
+  static PyMemberDef members[] = {
+      {"__dictoffset__", T_PYSSIZET, /*offset*/ PyBaseObject_Type.tp_basicsize, READONLY},
+      {nullptr}};
+  PyType_Slot slots[] = {
+      {Py_tp_getset, getset},
+      {Py_tp_traverse, scriptx_traverse},
+      {Py_tp_clear, scriptx_clear},
+      {Py_tp_members, members},
+      {0, nullptr},
+  };
+  PyType_Spec spec{"namespace", PyBaseObject_Type.tp_basicsize + sizeof(PyObject*),
+                   PyBaseObject_Type.tp_itemsize,
+                   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_HAVE_GC, slots};
+  PyObject* type = PyType_FromSpec(&spec);
+  PyObject_SetAttrString(type, "__module__", PyUnicode_InternFromString("__main__"));
   return type;
 }
 inline PyObject* g_scriptx_property_type = nullptr;
+inline PyObject* g_scriptx_namespace_type = nullptr;
 inline constexpr const char* g_class_define_string = "class_define";
 }  // namespace py_backend
 }  // namespace script
