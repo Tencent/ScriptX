@@ -30,6 +30,10 @@ SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <structmember.h>
 SCRIPTX_END_INCLUDE_LIBRARY
 
+#if PY_VERSION_HEX < 0x030a00f0
+#error "python version must be greater than 3.10.0"
+#endif
+
 namespace script::py_backend {
 
 struct PyExceptionInfoStruct {
