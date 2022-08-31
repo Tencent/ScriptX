@@ -375,16 +375,35 @@ extern "C" inline int scriptx_static_set(PyObject* self, PyObject* obj, PyObject
 /** A `static_property` is the same as a `property` but the `__get__()` and `__set__()`
       methods are modified to always use the object type instead of a concrete instance.
       Return value: New reference. */
-inline PyObject* makeStaticPropertyType() {
-  PyType_Slot slots[] = {
-      {Py_tp_base, incRef((PyObject*)&PyProperty_Type)},
-      {Py_tp_descr_get, scriptx_static_get},
-      {Py_tp_descr_set, scriptx_static_set},
-      {0, nullptr},
-  };
-  PyType_Spec spec{"__main__.static_property", PyProperty_Type.tp_basicsize, PyProperty_Type.tp_itemsize,
-                   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE, slots};
-  PyObject* type = PyType_FromSpec(&spec);
+inline PyTypeObject* makeStaticPropertyType() {
+  constexpr auto* name = "scriptx_static_property";
+
+  /* Danger zone: from now (and until PyType_Ready), make sure to
+     issue no Python C API calls which could potentially invoke the
+     garbage collector (the GC will call type_traverse(), which will in
+     turn find the newly constructed type in an invalid state) */
+  auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
+  if (!heap_type) {
+    Py_FatalError("error allocating type!");
+  }
+
+  heap_type->ht_name = PyUnicode_InternFromString(name);
+  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+
+  auto* type = &heap_type->ht_type;
+  type->tp_name = name;
+  type->tp_base = (PyTypeObject*)incRef((PyObject*)&PyProperty_Type);
+  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
+  type->tp_descr_get = scriptx_static_get;
+  type->tp_descr_set = scriptx_static_set;
+
+  if (PyType_Ready(type) < 0) {
+    Py_FatalError("failure in PyType_Ready()!");
+  }
+
+  PyObject_SetAttrString((PyObject*)type, "__module__",
+                         PyUnicode_InternFromString("scriptx_builtins"));
+
   return type;
 }
 /// dynamic_attr: Support for `d = instance.__dict__`.
@@ -428,27 +447,86 @@ extern "C" inline int scriptx_clear(PyObject* self) {
   return 0;
 }
 
-inline PyObject* makeNamespaceType() {
-  static PyGetSetDef getset[] = {{"__dict__", scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
-                                 {nullptr, nullptr, nullptr, nullptr, nullptr}};
-  static PyMemberDef members[] = {
-      {"__dictoffset__", T_PYSSIZET, /*offset*/ PyBaseObject_Type.tp_basicsize, READONLY},
-      {nullptr}};
-  PyType_Slot slots[] = {
-      {Py_tp_getset, getset},
-      {Py_tp_traverse, scriptx_traverse},
-      {Py_tp_clear, scriptx_clear},
-      {Py_tp_members, members},
-      {0, nullptr},
-  };
-  PyType_Spec spec{"__main__.namespace", PyBaseObject_Type.tp_basicsize + sizeof(PyObject*),
-                   PyBaseObject_Type.tp_itemsize,
-                   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_HAVE_GC, slots};
-  PyObject* type = PyType_FromSpec(&spec);
+inline PyTypeObject* makeNamespaceType() {
+  constexpr auto* name = "scriptx_namespace";
+
+  /* Danger zone: from now (and until PyType_Ready), make sure to
+     issue no Python C API calls which could potentially invoke the
+     garbage collector (the GC will call type_traverse(), which will in
+     turn find the newly constructed type in an invalid state) */
+  auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
+  if (!heap_type) {
+    Py_FatalError("error allocating type!");
+  }
+
+  heap_type->ht_name = PyUnicode_InternFromString(name);
+  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+
+  auto* type = &heap_type->ht_type;
+  type->tp_name = name;
+  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HEAPTYPE;
+
+  type->tp_dictoffset = PyBaseObject_Type.tp_basicsize;  // place dict at the end
+  type->tp_basicsize =
+      PyBaseObject_Type.tp_basicsize + sizeof(PyObject*);  // and allocate enough space for it
+  type->tp_traverse = scriptx_traverse;
+  type->tp_clear = scriptx_clear;
+
+  static PyGetSetDef getset[] = {
+      {const_cast<char*>("__dict__"), scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
+      {nullptr, nullptr, nullptr, nullptr, nullptr}};
+  type->tp_getset = getset;
+
+  if (PyType_Ready(type) < 0) {
+    Py_FatalError("failure in PyType_Ready()!");
+  }
+  PyObject_SetAttrString((PyObject*)type, "__module__",
+                         PyUnicode_InternFromString("scriptx_builtins"));
+
   return type;
 }
-inline PyObject* g_scriptx_property_type = nullptr;
-inline PyObject* g_scriptx_namespace_type = nullptr;
+
+inline PyTypeObject* makeGeneralType() {
+  constexpr auto* name = "scriptx_namespace";
+
+  /* Danger zone: from now (and until PyType_Ready), make sure to
+     issue no Python C API calls which could potentially invoke the
+     garbage collector (the GC will call type_traverse(), which will in
+     turn find the newly constructed type in an invalid state) */
+  auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
+  if (!heap_type) {
+    Py_FatalError("error allocating type!");
+  }
+
+  heap_type->ht_name = PyUnicode_InternFromString(name);
+  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+
+  auto* type = &heap_type->ht_type;
+  type->tp_name = name;
+  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HEAPTYPE;
+
+  type->tp_dictoffset = PyBaseObject_Type.tp_basicsize;  // place dict at the end
+  type->tp_basicsize =
+      PyBaseObject_Type.tp_basicsize + sizeof(PyObject*);  // and allocate enough space for it
+  type->tp_traverse = scriptx_traverse;
+  type->tp_clear = scriptx_clear;
+
+  static PyGetSetDef getset[] = {
+      {const_cast<char*>("__dict__"), scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
+      {nullptr, nullptr, nullptr, nullptr, nullptr}};
+  type->tp_getset = getset;
+
+  if (PyType_Ready(type) < 0) {
+    Py_FatalError("failure in PyType_Ready()!");
+  }
+  PyObject_SetAttrString((PyObject*)type, "__module__",
+                         PyUnicode_InternFromString("scriptx_builtins"));
+
+  return type;
+}
+
+inline PyTypeObject* g_scriptx_property_type = nullptr;
+inline PyTypeObject* g_scriptx_namespace_type = nullptr;
 inline constexpr const char* g_class_define_string = "class_define";
 }  // namespace py_backend
 }  // namespace script
