@@ -54,19 +54,10 @@ PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
 PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
 PyObject* getGlobalDict() {
-  PyObject* globals = PyEval_GetGlobals();
-  if (globals == nullptr) {
-    PyObject* mainName = PyUnicode_FromString("__main__");
-    PyObject* __main__ = PyImport_GetModule(mainName);
-    decRef(mainName);
-    if (__main__ == nullptr) {
-      __main__ = PyImport_AddModule("__main__");
-    }
-    if (__main__ == nullptr) {
-      throw Exception("Empty __main__ in getGlobalDict!");
-    }
-    globals = PyModule_GetDict(__main__);
+  PyObject* m = PyImport_AddModule("__main__");
+  if (m == nullptr) {
+    throw Exception("can't find __main__ module");
   }
-  return globals;
+  return PyModule_GetDict(m);
 }
 }  // namespace script::py_backend

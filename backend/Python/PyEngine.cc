@@ -26,13 +26,13 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
     Py_SetStandardStreamEncoding("utf-8", nullptr);
-    // Python not initialized. Init main interpreter
-    Py_Initialize();
+    //  Python not initialized. Init main interpreter
+    Py_InitializeEx(0);
     // Init threading environment
     PyEval_InitThreads();
     // Initialize type
-    g_scriptx_namespace_type = makeNamespaceType();
-    g_scriptx_property_type = makeStaticPropertyType();
+    g_namespace_type = makeNamespaceType();
+    g_static_property_type = makeStaticPropertyType();
     //  Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
   }
@@ -113,9 +113,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
     oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
-  if (result == nullptr) {
-    checkException();
-  }
+  checkException();
   return py_interop::asLocal<Value>(result);
 }
 
