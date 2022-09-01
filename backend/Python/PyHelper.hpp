@@ -291,7 +291,7 @@ inline PyObject* warpSetter(const char* name, const char* doc, int flags, Setter
                         } else {
                           auto data = static_cast<FunctionData*>(ptr);
                           try {
-                            data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 0)));
+                            data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
                             Py_RETURN_NONE;
                           } catch (const Exception& e) {
                             rethrowException(e);
@@ -376,12 +376,8 @@ extern "C" inline int scriptx_static_set(PyObject* self, PyObject* obj, PyObject
       methods are modified to always use the object type instead of a concrete instance.
       Return value: New reference. */
 inline PyTypeObject* makeStaticPropertyType() {
-  constexpr auto* name = "scriptx_static_property";
+  constexpr auto* name = "static_property";
 
-  /* Danger zone: from now (and until PyType_Ready), make sure to
-     issue no Python C API calls which could potentially invoke the
-     garbage collector (the GC will call type_traverse(), which will in
-     turn find the newly constructed type in an invalid state) */
   auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
   if (!heap_type) {
     Py_FatalError("error allocating type!");
@@ -394,8 +390,8 @@ inline PyTypeObject* makeStaticPropertyType() {
   type->tp_name = name;
   type->tp_base = (PyTypeObject*)incRef((PyObject*)&PyProperty_Type);
   type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
-  type->tp_descr_get = scriptx_static_get;
-  type->tp_descr_set = scriptx_static_set;
+  type->tp_descr_get = &scriptx_static_get;
+  type->tp_descr_set = &scriptx_static_set;
 
   if (PyType_Ready(type) < 0) {
     Py_FatalError("failure in PyType_Ready()!");
@@ -406,6 +402,8 @@ inline PyTypeObject* makeStaticPropertyType() {
 
   return type;
 }
+inline PyTypeObject* g_static_property_type = nullptr;
+
 /// dynamic_attr: Support for `d = instance.__dict__`.
 extern "C" inline PyObject* scriptx_get_dict(PyObject* self, void*) {
   PyObject*& dict = *_PyObject_GetDictPtr(self);
@@ -448,12 +446,8 @@ extern "C" inline int scriptx_clear(PyObject* self) {
 }
 
 inline PyTypeObject* makeNamespaceType() {
-  constexpr auto* name = "scriptx_namespace";
+  constexpr auto* name = "namespace";
 
-  /* Danger zone: from now (and until PyType_Ready), make sure to
-     issue no Python C API calls which could potentially invoke the
-     garbage collector (the GC will call type_traverse(), which will in
-     turn find the newly constructed type in an invalid state) */
   auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
   if (!heap_type) {
     Py_FatalError("error allocating type!");
@@ -473,7 +467,7 @@ inline PyTypeObject* makeNamespaceType() {
   type->tp_clear = scriptx_clear;
 
   static PyGetSetDef getset[] = {
-      {const_cast<char*>("__dict__"), scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
+      {"__dict__", scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
       {nullptr, nullptr, nullptr, nullptr, nullptr}};
   type->tp_getset = getset;
 
@@ -486,47 +480,48 @@ inline PyTypeObject* makeNamespaceType() {
   return type;
 }
 
-inline PyTypeObject* makeGeneralType() {
-  constexpr auto* name = "scriptx_namespace";
+inline PyTypeObject* g_namespace_type = nullptr;
+inline constexpr auto* g_class_define_string = "class_define";
 
-  /* Danger zone: from now (and until PyType_Ready), make sure to
-     issue no Python C API calls which could potentially invoke the
-     garbage collector (the GC will call type_traverse(), which will in
-     turn find the newly constructed type in an invalid state) */
-  auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
-  if (!heap_type) {
-    Py_FatalError("error allocating type!");
+/** Types with static properties need to handle `Type.static_prop = x` in a specific way.
+    By default, Python replaces the `static_property` itself, but for wrapped C++ types
+    we need to call `static_property.__set__()` in order to propagate the new value to
+    the underlying C++ data structure. */
+extern "C" inline int scriptx_meta_setattro(PyObject* obj, PyObject* name, PyObject* value) {
+  // Use `_PyType_Lookup()` instead of `PyObject_GetAttr()` in order to get the raw
+  // descriptor (`property`) instead of calling `tp_descr_get` (`property.__get__()`).
+  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
+
+  // The following assignment combinations are possible:
+  //   1. `Type.static_prop = value`             --> descr_set: `Type.static_prop.__set__(value)`
+  //   2. `Type.static_prop = other_static_prop` --> setattro:  replace existing `static_prop`
+  //   3. `Type.regular_attribute = value`       --> setattro:  regular attribute assignment
+  auto* const static_prop = (PyObject*)g_static_property_type;
+  const auto call_descr_set = (descr != nullptr) && (value != nullptr) &&
+                              (PyObject_IsInstance(descr, static_prop) != 0) &&
+                              (PyObject_IsInstance(value, static_prop) == 0);
+  if (call_descr_set) {
+    // Call `static_property.__set__()` instead of replacing the `static_property`.
+    return Py_TYPE(descr)->tp_descr_set(descr, obj, value);
+  } else {
+    // Replace existing attribute.
+    return PyType_Type.tp_setattro(obj, name, value);
   }
-
-  heap_type->ht_name = PyUnicode_InternFromString(name);
-  heap_type->ht_qualname = PyUnicode_InternFromString(name);
-
-  auto* type = &heap_type->ht_type;
-  type->tp_name = name;
-  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HEAPTYPE;
-
-  type->tp_dictoffset = PyBaseObject_Type.tp_basicsize;  // place dict at the end
-  type->tp_basicsize =
-      PyBaseObject_Type.tp_basicsize + sizeof(PyObject*);  // and allocate enough space for it
-  type->tp_traverse = scriptx_traverse;
-  type->tp_clear = scriptx_clear;
-
-  static PyGetSetDef getset[] = {
-      {const_cast<char*>("__dict__"), scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
-      {nullptr, nullptr, nullptr, nullptr, nullptr}};
-  type->tp_getset = getset;
-
-  if (PyType_Ready(type) < 0) {
-    Py_FatalError("failure in PyType_Ready()!");
-  }
-  PyObject_SetAttrString((PyObject*)type, "__module__",
-                         PyUnicode_InternFromString("scriptx_builtins"));
-
-  return type;
 }
 
-inline PyTypeObject* g_scriptx_property_type = nullptr;
-inline PyTypeObject* g_scriptx_namespace_type = nullptr;
-inline constexpr const char* g_class_define_string = "class_define";
+/**
+ * Python 3's PyInstanceMethod_Type hides itself via its tp_descr_get, which prevents aliasing
+ * methods via cls.attr("m2") = cls.attr("m1"): instead the tp_descr_get returns a plain function,
+ * when called on a class, or a PyMethod, when called on an instance.  Override that behaviour here
+ * to do a special case bypass for PyInstanceMethod_Types.
+ */
+extern "C" inline PyObject* scriptx_meta_getattro(PyObject* obj, PyObject* name) {
+  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
+  if (descr && PyInstanceMethod_Check(descr)) {
+    Py_INCREF(descr);
+    return descr;
+  }
+  return PyType_Type.tp_getattro(obj, name);
+}
 }  // namespace py_backend
 }  // namespace script
