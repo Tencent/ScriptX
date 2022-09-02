@@ -36,13 +36,30 @@ SCRIPTX_END_INCLUDE_LIBRARY
 
 namespace script::py_backend {
 
-struct PyExceptionInfoStruct {
-  PyObject *pType, *pValue, *pTraceback;
+struct ExceptionInfo {
+  PyObject* pType;
+  PyObject* pValue;
+  PyObject* pTraceback;
 };
 
-inline PyObject* incRef(PyObject* ref) { return Py_XNewRef(ref); }
+// increace reference count of the object
+PyObject* incRef(PyObject* obj);
+// decreace reference count of the object
+void decRef(PyObject* obj);
 
-inline void decRef(PyObject* ref) { Py_XDECREF(ref); }
+void setAttr(PyObject* obj, PyObject* key, PyObject* value);
+void setAttr(PyObject* obj, const char* key, PyObject* value);
+PyObject* getAttr(PyObject* obj, PyObject* key);
+PyObject* getAttr(PyObject* obj, const char* key);
+bool hasAttr(PyObject* obj, PyObject* key);
+bool hasAttr(PyObject* obj, const char* key);
+void delAttr(PyObject* obj, PyObject* key);
+void delAttr(PyObject* obj, const char* key);
+
+PyObject* getType(PyObject* obj);
+
+PyObject* toStr(const char* s);
+PyObject* toStr(const std::string& s);
 
 class PyEngine;
 
