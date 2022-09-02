@@ -20,10 +20,60 @@
 
 namespace script::py_backend {
 
-PyObject* checkException(PyObject* obj) {
-  if (!obj) {
-    checkException();
+PyObject* incRef(PyObject* ref) { return Py_XNewRef(ref); }
+void decRef(PyObject* ref) { Py_XDECREF(ref); }
+
+void setAttr(PyObject* obj, PyObject* key, PyObject* value) {
+  if (PyObject_SetAttr(obj, key, value) != 0) {
+    throw Exception();
   }
+}
+void setAttr(PyObject* obj, const char* key, PyObject* value) {
+  if (PyObject_SetAttrString(obj, key, value) != 0) {
+    throw Exception();
+  }
+}
+
+PyObject* getAttr(PyObject* obj, PyObject* key) {
+  PyObject* result = PyObject_GetAttr(obj, key);
+  if (!result) {
+    throw Exception();
+  }
+  return result;
+}
+
+PyObject* getAttr(PyObject* obj, const char* key) {
+  PyObject* result = PyObject_GetAttrString(obj, key);
+  if (!result) {
+    throw Exception();
+  }
+  return result;
+}
+
+bool hasAttr(PyObject* obj, PyObject* key) { return PyObject_HasAttr(obj, key) == 1; }
+
+bool hasAttr(PyObject* obj, const char* key) { return PyObject_HasAttrString(obj, key) == 1; }
+
+void delAttr(PyObject* obj, PyObject* key) {
+  if (PyObject_DelAttr(obj, key) != 0) {
+    throw Exception();
+  }
+}
+
+void delAttr(PyObject* obj, const char* key) {
+  if (PyObject_DelAttrString(obj, key) != 0) {
+    throw Exception();
+  }
+}
+
+PyObject* getType(PyObject* obj) { return reinterpret_cast<PyObject*>(obj->ob_type); }
+
+PyObject* toStr(const char* s) { return PyUnicode_FromString(s); }
+
+PyObject* toStr(const std::string& s) { return PyUnicode_FromStringAndSize(s.c_str(), s.size()); }
+
+PyObject* checkException(PyObject* obj) {
+  if (obj == nullptr) checkException();
   return obj;
 }
 
@@ -33,14 +83,14 @@ void checkException() {
     PyErr_Fetch(&pType, &pValue, &pTraceback);
     PyErr_NormalizeException(&pType, &pValue, &pTraceback);
 
-    PyExceptionInfoStruct* errStruct = new PyExceptionInfoStruct;
+    ExceptionInfo* errStruct = new ExceptionInfo;
     errStruct->pType = pType;
     errStruct->pValue = pValue;
     errStruct->pTraceback = pTraceback;
 
     PyObject* capsule = PyCapsule_New(errStruct, nullptr, [](PyObject* cap) {
       void* ptr = PyCapsule_GetPointer(cap, nullptr);
-      delete static_cast<PyExceptionInfoStruct*>(ptr);
+      delete static_cast<ExceptionInfo*>(ptr);
     });
 
     if (!capsule) return;
@@ -54,19 +104,152 @@ PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
 PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
 PyObject* getGlobalDict() {
-  PyObject* globals = PyEval_GetGlobals();
-  if (globals == nullptr) {
-    PyObject* mainName = PyUnicode_FromString("__main__");
-    PyObject* __main__ = PyImport_GetModule(mainName);
-    decRef(mainName);
-    if (__main__ == nullptr) {
-      __main__ = PyImport_AddModule("__main__");
-    }
-    if (__main__ == nullptr) {
-      throw Exception("Empty __main__ in getGlobalDict!");
-    }
-    globals = PyModule_GetDict(__main__);
+  PyObject* m = PyImport_AddModule("__main__");
+  if (m == nullptr) {
+    throw Exception("can't find __main__ module");
   }
-  return globals;
+  return PyModule_GetDict(m);
+}
+
+/// `scriptx_static_property.__get__()`: Always pass the class instead of the instance.
+extern "C" inline PyObject* scriptx_static_get(PyObject* self, PyObject* /*ob*/, PyObject* cls) {
+  return PyProperty_Type.tp_descr_get(self, cls, cls);
+}
+
+/// `scriptx_static_property.__set__()`: Just like the above `__get__()`.
+extern "C" inline int scriptx_static_set(PyObject* self, PyObject* obj, PyObject* value) {
+  PyObject* cls = PyType_Check(obj) ? obj : (PyObject*)Py_TYPE(obj);
+  return PyProperty_Type.tp_descr_set(self, cls, value);
+}
+
+/// dynamic_attr: Support for `d = instance.__dict__`.
+extern "C" inline PyObject* scriptx_get_dict(PyObject* self, void*) {
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  if (!dict) {
+    dict = PyDict_New();
+  }
+  Py_XINCREF(dict);
+  return dict;
+}
+
+/// dynamic_attr: Support for `instance.__dict__ = dict()`.
+extern "C" inline int scriptx_set_dict(PyObject* self, PyObject* new_dict, void*) {
+  if (!PyDict_Check(new_dict)) {
+    PyErr_SetString(PyExc_TypeError, "__dict__ must be set to a dictionary");
+    return -1;
+  }
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  Py_INCREF(new_dict);
+  Py_CLEAR(dict);
+  dict = new_dict;
+  return 0;
+}
+
+/// dynamic_attr: Allow the garbage collector to traverse the internal instance `__dict__`.
+extern "C" inline int scriptx_traverse(PyObject* self, visitproc visit, void* arg) {
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  Py_VISIT(dict);
+// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_traverse
+#if PY_VERSION_HEX >= 0x03090000
+  Py_VISIT(Py_TYPE(self));
+#endif
+  return 0;
+}
+
+/// dynamic_attr: Allow the GC to clear the dictionary.
+extern "C" inline int scriptx_clear(PyObject* self) {
+  PyObject*& dict = *_PyObject_GetDictPtr(self);
+  Py_CLEAR(dict);
+  return 0;
+}
+
+/** A `static_property` is the same as a `property` but the `__get__()` and `__set__()`
+      methods are modified to always use the object type instead of a concrete instance.
+      Return value: New reference. */
+PyTypeObject* makeStaticPropertyType() {
+  constexpr auto* name = "static_property";
+
+  auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
+  if (!heap_type) {
+    Py_FatalError("error allocating type!");
+  }
+
+  heap_type->ht_name = PyUnicode_InternFromString(name);
+  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+
+  auto* type = &heap_type->ht_type;
+  type->tp_name = name;
+  type->tp_base = &PyProperty_Type;
+  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
+  type->tp_descr_get = &scriptx_static_get;
+  type->tp_descr_set = &scriptx_static_set;
+
+  if (PyType_Ready(type) < 0) {
+    Py_FatalError("failure in PyType_Ready()!");
+  }
+
+  setAttr((PyObject*)type, "__module__", PyUnicode_InternFromString("scriptx_builtins"));
+
+  return type;
+}
+
+PyTypeObject* makeNamespaceType() {
+  constexpr auto* name = "namespace";
+
+  auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
+  if (!heap_type) {
+    Py_FatalError("error allocating type!");
+  }
+
+  heap_type->ht_name = PyUnicode_InternFromString(name);
+  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+
+  auto* type = &heap_type->ht_type;
+  type->tp_name = name;
+  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HEAPTYPE;
+
+  type->tp_dictoffset = PyBaseObject_Type.tp_basicsize;  // place dict at the end
+  type->tp_basicsize =
+      PyBaseObject_Type.tp_basicsize + sizeof(PyObject*);  // and allocate enough space for it
+  type->tp_traverse = scriptx_traverse;
+  type->tp_clear = scriptx_clear;
+
+  static PyGetSetDef getset[] = {{"__dict__", scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
+                                 {nullptr, nullptr, nullptr, nullptr, nullptr}};
+  type->tp_getset = getset;
+
+  if (PyType_Ready(type) < 0) {
+    Py_FatalError("failure in PyType_Ready()!");
+  }
+  setAttr((PyObject*)type, "__module__", PyUnicode_InternFromString("scriptx_builtins"));
+
+  return type;
+}
+
+PyTypeObject* makeGenericType(const char* name) {
+  auto heap_type = (PyHeapTypeObject*)PyType_GenericAlloc(&PyType_Type, 0);
+  if (!heap_type) {
+    Py_FatalError("error allocating type!");
+  }
+
+  heap_type->ht_name = PyUnicode_InternFromString(name);
+  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+
+  auto* type = &heap_type->ht_type;
+  type->tp_name = name;
+  incRef((PyObject*) & PyProperty_Type);
+  type->tp_base = &PyProperty_Type;
+  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
+
+  type->tp_descr_get = &scriptx_static_get;
+  type->tp_descr_set = &scriptx_static_set;
+
+  if (PyType_Ready(type) < 0) {
+    Py_FatalError("failure in PyType_Ready()!");
+  }
+
+  setAttr((PyObject*)type, "__module__", PyUnicode_InternFromString("scriptx_builtins"));
+
+  return type;
 }
 }  // namespace script::py_backend

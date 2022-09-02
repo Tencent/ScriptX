@@ -22,7 +22,7 @@
 namespace script {
 
 template <typename T>
-Global<T>::Global() noexcept : val_(nullptr) {}
+Global<T>::Global() noexcept : val_(py_backend::incRef(Py_None)) {}
 
 template <typename T>
 Global<T>::Global(const script::Local<T>& localReference)
@@ -32,7 +32,7 @@ template <typename T>
 Global<T>::Global(const script::Weak<T>& weak) : val_(py_backend::incRef(weak.val_)) {}
 
 template <typename T>
-Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {}
+Global<T>::Global(const script::Global<T>& copy) : val_(py_backend::incRef(copy.val_)) {}
 
 template <typename T>
 Global<T>::Global(script::Global<T>&& move) noexcept : val_(std::move(move.val_)) {}
@@ -87,7 +87,7 @@ void Global<T>::reset() {
 // == Weak ==
 
 template <typename T>
-Weak<T>::Weak() noexcept : val_() {}
+Weak<T>::Weak() noexcept : val_(Py_None) {}
 
 template <typename T>
 Weak<T>::~Weak() {

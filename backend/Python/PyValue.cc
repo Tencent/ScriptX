@@ -29,7 +29,7 @@ namespace script {
  */
 template <typename T>
 Local<T> asLocalAndCheck(PyObject* ref) {
-  return py_interop::toLocal<T>(py_backend::checkException(ref));
+  return py_interop::asLocal<T>(py_backend::checkException(ref));
 }
 
 // for python this creates an empty dict
@@ -37,12 +37,8 @@ Local<Object> Object::newObject() { return asLocalAndCheck<Object>(PyDict_New())
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
-  PyObject* dict = PyDict_New();
-  if (!dict) {
-    throw Exception("PyDict_New failed");
-  }
-  // TODO
-  return asLocalAndCheck<Object>(dict);
+  throw Exception("Python can't use this function");
+  return Local<Object>(PyDict_New());
 }
 
 Local<String> String::newString(const char* utf8) {
@@ -110,7 +106,10 @@ Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) {
-  return asLocalAndCheck<ByteBuffer>(PyBytes_FromStringAndSize(nullptr, size));
+  const char* bytes = new char[size]{};
+  PyObject* result = PyBytes_FromStringAndSize(bytes, size);
+  delete bytes;
+  return asLocalAndCheck<ByteBuffer>(result);
 }
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {

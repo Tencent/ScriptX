@@ -25,37 +25,38 @@ namespace script::py_backend {
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
-    // Python not initialized. Init main interpreter
-    Py_Initialize();
+    Py_SetStandardStreamEncoding("utf-8", nullptr);
+    //  Python not initialized. Init main interpreter
+    Py_InitializeEx(0);
+    // Init threading environment
+    PyEval_InitThreads();
     // Initialize type
-    g_scriptx_property_type = makeStaticPropertyType();
+    g_namespace_type = makeNamespaceType();
+    g_static_property_type = makeStaticPropertyType();
     //  Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
   }
 
-  PyThreadState* oldState = nullptr;
-  if (currentEngine() != nullptr) {
-    // Another thread state exists, save it temporarily & release GIL
-    // Need to save it here because Py_NewInterpreter need main thread state stored at
-    // initialization
-    oldState = PyEval_SaveThread();
-  }
+  // Resume main thread state (to execute Py_NewInterpreter)
+  PyThreadState* oldState = PyThreadState_Swap(mainThreadState_);
 
-  // Acquire GIL & resume main thread state (to execute Py_NewInterpreter)
-  PyEval_RestoreThread(mainThreadState_);
+  // If GIL is released, lock it
+  if (PyEngine::engineEnterCount == 0) {
+    PyEval_AcquireLock();
+  }
+  // Create new interpreter
   PyThreadState* newSubState = Py_NewInterpreter();
   if (!newSubState) {
     throw Exception("Fail to create sub interpreter");
   }
   subInterpreterState_ = newSubState->interp;
 
-  // Store created new sub thread state & release GIL
-  subThreadState_.set(PyEval_SaveThread());
-
-  // Recover old thread state stored before & recover GIL if needed
-  if (oldState) {
-    PyEval_RestoreThread(oldState);
+  // If GIL is released before, unlock it
+  if (PyEngine::engineEnterCount == 0) {
+    PyEval_ReleaseLock();
   }
+  // Store created new sub thread state & recover old thread state stored before
+  subThreadState_.set(PyThreadState_Swap(oldState));
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
@@ -63,9 +64,21 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  PyEval_AcquireThread((PyThreadState*)subThreadState_.get());
-  Py_EndInterpreter((PyThreadState*)subThreadState_.get());
-  ScriptEngine::destroyUserData();
+  ScriptEngine::destroyUserData();  // TODO: solve this problem about Py_EndInterpreter
+  /*if (PyEngine::engineEnterCount == 0) {
+    // GIL is not locked. Just lock it
+    PyEval_AcquireLock();
+  }
+  // Swap to clear thread state & end sub interpreter
+  PyThreadState* oldThreadState = PyThreadState_Swap(subThreadState_.get());
+  Py_EndInterpreter(subThreadState_.get());
+  // Recover old thread state
+  PyThreadState_Swap(oldThreadState);
+
+  if (PyEngine::engineEnterCount == 0) {
+      // Unlock the GIL because it is not locked before
+      PyEval_ReleaseLock();
+  }*/
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
@@ -91,13 +104,16 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  // Limitation: only support file input
-  // TODO: imporve eval support
+  // Limitation: one line code must be expression (no "\n", no "=")
   const char* source = script.toStringHolder().c_str();
-  PyObject* result = PyRun_StringFlags(source, Py_file_input, getGlobalDict(), nullptr, nullptr);
-  if (result == nullptr) {
-    checkException();
-  }
+  bool oneLine = true;
+  if (strstr(source, "\n") != NULL)
+    oneLine = false;
+  else if (strstr(source, " = ") != NULL)
+    oneLine = false;
+  PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
+                                       getGlobalDict(), nullptr, nullptr);
+  checkException();
   return py_interop::asLocal<Value>(result);
 }
 

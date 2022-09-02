@@ -64,6 +64,7 @@ struct py_interop {
 
 namespace py_backend {
 
+template <typename T>
 class PyTssStorage {
  private:
   Py_tss_t key = Py_tss_NEEDS_INIT;
@@ -75,8 +76,8 @@ class PyTssStorage {
   ~PyTssStorage() {
     if (isValid()) PyThread_tss_delete(&key);
   }
-  int set(void* value) { return isValid() ? PyThread_tss_set(&key, value) : 1; }
-  void* get() { return isValid() ? PyThread_tss_get(&key) : NULL; }
+  int set(T* value) { return isValid() ? PyThread_tss_set(&key, (void*)value) : 1; }
+  T* get() { return isValid() ? (T*)PyThread_tss_get(&key) : NULL; }
   bool isValid() { return PyThread_tss_is_created(&key) > 0; }
 };
 
@@ -290,7 +291,7 @@ inline PyObject* warpSetter(const char* name, const char* doc, int flags, Setter
                         } else {
                           auto data = static_cast<FunctionData*>(ptr);
                           try {
-                            data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 0)));
+                            data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
                             Py_RETURN_NONE;
                           } catch (const Exception& e) {
                             rethrowException(e);
@@ -360,34 +361,56 @@ PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
 
   return closure;
 }
-
-/// `scriptx_static_property.__get__()`: Always pass the class instead of the instance.
-extern "C" inline PyObject* scriptx_static_get(PyObject* self, PyObject* /*ob*/, PyObject* cls) {
-  return PyProperty_Type.tp_descr_get(self, cls, cls);
-}
-
-/// `scriptx_static_property.__set__()`: Just like the above `__get__()`.
-extern "C" inline int scriptx_static_set(PyObject* self, PyObject* obj, PyObject* value) {
-  PyObject* cls = PyType_Check(obj) ? obj : (PyObject*)Py_TYPE(obj);
-  return PyProperty_Type.tp_descr_set(self, cls, value);
-}
 /** A `static_property` is the same as a `property` but the `__get__()` and `__set__()`
       methods are modified to always use the object type instead of a concrete instance.
       Return value: New reference. */
-inline PyObject* makeStaticPropertyType() {
-  PyType_Slot slots[] = {
-      {Py_tp_base, incRef((PyObject*)&PyProperty_Type)},
-      {Py_tp_descr_get, scriptx_static_get},
-      {Py_tp_descr_set, scriptx_static_set},
-      {0, nullptr},
-  };
-  PyType_Spec spec{"scriptx_static_property", PyProperty_Type.tp_basicsize,
-                   PyProperty_Type.tp_itemsize,
-                   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE, slots};
-  PyObject* type = PyType_FromSpec(&spec);
-  return type;
+PyTypeObject* makeStaticPropertyType();
+PyTypeObject* makeNamespaceType();
+PyTypeObject* makeGenericType(const char* name);
+
+inline PyTypeObject* g_static_property_type = nullptr;
+inline PyTypeObject* g_namespace_type = nullptr;
+inline constexpr auto* g_class_define_string = "class_define";
+
+/** Types with static properties need to handle `Type.static_prop = x` in a specific way.
+    By default, Python replaces the `static_property` itself, but for wrapped C++ types
+    we need to call `static_property.__set__()` in order to propagate the new value to
+    the underlying C++ data structure. */
+extern "C" inline int scriptx_meta_setattro(PyObject* obj, PyObject* name, PyObject* value) {
+  // Use `_PyType_Lookup()` instead of `PyObject_GetAttr()` in order to get the raw
+  // descriptor (`property`) instead of calling `tp_descr_get` (`property.__get__()`).
+  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
+
+  // The following assignment combinations are possible:
+  //   1. `Type.static_prop = value`             --> descr_set: `Type.static_prop.__set__(value)`
+  //   2. `Type.static_prop = other_static_prop` --> setattro:  replace existing `static_prop`
+  //   3. `Type.regular_attribute = value`       --> setattro:  regular attribute assignment
+  auto* const static_prop = (PyObject*)g_static_property_type;
+  const auto call_descr_set = (descr != nullptr) && (value != nullptr) &&
+                              (PyObject_IsInstance(descr, static_prop) != 0) &&
+                              (PyObject_IsInstance(value, static_prop) == 0);
+  if (call_descr_set) {
+    // Call `static_property.__set__()` instead of replacing the `static_property`.
+    return Py_TYPE(descr)->tp_descr_set(descr, obj, value);
+  } else {
+    // Replace existing attribute.
+    return PyType_Type.tp_setattro(obj, name, value);
+  }
 }
-inline PyObject* g_scriptx_property_type = nullptr;
-inline constexpr const char* g_class_define_string = "class_define";
+
+/**
+ * Python 3's PyInstanceMethod_Type hides itself via its tp_descr_get, which prevents aliasing
+ * methods via cls.attr("m2") = cls.attr("m1"): instead the tp_descr_get returns a plain function,
+ * when called on a class, or a PyMethod, when called on an instance.  Override that behaviour here
+ * to do a special case bypass for PyInstanceMethod_Types.
+ */
+extern "C" inline PyObject* scriptx_meta_getattro(PyObject* obj, PyObject* name) {
+  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
+  if (descr && PyInstanceMethod_Check(descr)) {
+    Py_INCREF(descr);
+    return descr;
+  }
+  return PyType_Type.tp_getattro(obj, name);
+}
 }  // namespace py_backend
 }  // namespace script
