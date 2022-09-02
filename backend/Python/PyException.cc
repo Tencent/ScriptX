@@ -30,8 +30,8 @@ void ExceptionFields::fillMessage() const noexcept {
   if (!PyCapsule_IsValid(capsule, nullptr)) {
     return;
   }
-  PyExceptionInfoStruct *errStruct =
-      (PyExceptionInfoStruct *)PyCapsule_GetPointer(capsule, nullptr);
+  ExceptionInfo *errStruct =
+      (ExceptionInfo *)PyCapsule_GetPointer(capsule, nullptr);
 
   PyTypeObject *typeObj = (PyTypeObject *)(errStruct->pType);
   PyObject *formattedMsg = PyObject_Str(errStruct->pValue);
@@ -51,8 +51,8 @@ void ExceptionFields::fillStacktrace() const noexcept {
   if (!PyCapsule_IsValid(capsule, nullptr)) {
     return;
   }
-  PyExceptionInfoStruct *errStruct =
-      (PyExceptionInfoStruct *)PyCapsule_GetPointer(capsule, nullptr);
+  ExceptionInfo *errStruct =
+      (ExceptionInfo *)PyCapsule_GetPointer(capsule, nullptr);
 
   PyTracebackObject *tb = (PyTracebackObject *)(errStruct->pTraceback);
   if (tb == nullptr)
