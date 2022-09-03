@@ -25,33 +25,25 @@ namespace script {
 class PyEngine;
 
 struct py_interop {
-  /**
-   * @return new ref
-   */
+  // @return new ref.
   template <typename T>
   static Local<T> toLocal(PyObject* ref) {
     return Local<T>(Py_NewRef(ref));
   }
 
-  /**
-   * @return borrowed ref
-   */
+  // @return borrowed ref.
   template <typename T>
   static Local<T> asLocal(PyObject* ref) {
     return Local<T>(ref);
   }
 
-  /**
-   * @return new ref.
-   */
+  // @return new ref.
   template <typename T>
   static PyObject* getPy(const Local<T>& ref) {
     return Py_NewRef(ref.val_);
   }
 
-  /**
-   * @return borrowed ref.
-   */
+  // @return borrowed ref.
   template <typename T>
   static PyObject* peekPy(const Local<T>& ref) {
     return ref.val_;
@@ -65,15 +57,15 @@ struct py_interop {
 namespace py_backend {
 
 template <typename T>
-class PyTssStorage {
+class TssStorage {
  private:
   Py_tss_t key = Py_tss_NEEDS_INIT;
 
  public:
-  PyTssStorage() {
+  TssStorage() {
     int result = PyThread_tss_create(&key);  // TODO: Output or throw exception if failed
   }
-  ~PyTssStorage() {
+  ~TssStorage() {
     if (isValid()) PyThread_tss_delete(&key);
   }
   int set(T* value) { return isValid() ? PyThread_tss_set(&key, (void*)value) : 1; }
@@ -81,14 +73,7 @@ class PyTssStorage {
   bool isValid() { return PyThread_tss_is_created(&key) > 0; }
 };
 
-template <typename T>
-struct ScriptXPyObject {
-  PyObject_HEAD;
-  T* instance;
-};
-
-inline PyObject* warpFunction(const char* name, const char* doc, int flags,
-                              FunctionCallback callback) {
+inline PyObject* warpFunction(const char* name, FunctionCallback callback) {
   struct FunctionData {
     FunctionCallback function;
     PyEngine* engine;
@@ -116,25 +101,24 @@ inline PyObject* warpFunction(const char* name, const char* doc, int flags,
         }
         return nullptr;
       },
-      flags, doc};
+      METH_VARARGS, nullptr};
 
   PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
     void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
-  checkException(capsule);
+  checkPyErr();
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
   Py_DECREF(capsule);
-  checkException(closure);
+  checkPyErr();
 
   return closure;
 }
 
 template <typename T>
-inline PyObject* warpInstanceFunction(const char* name, const char* doc, int flags,
-                                      InstanceFunctionCallback<T> callback) {
+inline PyObject* warpInstanceFunction(const char* name, InstanceFunctionCallback<T> callback) {
   struct FunctionData {
     InstanceFunctionCallback<T> function;
     PyEngine* engine;
@@ -154,7 +138,7 @@ inline PyObject* warpInstanceFunction(const char* name, const char* doc, int fla
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
+            T* thiz = (T*)reinterpret_cast<GeneralObject*>(PyTuple_GetItem(args, 0))->instance;
             PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
             auto ret =
                 data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
@@ -166,23 +150,23 @@ inline PyObject* warpInstanceFunction(const char* name, const char* doc, int fla
         }
         return nullptr;
       },
-      flags, doc};
+      METH_VARARGS, nullptr};
 
   PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
     void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
-  checkException(capsule);
+  checkPyErr();
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
   Py_DECREF(capsule);
-  checkException(closure);
+  checkPyErr();
 
   return closure;
 }
 
-inline PyObject* warpGetter(const char* name, const char* doc, int flags, GetterCallback callback) {
+inline PyObject* warpGetter(const char* name, GetterCallback callback) {
   struct FunctionData {
     GetterCallback function;
     PyEngine* engine;
@@ -209,25 +193,24 @@ inline PyObject* warpGetter(const char* name, const char* doc, int flags, Getter
                         }
                         return nullptr;
                       },
-                      flags, doc};
+                      METH_VARARGS, nullptr};
 
   PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
     void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
-  checkException(capsule);
+  checkPyErr();
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
   Py_DECREF(capsule);
-  checkException(closure);
+  checkPyErr();
 
   return closure;
 }
 
 template <typename T>
-inline PyObject* warpInstanceGetter(const char* name, const char* doc, int flags,
-                                    InstanceGetterCallback<T> callback) {
+inline PyObject* warpInstanceGetter(const char* name, InstanceGetterCallback<T> callback) {
   struct FunctionData {
     InstanceGetterCallback<T> function;
     PyEngine* engine;
@@ -247,7 +230,7 @@ inline PyObject* warpInstanceGetter(const char* name, const char* doc, int flags
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
+            T* thiz = (T*)reinterpret_cast<GeneralObject*>(PyTuple_GetItem(args, 0))->instance;
             return py_interop::peekPy(data->function(thiz));
           } catch (const Exception& e) {
             rethrowException(e);
@@ -255,23 +238,23 @@ inline PyObject* warpInstanceGetter(const char* name, const char* doc, int flags
         }
         return nullptr;
       },
-      flags, doc};
+      METH_VARARGS, nullptr};
 
   PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
     void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
-  checkException(capsule);
+  checkPyErr();
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
   Py_DECREF(capsule);
-  checkException(closure);
+  checkPyErr();
 
   return closure;
 }
 
-inline PyObject* warpSetter(const char* name, const char* doc, int flags, SetterCallback callback) {
+inline PyObject* warpSetter(const char* name, SetterCallback callback) {
   struct FunctionData {
     SetterCallback function;
     PyEngine* engine;
@@ -299,25 +282,24 @@ inline PyObject* warpSetter(const char* name, const char* doc, int flags, Setter
                         }
                         return nullptr;
                       },
-                      flags, doc};
+                      METH_VARARGS, nullptr};
 
   PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
     void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
-  checkException(capsule);
+  checkPyErr();
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
   Py_DECREF(capsule);
-  checkException(closure);
+  checkPyErr();
 
   return closure;
 }
 
 template <typename T>
-PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
-                             InstanceSetterCallback<T> callback) {
+PyObject* warpInstanceSetter(const char* name, InstanceSetterCallback<T> callback) {
   struct FunctionData {
     InstanceSetterCallback<T> function;
     PyEngine* engine;
@@ -337,7 +319,7 @@ PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
         } else {
           auto data = static_cast<FunctionData*>(ptr);
           try {
-            T* thiz = reinterpret_cast<ScriptXPyObject<T>*>(PyTuple_GetItem(args, 0))->instance;
+            T* thiz = (T*)reinterpret_cast<GeneralObject*>(PyTuple_GetItem(args, 0))->instance;
             data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
             Py_RETURN_NONE;
           } catch (const Exception& e) {
@@ -346,35 +328,28 @@ PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
         }
         return nullptr;
       },
-      flags, doc};
+      METH_VARARGS, nullptr};
 
   PyObject* capsule = PyCapsule_New(callbackIns, nullptr, [](PyObject* cap) {
     void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
   });
-  checkException(capsule);
+  checkPyErr();
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
   Py_DECREF(capsule);
-  checkException(closure);
+  checkPyErr();
 
   return closure;
 }
-/** A `static_property` is the same as a `property` but the `__get__()` and `__set__()`
-      methods are modified to always use the object type instead of a concrete instance.
-      Return value: New reference. */
+
+// @return new reference
 PyTypeObject* makeStaticPropertyType();
+// @return new reference
 PyTypeObject* makeNamespaceType();
-PyTypeObject* makeGenericType(const char* name);
-
-inline PyTypeObject* g_static_property_type = nullptr;
-inline PyTypeObject* g_namespace_type = nullptr;
-
-/** This metaclass is assigned by default to all scriptx types and is required in order
-    for static properties to function correctly. Users may override this using `py::metaclass`.
-    Return value: New reference. */
-PyTypeObject* make_default_metaclass();
+// @return new reference
+PyTypeObject* makeDefaultMetaclass();
 
 }  // namespace py_backend
 }  // namespace script

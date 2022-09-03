@@ -42,7 +42,7 @@
 
 namespace script::py_backend {
 
-PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
+EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
   managedEngine = enginePtr;
   // Get thread state to enter
   PyThreadState *currentThreadState = engine.subThreadState_.get();
@@ -74,25 +74,25 @@ PyEngineScopeImpl::PyEngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
   }
 
   // First enginescope to enter, so lock GIL
-  if (PyEngine::engineEnterCount == 0)
+  if (PyEngine::engineEnterCount_ == 0)
   {
       PyEval_AcquireLock();
   }
-  ++PyEngine::engineEnterCount;
+  ++PyEngine::engineEnterCount_;
   // GIL locked & correct thread state here
   // GIL will keep locked until last EngineScope exit
 }
 
-PyEngineScopeImpl::~PyEngineScopeImpl() {
+EngineScopeImpl::~EngineScopeImpl() {
   PyEngine *currentEngine = py_backend::currentEngine();
   if (currentEngine == managedEngine) {
     // Engine existing. Need to exit
-    PyExitEngineScopeImpl exitEngine(*currentEngine);
+    ExitEngineScopeImpl exitEngine(*currentEngine);
   }
 }
 
-PyExitEngineScopeImpl::PyExitEngineScopeImpl(PyEngine &engine) {
-  if ((--PyEngine::engineEnterCount) == 0)
+ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &engine) {
+  if ((--PyEngine::engineEnterCount_) == 0)
   {
       // This is the last enginescope to exit, so release GIL
       PyEval_ReleaseLock();

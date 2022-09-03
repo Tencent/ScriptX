@@ -21,19 +21,9 @@
 #include "../../src/Value.h"
 #include "PyHelper.hpp"
 
-using script::py_interop;
-
 namespace script {
-/**
- * @return new ref.
- */
-template <typename T>
-Local<T> asLocalAndCheck(PyObject* ref) {
-  return py_interop::asLocal<T>(py_backend::checkException(ref));
-}
 
-// for python this creates an empty dict
-Local<Object> Object::newObject() { return asLocalAndCheck<Object>(PyDict_New()); }
+Local<Object> Object::newObject() { return py_interop::asLocal<Object>(PyDict_New()); }
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
@@ -42,11 +32,11 @@ Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
 }
 
 Local<String> String::newString(const char* utf8) {
-  return asLocalAndCheck<String>(PyUnicode_FromString(utf8));
+  return py_interop::asLocal<String>(PyUnicode_FromString(utf8));
 }
 
 Local<String> String::newString(std::string_view utf8) {
-  return asLocalAndCheck<String>(PyUnicode_FromStringAndSize(utf8.data(), utf8.size()));
+  return py_interop::asLocal<String>(PyUnicode_FromStringAndSize(utf8.data(), utf8.size()));
 }
 
 Local<String> String::newString(const std::string& utf8) {
@@ -72,48 +62,48 @@ Local<String> String::newString(const std::u8string& utf8) {
 Local<Number> Number::newNumber(float value) { return newNumber(static_cast<double>(value)); }
 
 Local<Number> Number::newNumber(double value) {
-  return asLocalAndCheck<Number>(PyFloat_FromDouble(value));
+  return py_interop::asLocal<Number>(PyFloat_FromDouble(value));
 }
 
 Local<Number> Number::newNumber(int32_t value) {
-  return asLocalAndCheck<Number>(PyLong_FromLong(value));
+  return py_interop::asLocal<Number>(PyLong_FromLong(value));
 }
 
 Local<Number> Number::newNumber(int64_t value) {
-  return asLocalAndCheck<Number>(PyLong_FromLongLong(value));
+  return py_interop::asLocal<Number>(PyLong_FromLongLong(value));
 }
 
 Local<Boolean> Boolean::newBoolean(bool value) {
-  return asLocalAndCheck<Boolean>(PyBool_FromLong(value));
+  return py_interop::asLocal<Boolean>(PyBool_FromLong(value));
 }
 
 Local<Function> Function::newFunction(FunctionCallback callback) {
-  return asLocalAndCheck<Function>(
-      py_backend::warpFunction("ScriptX_Function", nullptr, METH_VARARGS, std::move(callback)));
+  return py_interop::asLocal<Function>(
+      py_backend::warpFunction("scriptx_function", std::move(callback)));
 }
 
-Local<Array> Array::newArray(size_t size) { return asLocalAndCheck<Array>(PyList_New(size)); }
+Local<Array> Array::newArray(size_t size) { return py_interop::asLocal<Array>(PyList_New(size)); }
 
 Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
-  auto list = PyList_New(size);
+  PyObject* list = PyList_New(size);
   if (!list) {
-    throw Exception("PyList_New failed");
+    throw Exception();
   }
   for (size_t i = 0; i < size; ++i) {
     PyList_SetItem(list, i, py_interop::getPy(args[i]));
   }
-  return asLocalAndCheck<Array>(list);
+  return py_interop::asLocal<Array>(list);
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) {
   const char* bytes = new char[size]{};
   PyObject* result = PyBytes_FromStringAndSize(bytes, size);
   delete bytes;
-  return asLocalAndCheck<ByteBuffer>(result);
+  return py_interop::asLocal<ByteBuffer>(result);
 }
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {
-  return asLocalAndCheck<ByteBuffer>(
+  return py_interop::asLocal<ByteBuffer>(
       PyBytes_FromStringAndSize(static_cast<char*>(nativeBuffer), size));
 }
 

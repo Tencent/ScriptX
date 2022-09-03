@@ -24,17 +24,17 @@ namespace script {
 
 template <>
 struct internal::ImplType<EngineScope> {
-  using type = py_backend::PyEngineScopeImpl;
+  using type = py_backend::EngineScopeImpl;
 };
 
 template <>
 struct internal::ImplType<ExitEngineScope> {
-  using type = py_backend::PyExitEngineScopeImpl;
+  using type = py_backend::ExitEngineScopeImpl;
 };
 
 template <>
 struct internal::ImplType<StackFrameScope> {
-  using type = py_backend::PyStackFrameScopeImpl;
+  using type = py_backend::StackFrameScopeImpl;
 };
 
 }  // namespace script

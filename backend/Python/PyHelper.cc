@@ -67,12 +67,7 @@ PyObject* toStr(const char* s) { return PyUnicode_FromString(s); }
 
 PyObject* toStr(const std::string& s) { return PyUnicode_FromStringAndSize(s.c_str(), s.size()); }
 
-PyObject* checkException(PyObject* obj) {
-  if (obj == nullptr) checkException();
-  return obj;
-}
-
-void checkException() {
+void checkPyErr() {
   if (PyErr_Occurred()) {
     PyObject *pType, *pValue, *pTraceback;
     PyErr_Fetch(&pType, &pValue, &pTraceback);
@@ -96,7 +91,7 @@ void checkException() {
 void rethrowException(const Exception& exception) { throw exception; }
 
 PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
-PyEngine& currentEngineChecked() { return EngineScope::currentEngineCheckedAs<PyEngine>(); }
+PyEngine* currentEngineChecked() { return &EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
 PyObject* getGlobalDict() {
   PyObject* m = PyImport_AddModule("__main__");
@@ -212,107 +207,13 @@ PyTypeObject* makeNamespaceType() {
   return type;
 }
 
-PyTypeObject* makeGenericType(const char* name) {
-  auto heap_type = (PyHeapTypeObject*)PyType_GenericAlloc(&PyType_Type, 0);
-  if (!heap_type) {
-    Py_FatalError("error allocating type!");
-  }
-
-  heap_type->ht_name = PyUnicode_InternFromString(name);
-  heap_type->ht_qualname = PyUnicode_InternFromString(name);
-
-  auto* type = &heap_type->ht_type;
-  type->tp_name = name;
-  Py_INCREF(&PyProperty_Type);
-  type->tp_base = &PyProperty_Type;
-  type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
-
-  type->tp_descr_get = &scriptx_static_get;
-  type->tp_descr_set = &scriptx_static_set;
-
-  if (PyType_Ready(type) < 0) {
-    Py_FatalError("failure in PyType_Ready()!");
-  }
-
-  setAttr((PyObject*)type, "__module__", PyUnicode_InternFromString("scriptx_builtins"));
-
-  return type;
-}
-
-inline int scriptx_meta_setattro(PyObject* obj, PyObject* name, PyObject* value) {
-  // Use `_PyType_Lookup()` instead of `PyObject_GetAttr()` in order to get the raw
-  // descriptor (`property`) instead of calling `tp_descr_get` (`property.__get__()`).
-  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
-
-  // The following assignment combinations are possible:
-  //   1. `Type.static_prop = value`             --> descr_set: `Type.static_prop.__set__(value)`
-  //   2. `Type.static_prop = other_static_prop` --> setattro:  replace existing `static_prop`
-  //   3. `Type.regular_attribute = value`       --> setattro:  regular attribute assignment
-  auto* const static_prop = (PyObject*)g_static_property_type;
-  const auto call_descr_set = (descr != nullptr) && (value != nullptr) &&
-                              (PyObject_IsInstance(descr, static_prop) != 0) &&
-                              (PyObject_IsInstance(value, static_prop) == 0);
-  if (call_descr_set) {
-    // Call `static_property.__set__()` instead of replacing the `static_property`.
-    return Py_TYPE(descr)->tp_descr_set(descr, obj, value);
-  } else {
-    // Replace existing attribute.
-    return PyType_Type.tp_setattro(obj, name, value);
-  }
-}
-
-inline PyObject* scriptx_meta_getattro(PyObject* obj, PyObject* name) {
-  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
-  if (descr && PyInstanceMethod_Check(descr)) {
-    Py_INCREF(descr);
-    return descr;
-  }
-  return PyType_Type.tp_getattro(obj, name);
-}
-
-inline PyObject* scriptx_meta_call(PyObject* type, PyObject* args, PyObject* kwargs) {
-  // use the default metaclass call to create/initialize the object
-  PyObject* self = PyType_Type.tp_call(type, args, kwargs);
-  if (self == nullptr) {
-    return nullptr;
-  }
-#if 0
-  // This must be a scriptx instance
-  auto* instance = reinterpret_cast<detail::instance*>(self);
-
-  // Ensure that the base __init__ function(s) were called
-  for (const auto& vh : values_and_holders(instance)) {
-    if (!vh.holder_constructed()) {
-      PyErr_Format(PyExc_TypeError, "%.200s.__init__() must be called when overriding __init__",
-                   get_fully_qualified_tp_name(vh.type->type).c_str());
-      Py_DECREF(self);
-      return nullptr;
-    }
-  }
-#endif
-  return self;
-}
-
-inline void scriptx_meta_dealloc(PyObject* obj) {
-  auto* type = (PyTypeObject*)obj;
-  auto engine = currentEngine();
-
-  engine->registeredTypes_.erase(type);
-  engine->registeredTypesReverse_.erase(type);
-  PyType_Type.tp_dealloc(obj);
-}
-
-PyTypeObject* make_default_metaclass() {
+PyTypeObject* makeDefaultMetaclass() {
   constexpr auto* name = "scriptx_type";
   auto name_obj = toStr(name);
 
-  /* Danger zone: from now (and until PyType_Ready), make sure to
-     issue no Python C API calls which could potentially invoke the
-     garbage collector (the GC will call type_traverse(), which will in
-     turn find the newly constructed type in an invalid state) */
   auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
   if (!heap_type) {
-    Py_FatalError("make_default_metaclass(): error allocating metaclass!");
+    Py_FatalError("error allocating type!");
   }
 
   heap_type->ht_name = Py_NewRef(name_obj);
@@ -324,12 +225,53 @@ PyTypeObject* make_default_metaclass() {
   type->tp_base = &PyType_Type;
   type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
 
-  type->tp_call = scriptx_meta_call;
+  type->tp_call = [](PyObject* type, PyObject* args, PyObject* kwargs) -> PyObject* {
+    // use the default metaclass call to create/initialize the object
+    PyObject* self = PyType_Type.tp_call(type, args, kwargs);
+    if (self == nullptr) {
+      return nullptr;
+    }
+    return self;
+  };
 
-  type->tp_setattro = scriptx_meta_setattro;
-  type->tp_getattro = scriptx_meta_getattro;
+  type->tp_setattro = [](PyObject* obj, PyObject* name, PyObject* value) {
+    // Use `_PyType_Lookup()` instead of `PyObject_GetAttr()` in order to get the raw
+    // descriptor (`property`) instead of calling `tp_descr_get` (`property.__get__()`).
+    PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
 
-  type->tp_dealloc = scriptx_meta_dealloc;
+    // The following assignment combinations are possible:
+    //   1. `Type.static_prop = value`             --> descr_set: `Type.static_prop.__set__(value)`
+    //   2. `Type.static_prop = other_static_prop` --> setattro:  replace existing `static_prop`
+    //   3. `Type.regular_attribute = value`       --> setattro:  regular attribute assignment
+    auto* const static_prop = (PyObject*)PyEngine::staticPropertyType_;
+    const auto call_descr_set = (descr != nullptr) && (value != nullptr) &&
+                                (PyObject_IsInstance(descr, static_prop) != 0) &&
+                                (PyObject_IsInstance(value, static_prop) == 0);
+    if (call_descr_set) {
+      // Call `static_property.__set__()` instead of replacing the `static_property`.
+      return Py_TYPE(descr)->tp_descr_set(descr, obj, value);
+    } else {
+      // Replace existing attribute.
+      return PyType_Type.tp_setattro(obj, name, value);
+    }
+  };
+  type->tp_getattro = [](PyObject* obj, PyObject* name) {
+    PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
+    if (descr && PyInstanceMethod_Check(descr)) {
+      Py_INCREF(descr);
+      return descr;
+    }
+    return PyType_Type.tp_getattro(obj, name);
+  };
+
+  type->tp_dealloc = [](PyObject* obj) {
+    auto* type = (PyTypeObject*)obj;
+    auto engine = currentEngine();
+
+    engine->registeredTypes_.erase(type);
+    engine->registeredTypesReverse_.erase(type);
+    PyType_Type.tp_dealloc(obj);
+  };
 
   if (PyType_Ready(type) < 0) {
     Py_FatalError("make_default_metaclass(): failure in PyType_Ready()!");

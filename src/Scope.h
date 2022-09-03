@@ -105,7 +105,7 @@ class EngineScope final {
 
     auto currentScope = getCurrent();
     if (currentScope) {
-      engine = internal::scriptDynamicCast<T*>(getCurrent()->engine_);
+      engine = internal::scriptDynamicCast<T*>(currentScope->engine_);
     }
 
     ensureEngineScope(engine);
