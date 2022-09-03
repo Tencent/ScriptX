@@ -78,8 +78,39 @@ Local<Boolean> Boolean::newBoolean(bool value) {
 }
 
 Local<Function> Function::newFunction(FunctionCallback callback) {
-  return py_interop::asLocal<Function>(
-      py_backend::warpFunction("scriptx_function", std::move(callback)));
+  struct FunctionData {
+    FunctionCallback function;
+    py_backend::PyEngine* engine;
+  };
+
+  PyMethodDef* method = new PyMethodDef;
+  method->ml_name = "scriptx_function";
+  method->ml_flags = METH_VARARGS;
+  method->ml_doc = nullptr;
+  method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+    auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+    try {
+      return py_interop::peekPy(
+          data->function(py_interop::makeArguments(data->engine, self, args)));
+    } catch (const Exception& e) {
+      py_backend::rethrowException(e);
+    }
+    return nullptr;
+  };
+
+  PyCapsule_Destructor destructor = [](PyObject* cap) {
+    void* ptr = PyCapsule_GetPointer(cap, nullptr);
+    delete static_cast<FunctionData*>(ptr);
+  };
+  PyObject* capsule = PyCapsule_New(
+      new FunctionData{std::move(callback), py_backend::currentEngine()}, nullptr, destructor);
+  py_backend::checkPyErr();
+
+  PyObject* function = PyCFunction_New(method, capsule);
+  Py_DECREF(capsule);
+  py_backend::checkPyErr();
+
+  return py_interop::asLocal<Function>(function);
 }
 
 Local<Array> Array::newArray(size_t size) { return py_interop::asLocal<Array>(PyList_New(size)); }

@@ -25,6 +25,7 @@ void setAttr(PyObject* obj, PyObject* key, PyObject* value) {
     throw Exception();
   }
 }
+
 void setAttr(PyObject* obj, const char* key, PyObject* value) {
   if (PyObject_SetAttrString(obj, key, value) != 0) {
     throw Exception();
@@ -91,6 +92,7 @@ void checkPyErr() {
 void rethrowException(const Exception& exception) { throw exception; }
 
 PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
+
 PyEngine* currentEngineChecked() { return &EngineScope::currentEngineCheckedAs<PyEngine>(); }
 
 PyObject* getGlobalDict() {
