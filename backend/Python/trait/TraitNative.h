@@ -24,14 +24,15 @@ namespace script {
 namespace py_backend {
 
 struct ArgumentsData {
-  mutable PyEngine* engine;
+  PyEngine* engine;
   PyObject* self;
   PyObject* args;
 };
 
 struct ScriptClassState {
-  ScriptEngine* scriptEngine_ = nullptr;
-  Weak<Object> weakRef_;
+  ScriptEngine* engine = nullptr;
+  PyObject* script_obj;
+  PyObject* storage;
 };
 
 }  // namespace py_backend

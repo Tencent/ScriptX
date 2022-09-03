@@ -19,17 +19,27 @@
 
 namespace script {
 
-StringHolder::StringHolder(const script::Local<script::String> &string) {}
+StringHolder::StringHolder(const script::Local<script::String> &string) {
+  if (PyUnicode_Check(string.val_)) {
+    internalHolder_ = string.val_;
+  } else {
+    throw Exception("StringHolder require PyUnicodeObject!");
+  }
+}
 
 StringHolder::~StringHolder() = default;
 
-size_t StringHolder::length() const { return 0; }
+size_t StringHolder::length() const {
+  Py_ssize_t size = 0;
+  PyUnicode_AsUTF8AndSize(internalHolder_, &size);
+  return (size_t)size;
+}
 
-const char *StringHolder::c_str() const { return ""; }
+const char *StringHolder::c_str() const { return PyUnicode_AsUTF8(internalHolder_); }
 
-std::string_view StringHolder::stringView() const { return {}; }
+std::string_view StringHolder::stringView() const { return std::string_view(c_str(), length()); }
 
-std::string StringHolder::string() const { return {}; }
+std::string StringHolder::string() const { return std::string(c_str(), length()); }
 
 #if defined(__cpp_char8_t)
 // NOLINTNEXTLINE(clang-analyzer-cplusplus.InnerPointer)

@@ -25,37 +25,35 @@ Arguments::Arguments(InternalCallbackInfoType callbackInfo) : callbackInfo_(call
 
 Arguments::~Arguments() = default;
 
-Local<Object> Arguments::thiz() const {
-  return py_interop::makeLocal<Value>(callbackInfo_.self).asObject();
-}
+Local<Object> Arguments::thiz() const { return py_interop::toLocal<Object>(callbackInfo_.self); }
 
-bool Arguments::hasThiz() const { return callbackInfo_.self != nullptr; }
+bool Arguments::hasThiz() const { return callbackInfo_.self; }
 
-size_t Arguments::size() const {
-  if (!callbackInfo_.args) {
-    return 0;
-  }
-  return PyTuple_Size(callbackInfo_.args);
-}
+size_t Arguments::size() const { return PyTuple_Size(callbackInfo_.args); }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  if (i < size()) {
-    return py_interop::makeLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
+  if (i > size()) {
+    return Local<Value>();
+  } else {
+    return py_interop::toLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
   }
-  return {};
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
-ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
-  TEMPLATE_NOT_IMPLEMENTED();
+ScriptClass::ScriptClass(const Local<Object>& scriptObject) : internalState_() {
+  internalState_.engine = py_backend::currentEngineChecked();
 }
 
-Local<Object> ScriptClass::getScriptObject() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Object> ScriptClass::getScriptObject() const {
+  return py_interop::toLocal<Object>(internalState_.script_obj);
+}
 
-Local<Array> ScriptClass::getInternalStore() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Array> ScriptClass::getInternalStore() const {
+  return py_interop::toLocal<Array>(internalState_.storage);
+}
 
-ScriptEngine* ScriptClass::getScriptEngine() const { TEMPLATE_NOT_IMPLEMENTED(); }
+ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
-ScriptClass::~ScriptClass() = default;
+ScriptClass::~ScriptClass(){};
 }  // namespace script

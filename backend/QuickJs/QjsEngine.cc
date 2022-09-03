@@ -17,6 +17,7 @@
 
 #include "QjsEngine.h"
 #include <ScriptX/ScriptX.h>
+#include "../../src/utils/Helper.hpp"
 
 namespace script::qjs_backend {
 
@@ -266,6 +267,27 @@ Local<Value> QjsEngine::eval(const Local<String>& script, const Local<Value>& so
   scheduleTick();
 
   return Local<Value>(ret);
+}
+
+Local<Value> QjsEngine::loadFile(const Local<String>& scriptFile) {
+  if(scriptFile.toString().empty())
+    throw Exception("script file no found");
+  Local<Value> content = internal::readAllFileContent(scriptFile);
+  if(content.isNull())
+    throw Exception("can't load script file");
+
+  std::string sourceFilePath = scriptFile.toString();
+  std::size_t pathSymbol = sourceFilePath.rfind("/");
+  if(pathSymbol != -1)
+    sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  else
+  {
+    pathSymbol = sourceFilePath.rfind("\\");
+    if(pathSymbol != -1)
+      sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+  }
+  Local<String> sourceFileName = String::newString(sourceFilePath);
+  return eval(content.asString(), sourceFileName);
 }
 
 std::shared_ptr<utils::MessageQueue> QjsEngine::messageQueue() { return queue_; }

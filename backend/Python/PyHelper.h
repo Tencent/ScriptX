@@ -25,19 +25,53 @@
 // https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
 
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
-#ifndef PY_SSIZE_T_CLEAN
-#define PY_SSIZE_T_CLEAN
-#endif
 #include <Python.h>
-#include <pylifecycle.h>
+#include <frameobject.h>
+#include <structmember.h>
 SCRIPTX_END_INCLUDE_LIBRARY
+
+#if PY_VERSION_HEX < 0x030a00f0
+#error "python version must be greater than 3.10.0"
+#endif
 
 namespace script::py_backend {
 
+struct ExceptionInfo {
+  PyObject* pType;
+  PyObject* pValue;
+  PyObject* pTraceback;
+};
+
+struct GeneralObject : PyObject {
+  void* instance;
+  PyObject* weakrefs;
+
+  template <typename T>
+  static T* getInstance(PyObject* self) {
+    return reinterpret_cast<T*>(reinterpret_cast<GeneralObject*>(self)->instance);
+  }
+
+};
+
+void setAttr(PyObject* obj, PyObject* key, PyObject* value);
+void setAttr(PyObject* obj, const char* key, PyObject* value);
+PyObject* getAttr(PyObject* obj, PyObject* key);
+PyObject* getAttr(PyObject* obj, const char* key);
+bool hasAttr(PyObject* obj, PyObject* key);
+bool hasAttr(PyObject* obj, const char* key);
+void delAttr(PyObject* obj, PyObject* key);
+void delAttr(PyObject* obj, const char* key);
+
+PyObject* toStr(const char* s);
+PyObject* toStr(const std::string& s);
+
 class PyEngine;
 
-PyObject* checkException(PyObject* obj);
-void checkException();
+void checkPyErr();
 void rethrowException(const Exception& exception);
+PyEngine* currentEngine();
+PyEngine* currentEngineChecked();
 
+// @return borrowed ref
+PyObject* getGlobalDict();
 }  // namespace script::py_backend

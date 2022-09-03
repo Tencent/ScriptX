@@ -34,11 +34,11 @@ void valueConstructorCheck(PyObject* value) {
 }  // namespace py_backend
 
 #define REF_IMPL_BASIC_FUNC(ValueType)                                                           \
-  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(py_backend::incRef(copy.val_)) {} \
+  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(Py_NewRef(copy.val_)) {} \
   Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {                  \
     move.val_ = nullptr;                                                                         \
   }                                                                                              \
-  Local<ValueType>::~Local() { py_backend::decRef(val_); }                                       \
+  Local<ValueType>::~Local() { Py_XDECREF(val_); }                                       \
   Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                             \
     Local(from).swap(*this);                                                                     \
     return *this;                                                                                \
@@ -55,14 +55,14 @@ void valueConstructorCheck(PyObject* value) {
   }
 
 #define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                         \
-  Local<ValueType>::Local(InternalLocalRef val) : val_(val) {                       \
+  Local<ValueType>::Local(InternalLocalRef val) : val_(Py_NewRef(val)) {   \
     py_backend::valueConstructorCheck(val);                                         \
   }                                                                                 \
   Local<String> Local<ValueType>::describe() const { return asValue().describe(); } \
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
-  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(py_backend::incRef(val_)); }
+  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(Py_NewRef(val_)); }
 
 REF_IMPL_BASIC_FUNC(Value)
 
@@ -108,14 +108,16 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 // ==== value ====
 
-Local<Value>::Local() noexcept : val_() {}
+Local<Value>::Local() noexcept : val_(Py_NewRef(Py_None)) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(ref) {}
+Local<Value>::Local(InternalLocalRef ref) : val_(ref) {
+  if (ref == nullptr) throw Exception("Python exception occurred!");
+}
 
-bool Local<Value>::isNull() const { return val_ == nullptr; }
+bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
 void Local<Value>::reset() {
-  py_backend::decRef(val_);
+  Py_DECREF(val_);
   val_ = nullptr;
 }
 
@@ -141,127 +143,163 @@ ValueKind Local<Value>::getKind() const {
   }
 }
 
-bool Local<Value>::isString() const { return false; }
+bool Local<Value>::isString() const { return PyUnicode_CheckExact(val_); }
 
-bool Local<Value>::isNumber() const { return PyNumber_Check(val_); }
+bool Local<Value>::isNumber() const { return PyLong_CheckExact(val_) || PyFloat_CheckExact(val_); }
 
 bool Local<Value>::isBoolean() const { return PyBool_Check(val_); }
 
-bool Local<Value>::isFunction() const { return PyCallable_Check(val_); }
+bool Local<Value>::isFunction() const { return PyFunction_Check(val_) || PyCFunction_CheckExact(val_); }
 
-bool Local<Value>::isArray() const { return false; }
+bool Local<Value>::isArray() const { return PyList_CheckExact(val_); }
 
-bool Local<Value>::isByteBuffer() const { return false; }
+bool Local<Value>::isByteBuffer() const { return PyBytes_CheckExact(val_); }
 
-bool Local<Value>::isObject() const { return false; }
+// Object can be dict or class
+bool Local<Value>::isObject() const { return PyDict_CheckExact(val_) || PyType_CheckExact(val_); }
 
-bool Local<Value>::isUnsupported() const { return false; }
+bool Local<Value>::isUnsupported() const { return getKind() == ValueKind::kUnsupported; }
 
-Local<String> Local<Value>::asString() const { throw Exception("can't cast value as String"); }
+Local<String> Local<Value>::asString() const {
+  if (isString()) return Local<String>(val_);
+  throw Exception("can't cast value as String");
+}
 
-Local<Number> Local<Value>::asNumber() const { throw Exception("can't cast value as Number"); }
+Local<Number> Local<Value>::asNumber() const {
+  if (isNumber()) return Local<Number>(val_);
+  throw Exception("can't cast value as Number");
+}
 
-Local<Boolean> Local<Value>::asBoolean() const { throw Exception("can't cast value as Boolean"); }
+Local<Boolean> Local<Value>::asBoolean() const {
+  if (isBoolean()) return Local<Boolean>(val_);
+  throw Exception("can't cast value as Boolean");
+}
 
 Local<Function> Local<Value>::asFunction() const {
+  if (isFunction()) return Local<Function>(val_);
   throw Exception("can't cast value as Function");
 }
 
-Local<Array> Local<Value>::asArray() const { throw Exception("can't cast value as Array"); }
+Local<Array> Local<Value>::asArray() const {
+  if (isArray()) return Local<Array>(val_);
+  throw Exception("can't cast value as Array");
+}
 
 Local<ByteBuffer> Local<Value>::asByteBuffer() const {
+  if (isByteBuffer()) return Local<ByteBuffer>(val_);
   throw Exception("can't cast value as ByteBuffer");
 }
 
-Local<Object> Local<Value>::asObject() const { throw Exception("can't cast value as Object"); }
+Local<Object> Local<Value>::asObject() const {
+  if (isObject()) return Local<Object>(val_);
+  throw Exception("can't cast value as Object");
+}
 
 Local<Unsupported> Local<Value>::asUnsupported() const {
+  if (isUnsupported()) return Local<Unsupported>(val_);
   throw Exception("can't cast value as Unsupported");
 }
 
 bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
-  // TODO: nullptr vs None
-  auto lhs = val_;
-  auto rhs = other.val_;
-
-  // nullptr == nullptr
-  if (lhs == nullptr || rhs == nullptr) {
-    return lhs == rhs;
-  }
-
-  return PyObject_RichCompareBool(lhs, rhs, Py_EQ);
+  return PyObject_RichCompareBool(val_, other.val_, Py_EQ);
 }
 
-Local<String> Local<Value>::describe() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Str(val_)); }
 
-Local<Value> Local<Object>::get(const script::Local<script::String>& key) const { return {}; }
+Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
+  PyObject* item = PyDict_GetItem(val_, key.val_);
+  if (item)
+    return py_interop::toLocal<Value>(item);
+  else
+    return Local<Value>();
+}
 
 void Local<Object>::set(const script::Local<script::String>& key,
-                        const script::Local<script::Value>& value) const {}
+                        const script::Local<script::Value>& value) const {
+  PyDict_SetItem(val_, key.val_, value.val_);
+}
 
-void Local<Object>::remove(const Local<class script::String>& key) const {}
-bool Local<Object>::has(const Local<class script::String>& key) const { return true; }
+void Local<Object>::remove(const Local<class script::String>& key) const {
+  PyDict_DelItem(val_, key.val_);
+}
 
-bool Local<Object>::instanceOf(const Local<class script::Value>& type) const { return false; }
+bool Local<Object>::has(const Local<class script::String>& key) const {
+  return PyDict_Contains(val_, key.val_);
+}
 
-std::vector<Local<String>> Local<Object>::getKeys() const { return {}; }
+bool Local<Object>::instanceOf(const Local<class script::Value>& type) const {
+  return PyObject_IsInstance(val_, type.val_);
+}
+
+std::vector<Local<String>> Local<Object>::getKeys() const {
+  std::vector<Local<String>> keys;
+  PyObject* key;
+  PyObject* value;
+  Py_ssize_t pos = 0;
+  while (PyDict_Next(val_, &pos, &key, &value)) {
+    keys.push_back(Local<String>(key));
+  }
+  return keys;
+}
 
 float Local<Number>::toFloat() const { return static_cast<float>(toDouble()); }
 
-double Local<Number>::toDouble() const { return 0; }
+double Local<Number>::toDouble() const { return PyFloat_AsDouble(val_); }
 
 int32_t Local<Number>::toInt32() const { return static_cast<int32_t>(toDouble()); }
 
 int64_t Local<Number>::toInt64() const { return static_cast<int64_t>(toDouble()); }
 
-bool Local<Boolean>::value() const { return false; }
+bool Local<Boolean>::value() const { return Py_IsTrue(val_); }
 
 Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
-  // PyObject* self = thiz.isObject() ? py_interop::toPy(thiz) : nullptr;
-  // TODO: self
-  PyObject* ret = nullptr;
-  // args to tuple
-  if (size == 0) {
-    ret = PyObject_CallNoArgs(py_interop::asPy(*this));
-  } else if (size == 1) {
-    ret = PyObject_CallOneArg(py_interop::asPy(*this), py_interop::asPy(args[0]));
-  } else {
-    auto tuple = PyTuple_New(static_cast<Py_ssize_t>(size));
-    py_backend::checkException();
-    for (size_t i = 0; i < size; ++i) {
-      PyTuple_SetItem(tuple, static_cast<Py_ssize_t>(i), py_interop::toPy(args[i]));
-      py_backend::checkException();
-    }
-    ret = PyObject_Call(py_interop::asPy(*this), tuple, nullptr);
+  PyObject* args_tuple = PyTuple_New(size);
+  for (size_t i = 0; i < size; ++i) {
+    PyTuple_SetItem(args_tuple, i, args[i].val_);
   }
-
-  py_backend::checkException();
-  return Local<Value>(ret);
+  PyObject* result = PyObject_CallObject(val_, args_tuple);
+  Py_DECREF(args_tuple);
+  return py_interop::asLocal<Value>(result);
 }
 
-size_t Local<Array>::size() const { return 0; }
+size_t Local<Array>::size() const { return PyList_Size(val_); }
 
-Local<Value> Local<Array>::get(size_t index) const { return {}; }
+Local<Value> Local<Array>::get(size_t index) const {
+  PyObject* item = PyList_GetItem(val_, index);
+  if (item)
+    return py_interop::toLocal<Value>(item);
+  else
+    return Local<Value>();
+}
 
-void Local<Array>::set(size_t index, const script::Local<script::Value>& value) const {}
+void Local<Array>::set(size_t index, const script::Local<script::Value>& value) const {
+  size_t listSize = size();
+  if (index >= listSize)
+    for (size_t i = listSize; i <= index; ++i) {
+      PyList_Append(val_, Py_None);
+    }
+  PyList_SetItem(val_, index, py_interop::getPy(value));
+}
 
-void Local<Array>::add(const script::Local<script::Value>& value) const { set(size(), value); }
+void Local<Array>::add(const script::Local<script::Value>& value) const {
+  PyList_Append(val_, py_interop::peekPy(value));
+}
 
-void Local<Array>::clear() const {}
+void Local<Array>::clear() const { PyList_SetSlice(val_, 0, PyList_Size(val_), nullptr); }
 
-ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::KFloat32; }
+ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::kInt8; }
 
-bool Local<ByteBuffer>::isShared() const { return true; }
+bool Local<ByteBuffer>::isShared() const { return false; }
 
 void Local<ByteBuffer>::commit() const {}
 
 void Local<ByteBuffer>::sync() const {}
 
-size_t Local<ByteBuffer>::byteLength() const { return 0; }
+size_t Local<ByteBuffer>::byteLength() const { return PyBytes_Size(val_); }
 
-void* Local<ByteBuffer>::getRawBytes() const { return nullptr; }
+void* Local<ByteBuffer>::getRawBytes() const { return PyBytes_AsString(val_); }
 
-std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return {}; }
+std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return nullptr; }
 
 }  // namespace script

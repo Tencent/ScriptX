@@ -18,7 +18,6 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 #include "../../src/types.h"
 #include "../PyHelper.h"
 

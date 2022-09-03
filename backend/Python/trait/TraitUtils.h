@@ -17,6 +17,7 @@
 
 #pragma once
 #include "../../src/types.h"
+#include "../PyHelper.h"
 
 namespace script {
 
@@ -24,7 +25,7 @@ struct py_interop;
 
 template <>
 struct internal::ImplType<StringHolder> {
-  using type = int;
+  using type = PyObject*;
 };
 
 template <>

@@ -18,30 +18,34 @@
 #pragma once
 #include "../../src/Native.hpp"
 #include "../../src/Reference.h"
-#include "PyEngine.h"
 #include "PyHelper.h"
 
 namespace script {
 
+class PyEngine;
+
 struct py_interop {
+  // @return new ref.
   template <typename T>
-  static Local<T> makeLocal(PyObject* ref) {
+  static Local<T> toLocal(PyObject* ref) {
+    return Local<T>(Py_NewRef(ref));
+  }
+
+  // @return borrowed ref.
+  template <typename T>
+  static Local<T> asLocal(PyObject* ref) {
     return Local<T>(ref);
   }
 
-  /**
-   * @return stolen ref.
-   */
+  // @return new ref.
   template <typename T>
-  static PyObject* toPy(const Local<T>& ref) {
-    return Py_XNewRef(ref.val_);
+  static PyObject* getPy(const Local<T>& ref) {
+    return Py_NewRef(ref.val_);
   }
 
-  /**
-   * @return borrowed ref.
-   */
+  // @return borrowed ref.
   template <typename T>
-  static PyObject* asPy(const Local<T>& ref) {
+  static PyObject* peekPy(const Local<T>& ref) {
     return ref.val_;
   }
 
@@ -50,4 +54,31 @@ struct py_interop {
   }
 };
 
+namespace py_backend {
+
+template <typename T>
+class TssStorage {
+ private:
+  Py_tss_t key = Py_tss_NEEDS_INIT;
+
+ public:
+  TssStorage() {
+    int result = PyThread_tss_create(&key);  // TODO: Output or throw exception if failed
+  }
+  ~TssStorage() {
+    if (isValid()) PyThread_tss_delete(&key);
+  }
+  int set(T* value) { return isValid() ? PyThread_tss_set(&key, (void*)value) : 1; }
+  T* get() { return isValid() ? (T*)PyThread_tss_get(&key) : NULL; }
+  bool isValid() { return PyThread_tss_is_created(&key) > 0; }
+};
+
+// @return new reference
+PyTypeObject* makeStaticPropertyType();
+// @return new reference
+PyTypeObject* makeNamespaceType();
+// @return new reference
+PyTypeObject* makeDefaultMetaclass();
+
+}  // namespace py_backend
 }  // namespace script
