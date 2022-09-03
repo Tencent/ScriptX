@@ -34,11 +34,11 @@ void valueConstructorCheck(PyObject* value) {
 }  // namespace py_backend
 
 #define REF_IMPL_BASIC_FUNC(ValueType)                                                           \
-  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(py_backend::incRef(copy.val_)) {} \
+  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(Py_NewRef(copy.val_)) {} \
   Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {                  \
     move.val_ = nullptr;                                                                         \
   }                                                                                              \
-  Local<ValueType>::~Local() { py_backend::decRef(val_); }                                       \
+  Local<ValueType>::~Local() { Py_XDECREF(val_); }                                       \
   Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                             \
     Local(from).swap(*this);                                                                     \
     return *this;                                                                                \
@@ -55,14 +55,14 @@ void valueConstructorCheck(PyObject* value) {
   }
 
 #define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                         \
-  Local<ValueType>::Local(InternalLocalRef val) : val_(py_backend::incRef(val)) {   \
+  Local<ValueType>::Local(InternalLocalRef val) : val_(Py_NewRef(val)) {   \
     py_backend::valueConstructorCheck(val);                                         \
   }                                                                                 \
   Local<String> Local<ValueType>::describe() const { return asValue().describe(); } \
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
-  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(py_backend::incRef(val_)); }
+  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(Py_NewRef(val_)); }
 
 REF_IMPL_BASIC_FUNC(Value)
 
@@ -108,7 +108,7 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 // ==== value ====
 
-Local<Value>::Local() noexcept : val_(py_backend::incRef(Py_None)) {}
+Local<Value>::Local() noexcept : val_(Py_NewRef(Py_None)) {}
 
 Local<Value>::Local(InternalLocalRef ref) : val_(ref) {
   if (ref == nullptr) throw Exception("Python exception occurred!");
@@ -117,7 +117,7 @@ Local<Value>::Local(InternalLocalRef ref) : val_(ref) {
 bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
 void Local<Value>::reset() {
-  py_backend::decRef(val_);
+  Py_DECREF(val_);
   val_ = nullptr;
 }
 
@@ -259,7 +259,7 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
     PyTuple_SetItem(args_tuple, i, args[i].val_);
   }
   PyObject* result = PyObject_CallObject(val_, args_tuple);
-  py_backend::decRef(args_tuple);
+  Py_DECREF(args_tuple);
   return py_interop::asLocal<Value>(result);
 }
 
