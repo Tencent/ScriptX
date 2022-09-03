@@ -153,7 +153,7 @@ elseif (${SCRIPTX_BACKEND} STREQUAL Python)
             CACHE STRING "" FORCE)
 
         set(DEVOPS_LIBS_LIBPATH
-            "${SCRIPTX_TEST_LIBS}/python/win64/python310.lib"
+            "${SCRIPTX_TEST_LIBS}/python/win64/python310_d.lib"
             CACHE STRING "" FORCE)
 
         add_custom_command(TARGET UnitTests POST_BUILD

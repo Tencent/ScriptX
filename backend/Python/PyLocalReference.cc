@@ -34,11 +34,11 @@ void valueConstructorCheck(PyObject* value) {
 }  // namespace py_backend
 
 #define REF_IMPL_BASIC_FUNC(ValueType)                                                           \
-  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(py_backend::incRef(copy.val_)) {} \
+  Local<ValueType>::Local(const Local<ValueType>& copy) : val_(Py_NewRef(copy.val_)) {} \
   Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {                  \
     move.val_ = nullptr;                                                                         \
   }                                                                                              \
-  Local<ValueType>::~Local() { py_backend::decRef(val_); }                                       \
+  Local<ValueType>::~Local() { Py_XDECREF(val_); }                                       \
   Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                             \
     Local(from).swap(*this);                                                                     \
     return *this;                                                                                \
@@ -55,14 +55,14 @@ void valueConstructorCheck(PyObject* value) {
   }
 
 #define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                         \
-  Local<ValueType>::Local(InternalLocalRef val) : val_(py_backend::incRef(val)) {   \
+  Local<ValueType>::Local(InternalLocalRef val) : val_(Py_NewRef(val)) {   \
     py_backend::valueConstructorCheck(val);                                         \
   }                                                                                 \
   Local<String> Local<ValueType>::describe() const { return asValue().describe(); } \
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
-  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(py_backend::incRef(val_)); }
+  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(Py_NewRef(val_)); }
 
 REF_IMPL_BASIC_FUNC(Value)
 
@@ -108,14 +108,16 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 // ==== value ====
 
-Local<Value>::Local() noexcept : val_(nullptr) {}
+Local<Value>::Local() noexcept : val_(Py_NewRef(Py_None)) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(ref) {}
+Local<Value>::Local(InternalLocalRef ref) : val_(ref) {
+  if (ref == nullptr) throw Exception("Python exception occurred!");
+}
 
 bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
 void Local<Value>::reset() {
-  py_backend::decRef(val_);
+  Py_DECREF(val_);
   val_ = nullptr;
 }
 
@@ -141,21 +143,22 @@ ValueKind Local<Value>::getKind() const {
   }
 }
 
-bool Local<Value>::isString() const { return PyUnicode_Check(val_); }
+bool Local<Value>::isString() const { return PyUnicode_CheckExact(val_); }
 
-bool Local<Value>::isNumber() const { return PyNumber_Check(val_); }
+bool Local<Value>::isNumber() const { return PyLong_CheckExact(val_) || PyFloat_CheckExact(val_); }
 
 bool Local<Value>::isBoolean() const { return PyBool_Check(val_); }
 
-bool Local<Value>::isFunction() const { return PyCallable_Check(val_); }
+bool Local<Value>::isFunction() const { return PyFunction_Check(val_) || PyCFunction_CheckExact(val_); }
 
-bool Local<Value>::isArray() const { return PyList_Check(val_); }
+bool Local<Value>::isArray() const { return PyList_CheckExact(val_); }
 
-bool Local<Value>::isByteBuffer() const { return PyByteArray_Check(val_); }
+bool Local<Value>::isByteBuffer() const { return PyBytes_CheckExact(val_); }
 
-bool Local<Value>::isObject() const { return PyDict_Check(val_); }
+// Object can be dict or class
+bool Local<Value>::isObject() const { return PyDict_CheckExact(val_) || PyType_CheckExact(val_); }
 
-bool Local<Value>::isUnsupported() const { return val_ == nullptr; }
+bool Local<Value>::isUnsupported() const { return getKind() == ValueKind::kUnsupported; }
 
 Local<String> Local<Value>::asString() const {
   if (isString()) return Local<String>(val_);
@@ -193,6 +196,7 @@ Local<Object> Local<Value>::asObject() const {
 }
 
 Local<Unsupported> Local<Value>::asUnsupported() const {
+  if (isUnsupported()) return Local<Unsupported>(val_);
   throw Exception("can't cast value as Unsupported");
 }
 
@@ -200,14 +204,14 @@ bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
   return PyObject_RichCompareBool(val_, other.val_, Py_EQ);
 }
 
-Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Repr(val_)); }
+Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Str(val_)); }
 
 Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
   PyObject* item = PyDict_GetItem(val_, key.val_);
   if (item)
     return py_interop::toLocal<Value>(item);
   else
-    return py_interop::toLocal<Value>(Py_None);
+    return Local<Value>();
 }
 
 void Local<Object>::set(const script::Local<script::String>& key,
@@ -255,22 +259,31 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
     PyTuple_SetItem(args_tuple, i, args[i].val_);
   }
   PyObject* result = PyObject_CallObject(val_, args_tuple);
-  py_backend::decRef(args_tuple);
+  Py_DECREF(args_tuple);
   return py_interop::asLocal<Value>(result);
 }
 
 size_t Local<Array>::size() const { return PyList_Size(val_); }
 
 Local<Value> Local<Array>::get(size_t index) const {
-  return py_interop::toLocal<Value>(PyList_GetItem(val_, index));
+  PyObject* item = PyList_GetItem(val_, index);
+  if (item)
+    return py_interop::toLocal<Value>(item);
+  else
+    return Local<Value>();
 }
 
 void Local<Array>::set(size_t index, const script::Local<script::Value>& value) const {
-  PyList_SetItem(val_, index, value.val_);
+  size_t listSize = size();
+  if (index >= listSize)
+    for (size_t i = listSize; i <= index; ++i) {
+      PyList_Append(val_, Py_None);
+    }
+  PyList_SetItem(val_, index, py_interop::getPy(value));
 }
 
 void Local<Array>::add(const script::Local<script::Value>& value) const {
-  PyList_Append(val_, value.val_);
+  PyList_Append(val_, py_interop::peekPy(value));
 }
 
 void Local<Array>::clear() const { PyList_SetSlice(val_, 0, PyList_Size(val_), nullptr); }

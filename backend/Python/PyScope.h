@@ -23,23 +23,24 @@ namespace script::py_backend {
 
 class PyEngine;
 
-class PyEngineScopeImpl {
+class EngineScopeImpl {
+    PyEngine* managedEngine;
  public:
-  explicit PyEngineScopeImpl(PyEngine &, PyEngine *);
+  explicit EngineScopeImpl(PyEngine &, PyEngine *);
 
-  ~PyEngineScopeImpl();
+  ~EngineScopeImpl();
 };
 
-class PyExitEngineScopeImpl {
+class ExitEngineScopeImpl {
  public:
-  explicit PyExitEngineScopeImpl(PyEngine &);
+  explicit ExitEngineScopeImpl(PyEngine &);
 
-  ~PyExitEngineScopeImpl() = default;
+  ~ExitEngineScopeImpl() = default;
 };
 
-class PyStackFrameScopeImpl {
+class StackFrameScopeImpl {
  public:
-  explicit PyStackFrameScopeImpl(PyEngine &) {}
+  explicit StackFrameScopeImpl(PyEngine &) {}
 
   template <typename T>
   Local<T> returnValue(const Local<T> &localRef) {
