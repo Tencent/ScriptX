@@ -42,6 +42,17 @@ struct ExceptionInfo {
   PyObject* pTraceback;
 };
 
+struct GeneralObject : PyObject {
+  void* instance;
+  PyObject* weakrefs;
+
+  template <typename T>
+  static T* getInstance(PyObject* self) {
+    return reinterpret_cast<T*>(reinterpret_cast<GeneralObject*>(self)->instance);
+  }
+
+};
+
 void setAttr(PyObject* obj, PyObject* key, PyObject* value);
 void setAttr(PyObject* obj, const char* key, PyObject* value);
 PyObject* getAttr(PyObject* obj, PyObject* key);
@@ -56,14 +67,11 @@ PyObject* toStr(const std::string& s);
 
 class PyEngine;
 
-PyObject* checkException(PyObject* obj);
-void checkException();
+void checkPyErr();
 void rethrowException(const Exception& exception);
 PyEngine* currentEngine();
-PyEngine& currentEngineChecked();
+PyEngine* currentEngineChecked();
 
-/**
- * @return borrowed ref
- */
+// @return borrowed ref
 PyObject* getGlobalDict();
 }  // namespace script::py_backend

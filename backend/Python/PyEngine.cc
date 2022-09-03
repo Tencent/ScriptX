@@ -26,13 +26,14 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0) {
     Py_SetStandardStreamEncoding("utf-8", nullptr);
-    //  Python not initialized. Init main interpreter
+    // Python not initialized. Init main interpreter
     Py_InitializeEx(0);
     // Init threading environment
     PyEval_InitThreads();
     // Initialize type
-    g_namespace_type = makeNamespaceType();
-    g_static_property_type = makeStaticPropertyType();
+    namespaceType_ = makeNamespaceType();
+    staticPropertyType_ = makeStaticPropertyType();
+    defaultMetaType_ = makeDefaultMetaclass();
     //  Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
   }
@@ -41,7 +42,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   PyThreadState* oldState = PyThreadState_Swap(mainThreadState_);
 
   // If GIL is released, lock it
-  if (PyEngine::engineEnterCount == 0) {
+  if (PyEngine::engineEnterCount_ == 0) {
     PyEval_AcquireLock();
   }
   // Create new interpreter
@@ -52,7 +53,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   subInterpreterState_ = newSubState->interp;
 
   // If GIL is released before, unlock it
-  if (PyEngine::engineEnterCount == 0) {
+  if (PyEngine::engineEnterCount_ == 0) {
     PyEval_ReleaseLock();
   }
   // Store created new sub thread state & recover old thread state stored before
@@ -65,7 +66,7 @@ PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
   ScriptEngine::destroyUserData();  // TODO: solve this problem about Py_EndInterpreter
-  /*if (PyEngine::engineEnterCount == 0) {
+  /*if (PyEngine::engineEnterCount_ == 0) {
     // GIL is not locked. Just lock it
     PyEval_AcquireLock();
   }
@@ -75,7 +76,7 @@ void PyEngine::destroy() noexcept {
   // Recover old thread state
   PyThreadState_Swap(oldThreadState);
 
-  if (PyEngine::engineEnterCount == 0) {
+  if (PyEngine::engineEnterCount_ == 0) {
       // Unlock the GIL because it is not locked before
       PyEval_ReleaseLock();
   }*/
@@ -93,7 +94,7 @@ void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
   int result =
       PyDict_SetItemString(getGlobalDict(), key.toStringHolder().c_str(), py_interop::getPy(value));
   if (result != 0) {
-    checkException();
+    checkPyErr();
   }
 }
 
@@ -113,7 +114,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
     oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
-  checkException();
+  checkPyErr();
   return py_interop::asLocal<Value>(result);
 }
 

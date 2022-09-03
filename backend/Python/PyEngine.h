@@ -39,7 +39,7 @@ class PyEngine : public ScriptEngine {
   // Sub interpreter storage
   PyInterpreterState* subInterpreterState_;
   // Sub thread state of this sub interpreter (in TLS)
-  PyTssStorage<PyThreadState> subThreadState_;
+  TssStorage<PyThreadState> subThreadState_;
 
   // When you use EngineScope to enter a new engine(subinterpreter)
   // and find that there is an existing thread state owned by another engine,
@@ -50,13 +50,13 @@ class PyEngine : public ScriptEngine {
   // Record global EngineScope enter times to determine
   // whether it is needed to unlock GIL when exit EngineScope
   // -- see more comments in "PyScope.cc"
-  inline static int engineEnterCount;
-
-  friend class PyEngineScopeImpl;
-  friend class PyExitEngineScopeImpl;
-  friend void scriptx_meta_dealloc(PyObject* obj);
+  inline static int engineEnterCount_ = 0;
 
  public:
+  inline static PyTypeObject* staticPropertyType_ = nullptr;
+  inline static PyTypeObject* namespaceType_ = nullptr;
+  inline static PyTypeObject* defaultMetaType_ = nullptr;
+
   PyEngine(std::shared_ptr<::script::utils::MessageQueue> queue);
 
   PyEngine();
@@ -114,7 +114,7 @@ class PyEngine : public ScriptEngine {
           sub = PyDict_GetItemString(nameSpaceObj, key.c_str());
           if (sub == nullptr) {
             PyObject* args = PyTuple_New(0);
-            PyTypeObject* type = reinterpret_cast<PyTypeObject*>(g_namespace_type);
+            PyTypeObject* type = reinterpret_cast<PyTypeObject*>(namespaceType_);
             sub = type->tp_new(type, args, nullptr);
             Py_DECREF(args);
             PyDict_SetItemString(nameSpaceObj, key.c_str(), sub);
@@ -125,7 +125,7 @@ class PyEngine : public ScriptEngine {
             sub = getAttr(nameSpaceObj, key.c_str());
           } else {
             PyObject* args = PyTuple_New(0);
-            PyTypeObject* type = reinterpret_cast<PyTypeObject*>(g_namespace_type);
+            PyTypeObject* type = reinterpret_cast<PyTypeObject*>(namespaceType_);
             sub = type->tp_new(type, args, nullptr);
             Py_DECREF(args);
             setAttr(nameSpaceObj, key.c_str(), sub);
@@ -142,11 +142,11 @@ class PyEngine : public ScriptEngine {
   void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->staticDefine.properties) {
       PyObject* doc = toStr("");
-      PyObject* args = PyTuple_Pack(
-          4, warpGetter(property.name.c_str(), nullptr, METH_VARARGS, property.getter),
-          warpSetter(property.name.c_str(), nullptr, METH_VARARGS, property.setter), Py_None, doc);
+      PyObject* args =
+          PyTuple_Pack(4, warpGetter(property.name.c_str(), property.getter),
+                       warpSetter(property.name.c_str(), property.setter), Py_None, doc);
       Py_DECREF(doc);
-      PyObject* warpped_property = PyObject_Call((PyObject*)g_static_property_type, args, nullptr);
+      PyObject* warpped_property = PyObject_Call((PyObject*)staticPropertyType_, args, nullptr);
       setAttr(type, property.name.c_str(), warpped_property);
     }
   }
@@ -155,10 +155,9 @@ class PyEngine : public ScriptEngine {
   void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->instanceDefine.properties) {
       PyObject* doc = toStr("");
-      PyObject* args = PyTuple_Pack(
-          4, warpInstanceGetter(property.name.c_str(), nullptr, METH_VARARGS, property.getter),
-          warpInstanceSetter(property.name.c_str(), nullptr, METH_VARARGS, property.setter),
-          Py_None, doc);
+      PyObject* args =
+          PyTuple_Pack(4, warpInstanceGetter(property.name.c_str(), property.getter),
+                       warpInstanceSetter(property.name.c_str(), property.setter), Py_None, doc);
       Py_DECREF(doc);
       PyObject* warpped_property = PyObject_Call((PyObject*)&PyProperty_Type, args, nullptr);
       setAttr(type, property.name.c_str(), warpped_property);
@@ -168,8 +167,7 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerStaticFunction(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& method : classDefine->staticDefine.functions) {
-      PyObject* function = PyStaticMethod_New(
-          warpFunction(method.name.c_str(), nullptr, METH_VARARGS, method.callback));
+      PyObject* function = PyStaticMethod_New(warpFunction(method.name.c_str(), method.callback));
       setAttr(type, method.name.c_str(), function);
     }
   }
@@ -177,8 +175,8 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& method : classDefine->instanceDefine.functions) {
-      PyObject* function = PyInstanceMethod_New(
-          warpInstanceFunction(method.name.c_str(), nullptr, METH_VARARGS, method.callback));
+      PyObject* function =
+          PyInstanceMethod_New(warpInstanceFunction(method.name.c_str(), method.callback));
       setAttr(type, method.name.c_str(), function);
     }
   }
@@ -187,62 +185,56 @@ class PyEngine : public ScriptEngine {
   void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
     bool constructable = bool(classDefine->instanceDefine.constructor);
 
-    auto* res = (PyHeapTypeObject*)PyType_GenericAlloc(&PyType_Type, 0);
-    if (!res) {
+    auto name_obj = toStr(classDefine->className.c_str());
+
+    auto* heap_type = (PyHeapTypeObject*)PyType_GenericAlloc(PyEngine::defaultMetaType_, 0);
+    if (!heap_type) {
       Py_FatalError("error allocating type!");
     }
 
-    res->ht_name = toStr(classDefine->className.c_str());
-    res->ht_qualname = toStr(classDefine->className.c_str());
+    heap_type->ht_name = Py_NewRef(name_obj);
+    heap_type->ht_qualname = Py_NewRef(name_obj);
 
-    auto* type = &res->ht_type;
+    auto* type = &heap_type->ht_type;
     type->tp_name = classDefine->className.c_str();
-
-    type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE;
-    if (!constructable) type->tp_flags |= Py_TPFLAGS_DISALLOW_INSTANTIATION;
-
+    Py_INCREF(&PyBaseObject_Type);
     type->tp_base = &PyBaseObject_Type;
-    type->tp_basicsize = sizeof(ScriptXPyObject<T>);
+    type->tp_basicsize = static_cast<Py_ssize_t>(sizeof(GeneralObject));
+    type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
 
-    /* Initialize essential fields */
-    type->tp_as_async = &res->as_async;
-    type->tp_as_number = &res->as_number;
-    type->tp_as_sequence = &res->as_sequence;
-    type->tp_as_mapping = &res->as_mapping;
-    type->tp_as_buffer = &res->as_buffer;
+    type->tp_new = [](PyTypeObject* type, PyObject* args, PyObject* kwds) -> PyObject* {
+      PyObject* self = type->tp_alloc(type, 0);
+      auto* thiz = reinterpret_cast<GeneralObject*>(self);
+      auto engine = currentEngine();
+      auto classDefine =
+          reinterpret_cast<const ClassDefine<T>*>(engine->registeredTypesReverse_[self->ob_type]);
+      if (classDefine->instanceDefine.constructor) {
+        thiz->instance =
+            classDefine->instanceDefine.constructor(py_interop::makeArguments(engine, self, args));
+      } else {
+        throw Exception("the class has no constructor");
+      }
+      return self;
+    };
+    type->tp_init = [](PyObject* self, PyObject*, PyObject*) -> int {
+      PyTypeObject* type = Py_TYPE(self);
+      std::string msg = std::string(type->tp_name) + ": No constructor defined!";
+      PyErr_SetString(PyExc_TypeError, msg.c_str());
+      return -1;
+    };
+    type->tp_dealloc = [](PyObject* self) {
+      auto* type = Py_TYPE(self);
+      type->tp_free(self);
+      Py_DECREF(type);
+    };
 
-    // type->tp_setattro = &scriptx_meta_setattro;
-    // type->tp_getattro = &scriptx_meta_getattro;
-
-    if (constructable) {
-      type->tp_new = static_cast<newfunc>(
-          [](PyTypeObject* subtype, PyObject* args, PyObject* kwds) -> PyObject* {
-            PyObject* thiz = subtype->tp_alloc(subtype, subtype->tp_basicsize);
-            subtype->tp_init(thiz, args, kwds);
-            return thiz;
-          });
-      type->tp_dealloc = static_cast<destructor>([](PyObject* self) {
-        auto thiz = reinterpret_cast<ScriptXPyObject<T>*>(self);
-        delete thiz->instance;
-        Py_TYPE(self)->tp_free(self);
-      });
-      type->tp_init =
-          static_cast<initproc>([](PyObject* self, PyObject* args, PyObject* kwds) -> int {
-            auto engine = currentEngine();
-            auto classDefine = reinterpret_cast<const ClassDefine<T>*>(
-                engine->registeredTypesReverse_[self->ob_type]);
-            auto thiz = reinterpret_cast<ScriptXPyObject<T>*>(self);
-            if (classDefine->instanceDefine.constructor) {
-              thiz->instance = classDefine->instanceDefine.constructor(
-                  py_interop::makeArguments(engine, self, args));
-            }
-            return 0;
-          });
-    }
+    /* Support weak references (needed for the keep_alive feature) */
+    type->tp_weaklistoffset = offsetof(GeneralObject, weakrefs);
 
     if (PyType_Ready(type) < 0) {
-      Py_FatalError("failure in PyType_Ready()!");
+      Py_FatalError("PyType_Ready failed in make_object_base_type()");
     }
+
     setAttr((PyObject*)type, "__module__", toStr("scriptx_builtins"));
 
     this->registerStaticProperty(classDefine, (PyObject*)type);
@@ -280,7 +272,7 @@ class PyEngine : public ScriptEngine {
     if (!isInstanceOfImpl(value, classDefine)) {
       throw Exception("Unmatched type of the value!");
     }
-    return reinterpret_cast<ScriptXPyObject<T>*>(py_interop::peekPy(value))->instance;
+    return GeneralObject::getInstance<T>(py_interop::peekPy(value));
   }
 
  private:
@@ -310,6 +302,10 @@ class PyEngine : public ScriptEngine {
   friend class ::script::ScriptClass;
 
   friend class EngineScopeImpl;
+
+  friend class ExitEngineScopeImpl;
+
+  friend PyTypeObject* makeDefaultMetaclass();
 };
 
 }  // namespace script::py_backend
