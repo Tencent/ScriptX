@@ -22,17 +22,16 @@
 namespace script {
 
 template <typename T>
-Global<T>::Global() noexcept : val_(py_backend::incRef(Py_None)) {}
+Global<T>::Global() noexcept : val_(Py_NewRef(Py_None)) {}
 
 template <typename T>
-Global<T>::Global(const script::Local<T>& localReference)
-    : val_(py_backend::incRef(localReference.val_)) {}
+Global<T>::Global(const script::Local<T>& localReference) : val_(Py_NewRef(localReference.val_)) {}
 
 template <typename T>
-Global<T>::Global(const script::Weak<T>& weak) : val_(py_backend::incRef(weak.val_)) {}
+Global<T>::Global(const script::Weak<T>& weak) : val_(Py_NewRef(weak.val_)) {}
 
 template <typename T>
-Global<T>::Global(const script::Global<T>& copy) : val_(py_backend::incRef(copy.val_)) {}
+Global<T>::Global(const script::Global<T>& copy) : val_(Py_NewRef(copy.val_)) {}
 
 template <typename T>
 Global<T>::Global(script::Global<T>&& move) noexcept : val_(std::move(move.val_)) {}
@@ -80,7 +79,7 @@ bool Global<T>::isEmpty() const {
 
 template <typename T>
 void Global<T>::reset() {
-  py_backend::decRef(val_);
+  Py_XDECREF(val_);
   val_ = nullptr;
 }
 

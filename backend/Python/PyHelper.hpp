@@ -30,7 +30,7 @@ struct py_interop {
    */
   template <typename T>
   static Local<T> toLocal(PyObject* ref) {
-    return Local<T>(py_backend::incRef(ref));
+    return Local<T>(Py_NewRef(ref));
   }
 
   /**
@@ -46,7 +46,7 @@ struct py_interop {
    */
   template <typename T>
   static PyObject* getPy(const Local<T>& ref) {
-    return py_backend::incRef(ref.val_);
+    return Py_NewRef(ref.val_);
   }
 
   /**
@@ -126,7 +126,7 @@ inline PyObject* warpFunction(const char* name, const char* doc, int flags,
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
-  decRef(capsule);
+  Py_DECREF(capsule);
   checkException(closure);
 
   return closure;
@@ -158,7 +158,7 @@ inline PyObject* warpInstanceFunction(const char* name, const char* doc, int fla
             PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
             auto ret =
                 data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
-            decRef(real_args);
+            Py_DECREF(real_args);
             return py_interop::peekPy(ret);
           } catch (const Exception& e) {
             rethrowException(e);
@@ -176,7 +176,7 @@ inline PyObject* warpInstanceFunction(const char* name, const char* doc, int fla
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
-  decRef(capsule);
+  Py_DECREF(capsule);
   checkException(closure);
 
   return closure;
@@ -219,7 +219,7 @@ inline PyObject* warpGetter(const char* name, const char* doc, int flags, Getter
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
-  decRef(capsule);
+  Py_DECREF(capsule);
   checkException(closure);
 
   return closure;
@@ -265,7 +265,7 @@ inline PyObject* warpInstanceGetter(const char* name, const char* doc, int flags
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
-  decRef(capsule);
+  Py_DECREF(capsule);
   checkException(closure);
 
   return closure;
@@ -309,7 +309,7 @@ inline PyObject* warpSetter(const char* name, const char* doc, int flags, Setter
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
-  decRef(capsule);
+  Py_DECREF(capsule);
   checkException(closure);
 
   return closure;
@@ -356,7 +356,7 @@ PyObject* warpInstanceSetter(const char* name, const char* doc, int flags,
   callbackIns = nullptr;
 
   PyObject* closure = PyCFunction_New(method, capsule);
-  decRef(capsule);
+  Py_DECREF(capsule);
   checkException(closure);
 
   return closure;
@@ -370,47 +370,11 @@ PyTypeObject* makeGenericType(const char* name);
 
 inline PyTypeObject* g_static_property_type = nullptr;
 inline PyTypeObject* g_namespace_type = nullptr;
-inline constexpr auto* g_class_define_string = "class_define";
 
-/** Types with static properties need to handle `Type.static_prop = x` in a specific way.
-    By default, Python replaces the `static_property` itself, but for wrapped C++ types
-    we need to call `static_property.__set__()` in order to propagate the new value to
-    the underlying C++ data structure. */
-extern "C" inline int scriptx_meta_setattro(PyObject* obj, PyObject* name, PyObject* value) {
-  // Use `_PyType_Lookup()` instead of `PyObject_GetAttr()` in order to get the raw
-  // descriptor (`property`) instead of calling `tp_descr_get` (`property.__get__()`).
-  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
+/** This metaclass is assigned by default to all scriptx types and is required in order
+    for static properties to function correctly. Users may override this using `py::metaclass`.
+    Return value: New reference. */
+PyTypeObject* make_default_metaclass();
 
-  // The following assignment combinations are possible:
-  //   1. `Type.static_prop = value`             --> descr_set: `Type.static_prop.__set__(value)`
-  //   2. `Type.static_prop = other_static_prop` --> setattro:  replace existing `static_prop`
-  //   3. `Type.regular_attribute = value`       --> setattro:  regular attribute assignment
-  auto* const static_prop = (PyObject*)g_static_property_type;
-  const auto call_descr_set = (descr != nullptr) && (value != nullptr) &&
-                              (PyObject_IsInstance(descr, static_prop) != 0) &&
-                              (PyObject_IsInstance(value, static_prop) == 0);
-  if (call_descr_set) {
-    // Call `static_property.__set__()` instead of replacing the `static_property`.
-    return Py_TYPE(descr)->tp_descr_set(descr, obj, value);
-  } else {
-    // Replace existing attribute.
-    return PyType_Type.tp_setattro(obj, name, value);
-  }
-}
-
-/**
- * Python 3's PyInstanceMethod_Type hides itself via its tp_descr_get, which prevents aliasing
- * methods via cls.attr("m2") = cls.attr("m1"): instead the tp_descr_get returns a plain function,
- * when called on a class, or a PyMethod, when called on an instance.  Override that behaviour here
- * to do a special case bypass for PyInstanceMethod_Types.
- */
-extern "C" inline PyObject* scriptx_meta_getattro(PyObject* obj, PyObject* name) {
-  PyObject* descr = _PyType_Lookup((PyTypeObject*)obj, name);
-  if (descr && PyInstanceMethod_Check(descr)) {
-    Py_INCREF(descr);
-    return descr;
-  }
-  return PyType_Type.tp_getattro(obj, name);
-}
 }  // namespace py_backend
 }  // namespace script
