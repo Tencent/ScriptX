@@ -138,8 +138,153 @@ class PyEngine : public ScriptEngine {
     }
   }
 
+  inline PyObject* warpGetter(const char* name, GetterCallback callback) {
+    struct FunctionData {
+      GetterCallback function;
+      PyEngine* engine;
+    };
+
+    PyMethodDef* method = new PyMethodDef;
+    method->ml_name = name;
+    method->ml_flags = METH_VARARGS;
+    method->ml_doc = nullptr;
+    method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+      auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+      try {
+        return py_interop::peekPy(data->function());
+      } catch (const Exception& e) {
+        rethrowException(e);
+      }
+      return nullptr;
+    };
+
+    PyCapsule_Destructor destructor = [](PyObject* cap) {
+      void* ptr = PyCapsule_GetPointer(cap, nullptr);
+      delete static_cast<FunctionData*>(ptr);
+    };
+    PyObject* capsule =
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+    checkPyErr();
+
+    PyObject* function = PyCFunction_New(method, capsule);
+    Py_DECREF(capsule);
+    checkPyErr();
+    return function;
+  }
+
   template <typename T>
-  void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
+  inline PyObject* warpInstanceGetter(const char* name, InstanceGetterCallback<T> callback) {
+    struct FunctionData {
+      InstanceGetterCallback<T> function;
+      PyEngine* engine;
+    };
+
+    PyMethodDef* method = new PyMethodDef;
+    method->ml_name = name;
+    method->ml_flags = METH_VARARGS;
+    method->ml_doc = nullptr;
+    method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+      auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+      try {
+        T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+        return py_interop::peekPy(data->function(thiz));
+      } catch (const Exception& e) {
+        rethrowException(e);
+      }
+      return nullptr;
+    };
+
+    PyCapsule_Destructor destructor = [](PyObject* cap) {
+      void* ptr = PyCapsule_GetPointer(cap, nullptr);
+      delete static_cast<FunctionData*>(ptr);
+    };
+    PyObject* capsule =
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+    checkPyErr();
+
+    PyObject* function = PyCFunction_New(method, capsule);
+    Py_DECREF(capsule);
+    checkPyErr();
+
+    return function;
+  }
+
+  inline PyObject* warpSetter(const char* name, SetterCallback callback) {
+    struct FunctionData {
+      SetterCallback function;
+      PyEngine* engine;
+    };
+
+    PyMethodDef* method = new PyMethodDef;
+    method->ml_name = name;
+    method->ml_flags = METH_VARARGS;
+    method->ml_doc = nullptr;
+    method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+      auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+      try {
+        data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
+        Py_RETURN_NONE;
+      } catch (const Exception& e) {
+        rethrowException(e);
+      }
+      return nullptr;
+    };
+
+    PyCapsule_Destructor destructor = [](PyObject* cap) {
+      void* ptr = PyCapsule_GetPointer(cap, nullptr);
+      delete static_cast<FunctionData*>(ptr);
+    };
+    PyObject* capsule =
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+    checkPyErr();
+
+    PyObject* function = PyCFunction_New(method, capsule);
+    Py_DECREF(capsule);
+    checkPyErr();
+
+    return function;
+  }
+
+  template <typename T>
+  inline PyObject* warpInstanceSetter(const char* name, InstanceSetterCallback<T> callback) {
+    struct FunctionData {
+      InstanceSetterCallback<T> function;
+      PyEngine* engine;
+    };
+
+    PyMethodDef* method = new PyMethodDef;
+    method->ml_name = name;
+    method->ml_flags = METH_VARARGS;
+    method->ml_doc = nullptr;
+    method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+      auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+      try {
+        T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+        data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
+        Py_RETURN_NONE;
+      } catch (const Exception& e) {
+        rethrowException(e);
+      }
+      return nullptr;
+    };
+
+    PyCapsule_Destructor destructor = [](PyObject* cap) {
+      void* ptr = PyCapsule_GetPointer(cap, nullptr);
+      delete static_cast<FunctionData*>(ptr);
+    };
+    PyObject* capsule =
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+    checkPyErr();
+
+    PyObject* function = PyCFunction_New(method, capsule);
+    Py_DECREF(capsule);
+    checkPyErr();
+
+    return function;
+  }
+
+  template <typename T>
+  inline void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->staticDefine.properties) {
       PyObject* doc = toStr("");
       PyObject* args =
@@ -152,7 +297,7 @@ class PyEngine : public ScriptEngine {
   }
 
   template <typename T>
-  void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
+  inline void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->instanceDefine.properties) {
       PyObject* doc = toStr("");
       PyObject* args =
@@ -165,19 +310,82 @@ class PyEngine : public ScriptEngine {
   }
 
   template <typename T>
-  void registerStaticFunction(const ClassDefine<T>* classDefine, PyObject* type) {
-    for (const auto& method : classDefine->staticDefine.functions) {
-      PyObject* function = PyStaticMethod_New(warpFunction(method.name.c_str(), method.callback));
-      setAttr(type, method.name.c_str(), function);
+  inline void registerStaticFunction(const ClassDefine<T>* classDefine, PyObject* type) {
+    for (const auto& f : classDefine->staticDefine.functions) {
+      struct FunctionData {
+        FunctionCallback function;
+        py_backend::PyEngine* engine;
+      };
+
+      PyMethodDef* method = new PyMethodDef;
+      method->ml_name = f.name.c_str();
+      method->ml_flags = METH_VARARGS;
+      method->ml_doc = nullptr;
+      method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+        auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+        try {
+          return py_interop::peekPy(
+              data->function(py_interop::makeArguments(data->engine, self, args)));
+        } catch (const Exception& e) {
+          rethrowException(e);
+        }
+        return nullptr;
+      };
+
+      PyCapsule_Destructor destructor = [](PyObject* cap) {
+        void* ptr = PyCapsule_GetPointer(cap, nullptr);
+        delete static_cast<FunctionData*>(ptr);
+      };
+      PyObject* capsule =
+          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
+      checkPyErr();
+
+      PyObject* function = PyCFunction_New(method, capsule);
+      Py_DECREF(capsule);
+      checkPyErr();
+
+      setAttr(type, f.name.c_str(), PyStaticMethod_New(function));
     }
   }
 
   template <typename T>
-  void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
-    for (const auto& method : classDefine->instanceDefine.functions) {
-      PyObject* function =
-          PyInstanceMethod_New(warpInstanceFunction(method.name.c_str(), method.callback));
-      setAttr(type, method.name.c_str(), function);
+  inline void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
+    for (const auto& f : classDefine->instanceDefine.functions) {
+      struct FunctionData {
+        InstanceFunctionCallback<T> function;
+        py_backend::PyEngine* engine;
+      };
+
+      PyMethodDef* method = new PyMethodDef;
+      method->ml_name = f.name.c_str();
+      method->ml_flags = METH_VARARGS;
+      method->ml_doc = nullptr;
+      method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+        auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+        try {
+          T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+          PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
+          auto ret = data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
+          Py_DECREF(real_args);
+          return py_interop::peekPy(ret);
+        } catch (const Exception& e) {
+          rethrowException(e);
+        }
+        return nullptr;
+      };
+
+      PyCapsule_Destructor destructor = [](PyObject* cap) {
+        void* ptr = PyCapsule_GetPointer(cap, nullptr);
+        delete static_cast<FunctionData*>(ptr);
+      };
+      PyObject* capsule =
+          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
+      checkPyErr();
+
+      PyObject* function = PyCFunction_New(method, capsule);
+      Py_DECREF(capsule);
+      checkPyErr();
+      setAttr(type, f.name.c_str(), PyInstanceMethod_New(function));
     }
   }
 
