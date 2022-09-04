@@ -64,9 +64,46 @@ void delAttr(PyObject* obj, const char* key) {
   }
 }
 
+void setDictItem(PyObject* obj, PyObject* key, PyObject* value) {
+  if (PyDict_SetItem(obj, key, value) != 0) {
+    throw Exception();
+  }
+}
+
+void setDictItem(PyObject* obj, const char* key, PyObject* value) {
+  if (PyDict_SetItemString(obj, key, value) != 0) {
+    throw Exception();
+  }
+}
+
+PyObject* getDictItem(PyObject* obj, PyObject* key) {
+  PyObject* rv = PyDict_GetItemWithError(obj, key);
+  if (rv == nullptr && PyErr_Occurred()) {
+    throw Exception();
+  }
+  return rv;
+}
+
+PyObject* getDictItem(PyObject* obj, const char* key) {
+  PyObject *kv = nullptr, *rv = nullptr;
+  kv = PyUnicode_FromString(key);
+  if (kv == nullptr) {
+    throw Exception();
+  }
+
+  rv = PyDict_GetItemWithError(obj, kv);
+  Py_DECREF(kv);
+  if (rv == nullptr && PyErr_Occurred()) {
+    throw Exception();
+  }
+  return rv;
+}
+
 PyObject* toStr(const char* s) { return PyUnicode_FromString(s); }
 
 PyObject* toStr(const std::string& s) { return PyUnicode_FromStringAndSize(s.c_str(), s.size()); }
+
+std::string fromStr(PyObject* s) { return PyUnicode_Check(s) ? PyUnicode_AsUTF8(s) : ""; }
 
 void checkPyErr() {
   if (PyErr_Occurred()) {
@@ -89,8 +126,6 @@ void checkPyErr() {
   }
 }
 
-void rethrowException(const Exception& exception) { throw exception; }
-
 PyEngine* currentEngine() { return EngineScope::currentEngineAs<PyEngine>(); }
 
 PyEngine* currentEngineChecked() { return &EngineScope::currentEngineCheckedAs<PyEngine>(); }
@@ -101,15 +136,6 @@ PyObject* getGlobalDict() {
     throw Exception("can't find __main__ module");
   }
   return PyModule_GetDict(m);
-}
-
-inline PyObject* scriptx_static_get(PyObject* self, PyObject* /*ob*/, PyObject* cls) {
-  return PyProperty_Type.tp_descr_get(self, cls, cls);
-}
-
-inline int scriptx_static_set(PyObject* self, PyObject* obj, PyObject* value) {
-  PyObject* cls = PyType_Check(obj) ? obj : (PyObject*)Py_TYPE(obj);
-  return PyProperty_Type.tp_descr_set(self, cls, value);
 }
 
 inline PyObject* scriptx_get_dict(PyObject* self, void*) {
@@ -133,59 +159,50 @@ inline int scriptx_set_dict(PyObject* self, PyObject* new_dict, void*) {
   return 0;
 }
 
-inline int scriptx_traverse(PyObject* self, visitproc visit, void* arg) {
-  PyObject*& dict = *_PyObject_GetDictPtr(self);
-  Py_VISIT(dict);
-// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_traverse
-#if PY_VERSION_HEX >= 0x03090000
-  Py_VISIT(Py_TYPE(self));
-#endif
-  return 0;
-}
-
-inline int scriptx_clear(PyObject* self) {
-  PyObject*& dict = *_PyObject_GetDictPtr(self);
-  Py_CLEAR(dict);
-  return 0;
-}
-
 PyTypeObject* makeStaticPropertyType() {
   constexpr auto* name = "static_property";
+  auto name_obj = toStr(name);
 
   auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
   if (!heap_type) {
     Py_FatalError("error allocating type!");
   }
 
-  heap_type->ht_name = PyUnicode_InternFromString(name);
-  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+  heap_type->ht_name = Py_NewRef(name_obj);
+  heap_type->ht_qualname = Py_NewRef(name_obj);
 
   auto* type = &heap_type->ht_type;
   type->tp_name = name;
   type->tp_base = &PyProperty_Type;
   type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
-  type->tp_descr_get = &scriptx_static_get;
-  type->tp_descr_set = &scriptx_static_set;
+  type->tp_descr_get = [](PyObject* self, PyObject* /*ob*/, PyObject* cls) {
+    return PyProperty_Type.tp_descr_get(self, cls, cls);
+  };
+  type->tp_descr_set = [](PyObject* self, PyObject* obj, PyObject* value) {
+    PyObject* cls = PyType_Check(obj) ? obj : (PyObject*)Py_TYPE(obj);
+    return PyProperty_Type.tp_descr_set(self, cls, value);
+  };
 
   if (PyType_Ready(type) < 0) {
     Py_FatalError("failure in PyType_Ready()!");
   }
 
-  setAttr((PyObject*)type, "__module__", PyUnicode_InternFromString("scriptx_builtins"));
+  setAttr((PyObject*)type, "__module__", toStr("scriptx_builtins"));
 
   return type;
 }
 
 PyTypeObject* makeNamespaceType() {
   constexpr auto* name = "namespace";
+  auto name_obj = toStr(name);
 
   auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
   if (!heap_type) {
     Py_FatalError("error allocating type!");
   }
 
-  heap_type->ht_name = PyUnicode_InternFromString(name);
-  heap_type->ht_qualname = PyUnicode_InternFromString(name);
+  heap_type->ht_name = Py_NewRef(name_obj);
+  heap_type->ht_qualname = Py_NewRef(name_obj);
 
   auto* type = &heap_type->ht_type;
   type->tp_name = name;
@@ -194,8 +211,17 @@ PyTypeObject* makeNamespaceType() {
   type->tp_dictoffset = PyBaseObject_Type.tp_basicsize;  // place dict at the end
   type->tp_basicsize =
       PyBaseObject_Type.tp_basicsize + sizeof(PyObject*);  // and allocate enough space for it
-  type->tp_traverse = scriptx_traverse;
-  type->tp_clear = scriptx_clear;
+  type->tp_traverse = [](PyObject* self, visitproc visit, void* arg) {
+    PyObject*& dict = *_PyObject_GetDictPtr(self);
+    Py_VISIT(dict);
+    Py_VISIT(Py_TYPE(self));
+    return 0;
+  };
+  type->tp_clear = [](PyObject* self) {
+    PyObject*& dict = *_PyObject_GetDictPtr(self);
+    Py_CLEAR(dict);
+    return 0;
+  };
 
   static PyGetSetDef getset[] = {{"__dict__", scriptx_get_dict, scriptx_set_dict, nullptr, nullptr},
                                  {nullptr, nullptr, nullptr, nullptr, nullptr}};
@@ -204,7 +230,7 @@ PyTypeObject* makeNamespaceType() {
   if (PyType_Ready(type) < 0) {
     Py_FatalError("failure in PyType_Ready()!");
   }
-  setAttr((PyObject*)type, "__module__", PyUnicode_InternFromString("scriptx_builtins"));
+  setAttr((PyObject*)type, "__module__", toStr("scriptx_builtins"));
 
   return type;
 }

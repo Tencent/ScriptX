@@ -99,7 +99,8 @@ class PyEngine : public ScriptEngine {
     PyObject* nameSpaceObj = getGlobalDict();
 
     if (nameSpace.empty()) {
-      PyDict_SetItemString(nameSpaceObj, name.c_str(), value);
+      setDictItem(nameSpaceObj, name.c_str(), value);
+      Py_DECREF(value);
     } else {  // namespace can be aaa.bbb.ccc
       std::size_t begin = 0;
       while (begin < nameSpace.size()) {
@@ -111,15 +112,17 @@ class PyEngine : public ScriptEngine {
         PyObject* sub = nullptr;
         auto key = nameSpace.substr(begin, index - begin);
         if (PyDict_CheckExact(nameSpaceObj)) {
-          sub = PyDict_GetItemString(nameSpaceObj, key.c_str());
+          sub = getDictItem(nameSpaceObj, key.c_str());
           if (sub == nullptr) {
             PyObject* args = PyTuple_New(0);
             PyTypeObject* type = reinterpret_cast<PyTypeObject*>(namespaceType_);
             sub = type->tp_new(type, args, nullptr);
             Py_DECREF(args);
-            PyDict_SetItemString(nameSpaceObj, key.c_str(), sub);
+            setDictItem(nameSpaceObj, key.c_str(), sub);
+            Py_DECREF(sub);
           }
           setAttr(sub, name.c_str(), value);
+          Py_DECREF(value);
         } else /*namespace type*/ {
           if (hasAttr(nameSpaceObj, key.c_str())) {
             sub = getAttr(nameSpaceObj, key.c_str());
@@ -129,8 +132,10 @@ class PyEngine : public ScriptEngine {
             sub = type->tp_new(type, args, nullptr);
             Py_DECREF(args);
             setAttr(nameSpaceObj, key.c_str(), sub);
+            Py_DECREF(sub);
           }
           setAttr(sub, name.c_str(), value);
+          Py_DECREF(value);
         }
         nameSpaceObj = sub;
         begin = index + 1;
@@ -138,7 +143,7 @@ class PyEngine : public ScriptEngine {
     }
   }
 
-  inline PyObject* warpGetter(const char* name, GetterCallback callback) {
+  PyObject* warpGetter(const char* name, GetterCallback callback) {
     struct FunctionData {
       GetterCallback function;
       PyEngine* engine;
@@ -150,12 +155,7 @@ class PyEngine : public ScriptEngine {
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      try {
-        return py_interop::peekPy(data->function());
-      } catch (const Exception& e) {
-        rethrowException(e);
-      }
-      return nullptr;
+      return py_interop::peekPy(data->function());
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -173,7 +173,7 @@ class PyEngine : public ScriptEngine {
   }
 
   template <typename T>
-  inline PyObject* warpInstanceGetter(const char* name, InstanceGetterCallback<T> callback) {
+  PyObject* warpInstanceGetter(const char* name, InstanceGetterCallback<T> callback) {
     struct FunctionData {
       InstanceGetterCallback<T> function;
       PyEngine* engine;
@@ -185,13 +185,8 @@ class PyEngine : public ScriptEngine {
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      try {
-        T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
-        return py_interop::peekPy(data->function(thiz));
-      } catch (const Exception& e) {
-        rethrowException(e);
-      }
-      return nullptr;
+      T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+      return py_interop::peekPy(data->function(thiz));
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -209,7 +204,7 @@ class PyEngine : public ScriptEngine {
     return function;
   }
 
-  inline PyObject* warpSetter(const char* name, SetterCallback callback) {
+  PyObject* warpSetter(const char* name, SetterCallback callback) {
     struct FunctionData {
       SetterCallback function;
       PyEngine* engine;
@@ -221,13 +216,8 @@ class PyEngine : public ScriptEngine {
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      try {
-        data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
-        Py_RETURN_NONE;
-      } catch (const Exception& e) {
-        rethrowException(e);
-      }
-      return nullptr;
+      data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
+      Py_RETURN_NONE;
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -246,7 +236,7 @@ class PyEngine : public ScriptEngine {
   }
 
   template <typename T>
-  inline PyObject* warpInstanceSetter(const char* name, InstanceSetterCallback<T> callback) {
+  PyObject* warpInstanceSetter(const char* name, InstanceSetterCallback<T> callback) {
     struct FunctionData {
       InstanceSetterCallback<T> function;
       PyEngine* engine;
@@ -258,14 +248,9 @@ class PyEngine : public ScriptEngine {
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      try {
-        T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
-        data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
-        Py_RETURN_NONE;
-      } catch (const Exception& e) {
-        rethrowException(e);
-      }
-      return nullptr;
+      T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+      data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
+      Py_RETURN_NONE;
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -284,33 +269,39 @@ class PyEngine : public ScriptEngine {
   }
 
   template <typename T>
-  inline void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
+  void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->staticDefine.properties) {
+      PyObject* g = warpGetter(property.name.c_str(), property.getter);
+      PyObject* s = warpSetter(property.name.c_str(), property.setter);
       PyObject* doc = toStr("");
-      PyObject* args =
-          PyTuple_Pack(4, warpGetter(property.name.c_str(), property.getter),
-                       warpSetter(property.name.c_str(), property.setter), Py_None, doc);
+      PyObject* warpped_property =
+          PyObject_CallFunctionObjArgs((PyObject*)staticPropertyType_, g, s, Py_None, doc, nullptr);
+      Py_DECREF(g);
+      Py_DECREF(s);
       Py_DECREF(doc);
-      PyObject* warpped_property = PyObject_Call((PyObject*)staticPropertyType_, args, nullptr);
       setAttr(type, property.name.c_str(), warpped_property);
+      Py_DECREF(warpped_property);
     }
   }
 
   template <typename T>
-  inline void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
+  void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->instanceDefine.properties) {
+      PyObject* g = warpInstanceGetter(property.name.c_str(), property.getter);
+      PyObject* s = warpInstanceSetter(property.name.c_str(), property.setter);
       PyObject* doc = toStr("");
-      PyObject* args =
-          PyTuple_Pack(4, warpInstanceGetter(property.name.c_str(), property.getter),
-                       warpInstanceSetter(property.name.c_str(), property.setter), Py_None, doc);
+      PyObject* warpped_property =
+          PyObject_CallFunctionObjArgs((PyObject*)&PyProperty_Type, g, s, Py_None, doc, nullptr);
+      Py_DECREF(g);
+      Py_DECREF(s);
       Py_DECREF(doc);
-      PyObject* warpped_property = PyObject_Call((PyObject*)&PyProperty_Type, args, nullptr);
       setAttr(type, property.name.c_str(), warpped_property);
+      Py_DECREF(warpped_property);
     }
   }
 
   template <typename T>
-  inline void registerStaticFunction(const ClassDefine<T>* classDefine, PyObject* type) {
+  void registerStaticFunction(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& f : classDefine->staticDefine.functions) {
       struct FunctionData {
         FunctionCallback function;
@@ -323,13 +314,8 @@ class PyEngine : public ScriptEngine {
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-        try {
-          return py_interop::peekPy(
-              data->function(py_interop::makeArguments(data->engine, self, args)));
-        } catch (const Exception& e) {
-          rethrowException(e);
-        }
-        return nullptr;
+        return py_interop::peekPy(
+            data->function(py_interop::makeArguments(data->engine, self, args)));
       };
 
       PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -344,12 +330,15 @@ class PyEngine : public ScriptEngine {
       Py_DECREF(capsule);
       checkPyErr();
 
-      setAttr(type, f.name.c_str(), PyStaticMethod_New(function));
+      PyObject* staticMethod = PyStaticMethod_New(function);
+      Py_DECREF(function);
+      setAttr(type, f.name.c_str(), staticMethod);
+      Py_DECREF(staticMethod);
     }
   }
 
   template <typename T>
-  inline void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
+  void registerInstanceFunction(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& f : classDefine->instanceDefine.functions) {
       struct FunctionData {
         InstanceFunctionCallback<T> function;
@@ -362,16 +351,11 @@ class PyEngine : public ScriptEngine {
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-        try {
-          T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
-          PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
-          auto ret = data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
-          Py_DECREF(real_args);
-          return py_interop::peekPy(ret);
-        } catch (const Exception& e) {
-          rethrowException(e);
-        }
-        return nullptr;
+        T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+        PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
+        auto ret = data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
+        Py_DECREF(real_args);
+        return py_interop::peekPy(ret);
       };
 
       PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -385,14 +369,16 @@ class PyEngine : public ScriptEngine {
       PyObject* function = PyCFunction_New(method, capsule);
       Py_DECREF(capsule);
       checkPyErr();
-      setAttr(type, f.name.c_str(), PyInstanceMethod_New(function));
+
+      PyObject* instanceMethod = PyInstanceMethod_New(function);
+      Py_DECREF(function);
+      setAttr(type, f.name.c_str(), instanceMethod);
+      Py_DECREF(instanceMethod);
     }
   }
 
   template <typename T>
   void registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    bool constructable = bool(classDefine->instanceDefine.constructor);
-
     auto name_obj = toStr(classDefine->className.c_str());
 
     auto* heap_type = (PyHeapTypeObject*)PyType_GenericAlloc(PyEngine::defaultMetaType_, 0);
@@ -412,26 +398,27 @@ class PyEngine : public ScriptEngine {
 
     type->tp_new = [](PyTypeObject* type, PyObject* args, PyObject* kwds) -> PyObject* {
       PyObject* self = type->tp_alloc(type, 0);
-      auto* thiz = reinterpret_cast<GeneralObject*>(self);
+      if (type->tp_init(self, args, kwds) < 0) {
+        throw Exception();
+      }
+      return self;
+    };
+    type->tp_init = [](PyObject* self, PyObject* args, PyObject* kwds) -> int {
       auto engine = currentEngine();
       auto classDefine =
           reinterpret_cast<const ClassDefine<T>*>(engine->registeredTypesReverse_[self->ob_type]);
       if (classDefine->instanceDefine.constructor) {
-        thiz->instance =
+        reinterpret_cast<GeneralObject*>(self)->instance =
             classDefine->instanceDefine.constructor(py_interop::makeArguments(engine, self, args));
       } else {
-        throw Exception("the class has no constructor");
+        PyErr_Format(PyExc_Exception, "%s: no constructor", Py_TYPE(self)->tp_name);
+        return -1;
       }
-      return self;
-    };
-    type->tp_init = [](PyObject* self, PyObject*, PyObject*) -> int {
-      PyTypeObject* type = Py_TYPE(self);
-      std::string msg = std::string(type->tp_name) + ": No constructor defined!";
-      PyErr_SetString(PyExc_TypeError, msg.c_str());
-      return -1;
+      return 0;
     };
     type->tp_dealloc = [](PyObject* self) {
-      auto* type = Py_TYPE(self);
+      auto type = Py_TYPE(self);
+      delete reinterpret_cast<GeneralObject*>(self)->instance;
       type->tp_free(self);
       Py_DECREF(type);
     };
@@ -447,10 +434,8 @@ class PyEngine : public ScriptEngine {
 
     this->registerStaticProperty(classDefine, (PyObject*)type);
     this->registerStaticFunction(classDefine, (PyObject*)type);
-    if (constructable) {
-      this->registerInstanceProperty(classDefine, (PyObject*)type);
-      this->registerInstanceFunction(classDefine, (PyObject*)type);
-    }
+    this->registerInstanceProperty(classDefine, (PyObject*)type);
+    this->registerInstanceFunction(classDefine, (PyObject*)type);
     this->registeredTypes_.emplace(classDefine, type);
     this->registeredTypesReverse_.emplace(type, classDefine);
     this->nameSpaceSet(classDefine, classDefine->className.c_str(), (PyObject*)type);
@@ -461,7 +446,8 @@ class PyEngine : public ScriptEngine {
                                    const Local<Value>* args) {
     PyObject* tuple = PyTuple_New(size);
     for (size_t i = 0; i < size; ++i) {
-      PyTuple_SetItem(tuple, i, py_interop::getPy(args[i]));
+      PyTuple_SetItem(tuple, i, args[i].val_);
+      Py_DECREF(args[i].val_);
     }
 
     PyTypeObject* type = registeredTypes_[classDefine];

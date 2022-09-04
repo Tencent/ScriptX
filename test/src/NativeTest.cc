@@ -118,6 +118,7 @@ void testStatic(ScriptEngine* engine) {
   // function: add
   auto addRet = engine->eval(TS().js("script.engine.test.TestClass.add(1, 2)")
                                  .lua("return script.engine.test.TestClass.add(1, 2)")
+                                 .py("script.engine.test.TestClass.add(1, 2)")
                                  .select());
   ASSERT_TRUE(addRet.isNumber());
   EXPECT_EQ(addRet.asNumber().toInt32(), 3);
@@ -126,6 +127,7 @@ void testStatic(ScriptEngine* engine) {
 void testInstance(ScriptEngine* engine, const ClassDefine<TestClass>& def) {
   auto ret = engine->eval(TS().js("new script.engine.test.TestClass()")
                               .lua("return script.engine.test.TestClass()")
+                              .py("script.engine.test.TestClass()")
                               .select());
   ASSERT_TRUE(ret.isObject());
   ASSERT_TRUE(engine->isInstanceOf<TestClass>(ret));
@@ -137,28 +139,34 @@ void testInstance(ScriptEngine* engine, const ClassDefine<TestClass>& def) {
 
   engine->set("instance", ret);
 
-  auto srcRet = engine->eval(TS().js("instance.src").lua("return instance.src").select());
+  auto srcRet =
+      engine->eval(TS().js("instance.src").lua("return instance.src").py("instance.src").select());
   ASSERT_TRUE(srcRet.isString());
   EXPECT_STREQ(srcRet.asString().toString().c_str(), instance->src.c_str());
 
   engine->eval("instance.src = 'new_src'");
   EXPECT_STREQ(instance->src.c_str(), "new_src");
 
-  auto greet1Ret =
-      engine->eval(TS().js("instance.greet('gh')").lua("return instance:greet('gh')").select());
+  auto greet1Ret = engine->eval(TS().js("instance.greet('gh')")
+                                    .lua("return instance:greet('gh')")
+                                    .py("instance.greet('gh')")
+                                    .select());
   EXPECT_TRUE(greet1Ret.isNull());
   EXPECT_STREQ(instance->greetStr.c_str(), "gh");
 
   engine->eval(TS().js("instance.greet('hello world')")
                    .lua("return instance:greet('hello world')")
+                   .py("instance.greet('hello world')")
                    .select());
   EXPECT_STREQ(instance->greetStr.c_str(), "hello world");
 
-  auto age1Ret = engine->eval(TS().js("instance.age()").lua("return instance:age()").select());
+  auto age1Ret = engine->eval(
+      TS().js("instance.age()").lua("return instance:age()").py("instance.age()").select());
   ASSERT_TRUE(age1Ret.isNull());
   EXPECT_EQ(instance->ageInt, -1);
 
-  auto age2Ret = engine->eval(TS().js("instance.age(18)").lua("return instance:age(18)").select());
+  auto age2Ret = engine->eval(
+      TS().js("instance.age(18)").lua("return instance:age(18)").py("instance.age(18)").select());
   ASSERT_TRUE(age2Ret.isNumber());
   EXPECT_EQ(age2Ret.asNumber().toInt32(), 18);
   EXPECT_EQ(instance->ageInt, 18);
