@@ -29,10 +29,9 @@ struct ArgumentsData {
   PyObject* args;
 };
 
-struct ScriptClassState {
-  ScriptEngine* engine = nullptr;
-  PyObject* script_obj;
-  PyObject* storage;
+struct PyScriptClassState {
+  PyEngine* scriptEngine_ = nullptr;
+  Weak<Object> weakRef_;
 };
 
 }  // namespace py_backend
@@ -44,7 +43,7 @@ struct internal::ImplType<::script::Arguments> {
 
 template <>
 struct internal::ImplType<::script::ScriptClass> {
-  using type = py_backend::ScriptClassState;
+  using type = py_backend::PyScriptClassState;
 };
 
 }  // namespace script

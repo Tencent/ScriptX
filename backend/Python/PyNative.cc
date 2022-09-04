@@ -18,6 +18,7 @@
 #include "../../src/Native.hpp"
 #include "PyEngine.h"
 #include "PyHelper.hpp"
+#include "PyReference.hpp"
 
 namespace script {
 
@@ -42,18 +43,18 @@ Local<Value> Arguments::operator[](size_t i) const {
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
 ScriptClass::ScriptClass(const Local<Object>& scriptObject) : internalState_() {
-  internalState_.engine = py_backend::currentEngineChecked();
+  internalState_.scriptEngine_ = py_backend::currentEngineChecked();
+  internalState_.weakRef_ = scriptObject;
 }
 
-Local<Object> ScriptClass::getScriptObject() const {
-  return py_interop::toLocal<Object>(internalState_.script_obj);
-}
+Local<Object> ScriptClass::getScriptObject() const { return internalState_.weakRef_.get(); }
 
 Local<Array> ScriptClass::getInternalStore() const {
-  return py_interop::toLocal<Array>(internalState_.storage);
+  PyObject* ref = py_interop::peekPy(internalState_.weakRef_.getValue());
+  return py_interop::toLocal<Array>(py_backend::getAttr(ref, "internal_store"));
 }
 
-ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
+ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.scriptEngine_; }
 
 ScriptClass::~ScriptClass(){};
 }  // namespace script

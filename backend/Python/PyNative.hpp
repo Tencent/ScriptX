@@ -23,7 +23,11 @@
 namespace script {
 
 template <typename T>
-ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {}
+ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {
+  auto engine = py_backend::currentEngineChecked();
+  internalState_.scriptEngine_ = engine;
+  internalState_.weakRef_ = engine->newNativeClass<T>(this);
+}
 
 template <typename T>
 T* Arguments::engineAs() const {
