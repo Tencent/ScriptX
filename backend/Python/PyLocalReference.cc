@@ -263,7 +263,6 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
   PyObject* args_tuple = PyTuple_New(size);
   for (size_t i = 0; i < size; ++i) {
     PyTuple_SetItem(args_tuple, i, args[i].val_);
-    Py_DECREF(args[i].val_);
   }
   PyObject* result = PyObject_CallObject(val_, args_tuple);
   Py_DECREF(args_tuple);
@@ -288,7 +287,6 @@ void Local<Array>::set(size_t index, const script::Local<script::Value>& value) 
     }
   }
   PyList_SetItem(val_, index, value.val_);
-  Py_DECREF(value.val_);
 }
 
 void Local<Array>::add(const script::Local<script::Value>& value) const {
