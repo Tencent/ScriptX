@@ -52,7 +52,7 @@ struct GeneralObject : PyObject {
   }
 
 };
-// value +1
+// key +1 value +1
 void setAttr(PyObject* obj, PyObject* key, PyObject* value);
 // value +1
 void setAttr(PyObject* obj, const char* key, PyObject* value);
@@ -63,7 +63,7 @@ bool hasAttr(PyObject* obj, const char* key);
 void delAttr(PyObject* obj, PyObject* key);
 void delAttr(PyObject* obj, const char* key);
 
-// value +1
+// key +1 value +1
 void setDictItem(PyObject* obj, PyObject* key, PyObject* value);
 // value +1
 void setDictItem(PyObject* obj, const char* key, PyObject* value);
@@ -76,7 +76,7 @@ std::string fromStr(PyObject* s);
 
 class PyEngine;
 
-void checkPyErr();
+void checkError();
 PyEngine* currentEngine();
 PyEngine* currentEngineChecked();
 

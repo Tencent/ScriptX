@@ -105,7 +105,7 @@ PyObject* toStr(const std::string& s) { return PyUnicode_FromStringAndSize(s.c_s
 
 std::string fromStr(PyObject* s) { return PyUnicode_Check(s) ? PyUnicode_AsUTF8(s) : ""; }
 
-void checkPyErr() {
+void checkError() {
   if (PyErr_Occurred()) {
     PyObject *pType, *pValue, *pTraceback;
     PyErr_Fetch(&pType, &pValue, &pTraceback);
