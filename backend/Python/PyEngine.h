@@ -447,7 +447,6 @@ class PyEngine : public ScriptEngine {
     PyObject* tuple = PyTuple_New(size);
     for (size_t i = 0; i < size; ++i) {
       PyTuple_SetItem(tuple, i, args[i].val_);
-      Py_DECREF(args[i].val_);
     }
 
     PyTypeObject* type = registeredTypes_[classDefine];
