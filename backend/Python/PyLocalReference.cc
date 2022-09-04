@@ -110,7 +110,8 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 Local<Value>::Local() noexcept : val_(Py_NewRef(Py_None)) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(ref) {
+// private
+Local<Value>::Local(InternalLocalRef ref) : val_(ref ? ref : Py_None) {
   if (ref == nullptr) throw Exception("Python exception occurred!");
 }
 
@@ -213,7 +214,7 @@ bool Local<Value>::operator==(const script::Local<script::Value>& other) const {
 Local<String> Local<Value>::describe() const { return Local<String>(PyObject_Str(val_)); }
 
 Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
-  PyObject* item = PyDict_GetItem(val_, key.val_);
+  PyObject* item = py_backend::getDictItem(val_, key.val_);
   if (item)
     return py_interop::toLocal<Value>(item);
   else
@@ -222,7 +223,9 @@ Local<Value> Local<Object>::get(const script::Local<script::String>& key) const 
 
 void Local<Object>::set(const script::Local<script::String>& key,
                         const script::Local<script::Value>& value) const {
-  PyDict_SetItem(val_, key.val_, value.val_);
+  py_backend::setDictItem(val_, key.val_, value.val_);
+  Py_DECREF(key.val_);
+  Py_DECREF(value.val_);
 }
 
 void Local<Object>::remove(const Local<class script::String>& key) const {

@@ -34,7 +34,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     namespaceType_ = makeNamespaceType();
     staticPropertyType_ = makeStaticPropertyType();
     defaultMetaType_ = makeDefaultMetaclass();
-    //  Save main thread state & release GIL
+    // Save main thread state & release GIL
     mainThreadState_ = PyEval_SaveThread();
   }
 
@@ -111,7 +111,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
     oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
-  checkPyErr();
+  checkError();
   return py_interop::asLocal<Value>(result);
 }
 

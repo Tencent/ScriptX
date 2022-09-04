@@ -164,11 +164,11 @@ class PyEngine : public ScriptEngine {
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
-    checkPyErr();
+    checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkPyErr();
+    checkError();
     return function;
   }
 
@@ -195,11 +195,11 @@ class PyEngine : public ScriptEngine {
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
-    checkPyErr();
+    checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkPyErr();
+    checkError();
 
     return function;
   }
@@ -226,11 +226,11 @@ class PyEngine : public ScriptEngine {
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
-    checkPyErr();
+    checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkPyErr();
+    checkError();
 
     return function;
   }
@@ -259,11 +259,11 @@ class PyEngine : public ScriptEngine {
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
-    checkPyErr();
+    checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkPyErr();
+    checkError();
 
     return function;
   }
@@ -324,11 +324,11 @@ class PyEngine : public ScriptEngine {
       };
       PyObject* capsule =
           PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
-      checkPyErr();
+      checkError();
 
       PyObject* function = PyCFunction_New(method, capsule);
       Py_DECREF(capsule);
-      checkPyErr();
+      checkError();
 
       PyObject* staticMethod = PyStaticMethod_New(function);
       Py_DECREF(function);
@@ -364,11 +364,11 @@ class PyEngine : public ScriptEngine {
       };
       PyObject* capsule =
           PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
-      checkPyErr();
+      checkError();
 
       PyObject* function = PyCFunction_New(method, capsule);
       Py_DECREF(capsule);
-      checkPyErr();
+      checkError();
 
       PyObject* instanceMethod = PyInstanceMethod_New(function);
       Py_DECREF(function);

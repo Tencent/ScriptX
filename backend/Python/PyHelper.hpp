@@ -69,8 +69,8 @@ class TssStorage {
     if (isValid()) PyThread_tss_delete(&key);
   }
   int set(T* value) { return isValid() ? PyThread_tss_set(&key, (void*)value) : 1; }
-  T* get() { return isValid() ? (T*)PyThread_tss_get(&key) : NULL; }
-  bool isValid() { return PyThread_tss_is_created(&key) > 0; }
+  T* get() { return isValid() ? (T*)PyThread_tss_get(&key) : nullptr; }
+  bool isValid() { return PyThread_tss_is_created(&key) != 0; }
 };
 
 // @return new reference
