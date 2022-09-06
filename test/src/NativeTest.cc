@@ -433,6 +433,7 @@ obj.g()
       Exception);
 }
 
+#ifndef SCRIPTX_LANG_PYTHON
 namespace {
 ClassDefine<void> gns =
     defineClass("GnS").property("src", []() { return String::newString(u8"hello"); }).build();
@@ -446,6 +447,7 @@ TEST_F(NativeTest, GetNoSet) {
     engine->eval(u8"GnS.src = 'x';");
     engine->eval(TS().js("if (GnS.src !== 'hello') throw new Error(GnS.src);")
                      .lua("if GnS.src ~= 'hello' then error(GnS.src) end")
+                     .py("if GnS.src != 'hello': throw Error(GnS.src)")
                      .select());
   } catch (const Exception& e) {
     FAIL() << e;
@@ -470,6 +472,8 @@ TEST_F(NativeTest, SetNoGet) {
   try {
     engine->eval(TS().js(u8"if (SnG.src !== undefined) throw new Error();")
                      .lua(u8"if SnG.src ~= nil then error() end")
+                     .py("if SnG.src is not None:\n"
+                         "  raise Exception('')")
                      .select());
   } catch (Exception& e) {
     FAIL() << e;
@@ -486,6 +490,7 @@ TEST_F(NativeTest, SetNoGet) {
   }
   engine->set("SnG", {});
 }
+#endif
 
 TEST_F(NativeTest, OverloadedBind) {
   auto f1 = [](int) { return "number"; };
@@ -574,6 +579,7 @@ TEST_F(NativeTest, NewNativeClass) {
   }
 }
 
+#ifndef SCRIPTX_LANG_PYTHON
 namespace {
 
 class CppNew : public ScriptClass {
@@ -635,6 +641,7 @@ return ins:greet();
 }
 
 }  // namespace
+#endif
 
 TEST_F(NativeTest, BindExceptionTest) {
   auto f1 = [](int i) {
