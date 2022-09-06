@@ -170,6 +170,7 @@ PyTypeObject* makeStaticPropertyType() {
 
   heap_type->ht_name = Py_NewRef(name_obj);
   heap_type->ht_qualname = Py_NewRef(name_obj);
+  Py_DECREF(name_obj);
 
   auto* type = &heap_type->ht_type;
   type->tp_name = name;
@@ -203,6 +204,7 @@ PyTypeObject* makeNamespaceType() {
 
   heap_type->ht_name = Py_NewRef(name_obj);
   heap_type->ht_qualname = Py_NewRef(name_obj);
+  Py_DECREF(name_obj);
 
   auto* type = &heap_type->ht_type;
   type->tp_name = name;
@@ -246,6 +248,7 @@ PyTypeObject* makeDefaultMetaclass() {
 
   heap_type->ht_name = Py_NewRef(name_obj);
   heap_type->ht_qualname = Py_NewRef(name_obj);
+  Py_DECREF(name_obj);
 
   auto* type = &heap_type->ht_type;
   type->tp_name = name;

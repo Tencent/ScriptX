@@ -28,7 +28,7 @@ Local<Object> Object::newObject() { return py_interop::asLocal<Object>(PyDict_Ne
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
   throw Exception("Python can't use this function");
-  return Local<Object>(PyDict_New());
+  return py_interop::asLocal<Object>(PyDict_New());
 }
 
 Local<String> String::newString(const char* utf8) {
