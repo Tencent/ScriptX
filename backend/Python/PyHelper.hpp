@@ -25,25 +25,25 @@ namespace script {
 class PyEngine;
 
 struct py_interop {
-  // @return new ref.
+  // @return new reference
   template <typename T>
   static Local<T> toLocal(PyObject* ref) {
     return Local<T>(Py_NewRef(ref));
   }
 
-  // @return borrowed ref.
+  // @return borrowed reference
   template <typename T>
   static Local<T> asLocal(PyObject* ref) {
     return Local<T>(ref);
   }
 
-  // @return new ref.
+  // @return new reference
   template <typename T>
   static PyObject* getPy(const Local<T>& ref) {
     return Py_NewRef(ref.val_);
   }
 
-  // @return borrowed ref.
+  // @return borrowed reference
   template <typename T>
   static PyObject* peekPy(const Local<T>& ref) {
     return ref.val_;

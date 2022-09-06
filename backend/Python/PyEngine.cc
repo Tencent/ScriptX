@@ -83,7 +83,7 @@ void PyEngine::destroy() noexcept {
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
-  PyObject* item = PyDict_GetItemString(getGlobalDict(), key.toStringHolder().c_str());
+  PyObject* item = getDictItem(getGlobalDict(), key.toStringHolder().c_str());
   if (item)
     return py_interop::toLocal<Value>(item);
   else
@@ -105,9 +105,9 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
   // Limitation: one line code must be expression (no "\n", no "=")
   const char* source = script.toStringHolder().c_str();
   bool oneLine = true;
-  if (strstr(source, "\n") != NULL)
+  if (strchr(source, '\n') != nullptr)
     oneLine = false;
-  else if (strstr(source, " = ") != NULL)
+  else if (strstr(source, " = ") != nullptr)
     oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
