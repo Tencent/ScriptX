@@ -271,13 +271,20 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerStaticProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->staticDefine.properties) {
-      PyObject* g = warpGetter(property.name.c_str(), property.getter);
-      PyObject* s = warpSetter(property.name.c_str(), property.setter);
+      PyObject* g = Py_None;
+      if (property.getter) {
+        g = warpGetter(property.name.c_str(), property.getter);
+      }
+      PyObject* s = Py_None;
+      if (property.setter) {
+        s = warpSetter(property.name.c_str(), property.setter);
+      }
       PyObject* doc = toStr("");
       PyObject* warpped_property =
           PyObject_CallFunctionObjArgs((PyObject*)staticPropertyType_, g, s, Py_None, doc, nullptr);
       Py_DECREF(g);
       Py_DECREF(s);
+      Py_DECREF(Py_None);
       Py_DECREF(doc);
       setAttr(type, property.name.c_str(), warpped_property);
       Py_DECREF(warpped_property);
@@ -287,13 +294,20 @@ class PyEngine : public ScriptEngine {
   template <typename T>
   void registerInstanceProperty(const ClassDefine<T>* classDefine, PyObject* type) {
     for (const auto& property : classDefine->instanceDefine.properties) {
-      PyObject* g = warpInstanceGetter(property.name.c_str(), property.getter);
-      PyObject* s = warpInstanceSetter(property.name.c_str(), property.setter);
+      PyObject* g = Py_None;
+      if (property.getter) {
+        g = warpInstanceGetter(property.name.c_str(), property.getter);
+      }
+      PyObject* s = Py_None;
+      if (property.setter) {
+        s = warpInstanceSetter(property.name.c_str(), property.setter);
+      }
       PyObject* doc = toStr("");
       PyObject* warpped_property =
           PyObject_CallFunctionObjArgs((PyObject*)&PyProperty_Type, g, s, Py_None, doc, nullptr);
       Py_DECREF(g);
       Py_DECREF(s);
+      Py_DECREF(Py_None);
       Py_DECREF(doc);
       setAttr(type, property.name.c_str(), warpped_property);
       Py_DECREF(warpped_property);
@@ -388,6 +402,7 @@ class PyEngine : public ScriptEngine {
 
     heap_type->ht_name = Py_NewRef(name_obj);
     heap_type->ht_qualname = Py_NewRef(name_obj);
+    Py_DECREF(name_obj);
 
     auto* type = &heap_type->ht_type;
     type->tp_name = classDefine->className.c_str();
@@ -452,12 +467,12 @@ class PyEngine : public ScriptEngine {
     PyTypeObject* type = registeredTypes_[classDefine];
     PyObject* obj = type->tp_new(type, tuple, nullptr);
     Py_DECREF(tuple);
-    return Local<Object>(obj);
+    return py_interop::toLocal<Object>(obj);
   }
 
   template <typename T>
   bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return registeredTypes_[classDefine] == py_interop::peekPy(value)->ob_type;
+    return registeredTypes_[classDefine] == value.val_->ob_type;
   }
 
   template <typename T>
@@ -465,7 +480,7 @@ class PyEngine : public ScriptEngine {
     if (!isInstanceOfImpl(value, classDefine)) {
       throw Exception("Unmatched type of the value!");
     }
-    return GeneralObject::getInstance<T>(py_interop::peekPy(value));
+    return GeneralObject::getInstance<T>(value.val_);
   }
 
  private:
