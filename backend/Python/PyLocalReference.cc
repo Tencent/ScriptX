@@ -296,6 +296,7 @@ void Local<Array>::set(size_t index, const script::Local<script::Value>& value) 
       Py_DECREF(Py_None);
     }
   }
+  Py_INCREF(value.val_);         // PyList_SetItem will steal ref
   PyList_SetItem(val_, index, value.val_);
 }
 

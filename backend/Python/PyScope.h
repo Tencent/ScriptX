@@ -44,7 +44,8 @@ class StackFrameScopeImpl {
 
   template <typename T>
   Local<T> returnValue(const Local<T> &localRef) {
-    return localRef;
+    // create an extern ref because localRef will be destroyed later
+    return py_interop::asLocal<T>(py_interop::getPy<T>(localRef));      
   }
 };
 }  // namespace script::py_backend
