@@ -92,7 +92,7 @@ Local<Value> PyEngine::get(const Local<String>& key) {
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
   setDictItem(getGlobalDict(), key.toStringHolder().c_str(), value.val_);
-  Py_DECREF(value.val_);
+  //Py_DECREF(value.val_);
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script) { return eval(script, Local<Value>()); }

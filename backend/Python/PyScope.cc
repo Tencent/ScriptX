@@ -28,7 +28,7 @@
 // - One engine owns a sub-interpreter, and owns a TLS storage called engine.subThreadState_, 
 // which stores his own current thread state on each thread.
 // - This "thread state" works like "CPU Context" in low-level C programs. When changing engine, 
-// "context" need to be changed to his correct thread state
+// "context" need to be switched to his correct thread state
 // - When entering a new EngineScope, first check that if an thread state exists. If found,
 // save it into oldThreadStateStack. When exit this EngineScope, old thread state saved before
 // will be poped and recovered.
@@ -59,7 +59,7 @@ EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
       // Thread state of this engine on current thread is inited & saved in TLS
       // Check if there is another existing thread state (is another engine entered)
       
-      // PyThreadState_GET will cause FATEL error if oldState is NULL
+      // PyThreadState_GET will cause FATAL error if oldState is NULL
       // so here get & check oldState by swap twice
       PyThreadState* oldState = PyThreadState_Swap(NULL);
       bool isOldStateNotEmpty = oldState != nullptr;
