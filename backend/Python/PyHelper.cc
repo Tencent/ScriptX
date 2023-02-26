@@ -64,12 +64,14 @@ void delAttr(PyObject* obj, const char* key) {
   }
 }
 
+// warn: value's ref +1
 void setDictItem(PyObject* obj, PyObject* key, PyObject* value) {
   if (PyDict_SetItem(obj, key, value) != 0) {
     throw Exception();
   }
 }
 
+// warn: value's ref +1
 void setDictItem(PyObject* obj, const char* key, PyObject* value) {
   if (PyDict_SetItemString(obj, key, value) != 0) {
     throw Exception();

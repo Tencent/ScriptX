@@ -270,6 +270,7 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
   PyObject* args_tuple = PyTuple_New(size);
   for (size_t i = 0; i < size; ++i) {
+    Py_INCREF(args[i].val_);         // PyTuple_SetItem will steal the ref
     PyTuple_SetItem(args_tuple, i, args[i].val_);
   }
   PyObject* result = PyObject_CallObject(val_, args_tuple);
