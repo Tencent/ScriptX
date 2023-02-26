@@ -461,6 +461,7 @@ class PyEngine : public ScriptEngine {
                                    const Local<Value>* args) {
     PyObject* tuple = PyTuple_New(size);
     for (size_t i = 0; i < size; ++i) {
+      Py_INCREF(args[i].val_);      // PyTuple_SetItem will steal the ref
       PyTuple_SetItem(tuple, i, args[i].val_);
     }
 
