@@ -229,8 +229,8 @@ Local<Value> Local<Object>::get(const script::Local<script::String>& key) const 
 void Local<Object>::set(const script::Local<script::String>& key,
                         const script::Local<script::Value>& value) const {
   py_backend::setDictItem(val_, key.val_, value.val_);
-  Py_DECREF(key.val_);
-  Py_DECREF(value.val_);
+  //Py_DECREF(key.val_);
+  //Py_DECREF(value.val_);
 }
 
 void Local<Object>::remove(const Local<class script::String>& key) const {
