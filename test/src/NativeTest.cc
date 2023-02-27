@@ -700,6 +700,12 @@ TEST_F(NativeTest, InternalStorage) {
   engine->registerNativeClass(internalStorageTest);
 
   try {
+#ifdef SCRIPTX_LANG_PYTHON
+    // test for python
+    engine->eval("x = InternalStorageTest()");
+    engine->eval("x.val = 'hello'");
+    auto val = engine->eval("x.val");
+#else
     auto val = engine->eval(TS().js(
                                     R"(
               var x = new InternalStorageTest();
@@ -712,6 +718,7 @@ TEST_F(NativeTest, InternalStorage) {
               return x.val;
 )")
                                 .select());
+#endif
 
     ASSERT_TRUE(val.isString());
     EXPECT_STREQ(val.asString().toString().c_str(), "hello");
@@ -793,10 +800,21 @@ TEST_F(NativeTest, InstanceOfTest) {
     engine->registerNativeClass(instanceOfTestDefine);
 
     // script created object
-    auto ins = engine->eval(TS().js("new InstanceOfTest()").lua("return InstanceOfTest()").select())
-                   .asObject();
+    auto ins = engine->eval(TS()
+        .js("new InstanceOfTest()")
+        .lua("return InstanceOfTest()")
+        .py("InstanceOfTest()")
+        .select()
+    ).asObject();
     EXPECT_TRUE(engine->isInstanceOf<InstanceOfTest>(ins));
 
+#ifdef SCRIPTX_LANG_PYTHON
+    engine->eval("instance_of_test_var = InstanceOfTest()\n"
+      "def instance_of_test_working_function(ins):\n\treturn isinstance(ins, InstanceOfTest)");
+    auto func = engine->get("instance_of_test_working_function").asFunction();
+    auto var = engine->get("instance_of_test_var");
+    EXPECT_TRUE(func.call({}, var).asBoolean().value());
+#else
     auto func = engine
                     ->eval(TS().js(
                                    R"(
@@ -814,6 +832,7 @@ TEST_F(NativeTest, InstanceOfTest) {
 
     auto scriptCreatedIsInstance = func.call({}, ins);
     EXPECT_TRUE(scriptCreatedIsInstance.asBoolean().value());
+#endif
 
     // native create
     ins = engine->newNativeClass<InstanceOfTest>();
@@ -866,7 +885,11 @@ TEST_F(NativeTest, MissMatchedType) {
   engine->registerNativeClass(def);
 
   auto sfun =
-      engine->eval(TS().js("Instance.sfun;").lua("return Instance.sfun").select()).asFunction();
+      engine->eval(TS()
+        .js("Instance.sfun;")
+        .lua("return Instance.sfun")
+        .py("Instance.sfun")
+      .select()).asFunction();
   auto ins = engine->newNativeClass<Instance>();
   auto fun = ins.get("fun").asFunction();
 
@@ -990,6 +1013,7 @@ TEST_F(NativeTest, ClassDefineBuilder) {
   engine->registerNativeClass(def);
   auto ret1 = engine->eval(TS().js("test.BindInstanceFunc.hello('js');")
                                .lua("return test.BindInstanceFunc.hello('js');")
+                               .py("test.BindInstanceFunc.hello('js')")
                                .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "hello js");
@@ -998,6 +1022,7 @@ TEST_F(NativeTest, ClassDefineBuilder) {
 
   ret1 = engine->eval(TS().js("test.BindInstanceFunc.hello0('js');")
                           .lua("return test.BindInstanceFunc.hello0('js');")
+                          .py("test.BindInstanceFunc.hello0('js')")
                           .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "hello js");
@@ -1009,28 +1034,36 @@ TEST_F(NativeTest, ClassDefineBuilder) {
 
   ret1 = engine->eval(TS().js("test.BindInstanceFunc.gender;")
                           .lua("return test.BindInstanceFunc.gender;")
+                          .py("test.BindInstanceFunc.gender")
                           .select());
   ASSERT_TRUE(ret1.isBoolean());
   ASSERT_EQ(ret1.asBoolean().value(), true);
 
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().helloMe0(\"js\");")
                           .lua("return test.BindInstanceFunc():helloMe0(\"js\");")
+                          .py("test.BindInstanceFunc().helloMe0(\"js\")")
                           .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "Native hello js");
 
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().helloMe('js');")
                           .lua("return test.BindInstanceFunc():helloMe('js');")
+                          .py("test.BindInstanceFunc().helloMe('js')")
                           .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "Native hello js");
 
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().name;")
                           .lua("return test.BindInstanceFunc().name;")
+                          .py("test.BindInstanceFunc().name")
                           .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "Native");
 
+#ifdef SCRIPTX_LANG_PYTHON
+  engine->eval("native_test_var = test.BindInstanceFunc()\nnative_test_var.name='What'");
+  ret1 = engine->eval("native_test_var.name");
+#else
   ret1 = engine->eval(TS().js(R"""(
         var i = new test.BindInstanceFunc();
         i.name = "What";
@@ -1042,11 +1075,13 @@ TEST_F(NativeTest, ClassDefineBuilder) {
         return i.name;
     )""")
                           .select());
+#endif
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "What");
 
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().age;")
                           .lua("return test.BindInstanceFunc().age;")
+                          .py("test.BindInstanceFunc().age")
                           .select());
   ASSERT_TRUE(ret1.isNumber());
   ASSERT_EQ(ret1.asNumber().toInt32(), 0);
@@ -1147,11 +1182,16 @@ TEST_F(NativeTest, FunctionWrapper) {
   {
     EngineScope scope(engine);
 
+#ifdef SCRIPTX_LANG_PYTHON
+    engine->eval("def function_wrapper_test_function(ia,ib)\n\treturn ia+ib");
+    auto func = engine->get("function_wrapper_test_function").asFunction();
+#else
     auto func = engine
                     ->eval(TS().js("(function (ia, ib) { return ia + ib;})")
                                .lua("return function (ia, ib) return ia + ib end")
                                .select())
                     .asFunction();
+#endif
     auto f = func.wrapper<int(int, int)>();
     EXPECT_EQ(f(1, 2), 3);
     add = std::move(f);
@@ -1171,6 +1211,17 @@ TEST_F(NativeTest, FunctionWrapper) {
 TEST_F(NativeTest, FunctionWrapperReceiver) {
   EngineScope scope(engine);
   try {
+
+#ifdef SCRIPTX_LANG_PYTHON
+    engine->eval("def function_wrapper_reveiver_test_function(self)\n\t"
+      "if self:\n\t\treturn self.num\n\telse:\n\t\treturn -1");
+    auto func = engine->get("function_wrapper_reveiver_test_function").asFunction();
+
+    engine->eval("class function_wrapper_reveiver_test_class():\n\t"
+      "def __init__(self):\n\t\tpass");
+    engine->eval("function_wrapper_reveiver_test_var2 = function_wrapper_reveiver_test_class()\n"
+      "function_wrapper_reveiver_test_var2.num = 42");
+#else
     auto func =
         engine
             ->eval(
@@ -1179,10 +1230,15 @@ TEST_F(NativeTest, FunctionWrapperReceiver) {
                          "-1 end end")
                     .select())
             .asFunction();
+#endif
 
     auto receiver =
-        engine->eval(TS().js("({ num: 42})").lua("num = {}; num.num = 42; return num;").select())
-            .asObject();
+        engine->eval(TS()
+          .js("({ num: 42})")
+          .lua("num = {}; num.num = 42; return num;")
+          .py("function_wrapper_reveiver_test_var2")
+        .select()
+        ).asObject();
 
     auto withReceiver = func.wrapper<int()>(receiver);
     EXPECT_EQ(withReceiver(), 42);

@@ -413,7 +413,7 @@ TEST_F(ValueTest, FunctionHasALotOfArguments) {
     return Number::newNumber(total);
   });
 
-  for (int j = 0; j < 24; ++j) {                   // TODO: when j > 24 will cause error, ???
+  for (int j = 0; j < 100; ++j) { 
     StackFrameScope stack;
     std::vector<Local<Value>> args;
     args.reserve(j);
