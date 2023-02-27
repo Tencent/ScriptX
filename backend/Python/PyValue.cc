@@ -89,7 +89,7 @@ Local<Function> Function::newFunction(FunctionCallback callback) {
   method->ml_doc = nullptr;
   method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
     auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-    return py_interop::peekPy(data->function(py_interop::makeArguments(data->engine, self, args)));
+    return py_interop::getPy(data->function(py_interop::makeArguments(data->engine, self, args)));
   };
 
   PyCapsule_Destructor destructor = [](PyObject* cap) {

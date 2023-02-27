@@ -155,7 +155,7 @@ class PyEngine : public ScriptEngine {
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      return py_interop::peekPy(data->function());
+      return py_interop::getPy(data->function());
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -163,7 +163,7 @@ class PyEngine : public ScriptEngine {
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
     checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -186,7 +186,7 @@ class PyEngine : public ScriptEngine {
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
-      return py_interop::peekPy(data->function(thiz));
+      return py_interop::getPy(data->function(thiz));
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -194,7 +194,7 @@ class PyEngine : public ScriptEngine {
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
     checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -225,7 +225,7 @@ class PyEngine : public ScriptEngine {
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
     checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -258,7 +258,7 @@ class PyEngine : public ScriptEngine {
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
     checkError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -328,7 +328,7 @@ class PyEngine : public ScriptEngine {
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-        return py_interop::peekPy(
+        return py_interop::getPy(
             data->function(py_interop::makeArguments(data->engine, self, args)));
       };
 
@@ -337,7 +337,7 @@ class PyEngine : public ScriptEngine {
         delete static_cast<FunctionData*>(ptr);
       };
       PyObject* capsule =
-          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
+          PyCapsule_New(new FunctionData{f.callback, this}, nullptr, destructor);
       checkError();
 
       PyObject* function = PyCFunction_New(method, capsule);
@@ -369,7 +369,7 @@ class PyEngine : public ScriptEngine {
         PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
         auto ret = data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
         Py_DECREF(real_args);
-        return py_interop::peekPy(ret);
+        return py_interop::getPy(ret);
       };
 
       PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -377,7 +377,7 @@ class PyEngine : public ScriptEngine {
         delete static_cast<FunctionData*>(ptr);
       };
       PyObject* capsule =
-          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
+          PyCapsule_New(new FunctionData{f.callback, this}, nullptr, destructor);
       checkError();
 
       PyObject* function = PyCFunction_New(method, capsule);
