@@ -133,7 +133,7 @@ Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t s
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(std::shared_ptr<void> nativeBuffer, size_t size) {
-  return newByteBuffer(nativeBuffer.get(), size);
+  throw Exception("Python does not support sharing buffer pointer.");
 }
 
 }  // namespace script
