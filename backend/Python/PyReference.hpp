@@ -86,7 +86,7 @@ void Global<T>::reset() {
 // == Weak ==
 
 template <typename T>
-Weak<T>::Weak() noexcept : val_(Py_None) {}
+Weak<T>::Weak() noexcept : val_(Py_None) {}       //TODO: Fix weak ref
 
 template <typename T>
 Weak<T>::~Weak() {
