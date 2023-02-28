@@ -122,14 +122,14 @@ Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) {
   const char* bytes = new char[size]{};
-  PyObject* result = PyBytes_FromStringAndSize(bytes, size);
+  PyObject* result = PyByteArray_FromStringAndSize(bytes, size);
   delete bytes;
   return py_interop::asLocal<ByteBuffer>(result);
 }
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {
   return py_interop::asLocal<ByteBuffer>(
-      PyBytes_FromStringAndSize(static_cast<char*>(nativeBuffer), size));
+      PyByteArray_FromStringAndSize(static_cast<char*>(nativeBuffer), size));
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(std::shared_ptr<void> nativeBuffer, size_t size) {
