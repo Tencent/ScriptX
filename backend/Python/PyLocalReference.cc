@@ -156,7 +156,7 @@ bool Local<Value>::isFunction() const {
 
 bool Local<Value>::isArray() const { return PyList_CheckExact(val_); }
 
-bool Local<Value>::isByteBuffer() const { return PyBytes_CheckExact(val_); }
+bool Local<Value>::isByteBuffer() const { return PyByteArray_CheckExact(val_); }
 
 // Object can be dict or class or any instance, for bad design!
 bool Local<Value>::isObject() const {
@@ -326,10 +326,10 @@ void Local<ByteBuffer>::commit() const {}
 
 void Local<ByteBuffer>::sync() const {}
 
-size_t Local<ByteBuffer>::byteLength() const { return PyBytes_Size(val_); }
+size_t Local<ByteBuffer>::byteLength() const { return PyByteArray_Size(val_); }
 
-void* Local<ByteBuffer>::getRawBytes() const { return PyBytes_AsString(val_); }
+void* Local<ByteBuffer>::getRawBytes() const { return PyByteArray_AsString(val_); }
 
-std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return nullptr; }
+std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return nullptr; }    //TODO: fix
 
 }  // namespace script

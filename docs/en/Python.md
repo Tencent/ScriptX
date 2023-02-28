@@ -2,15 +2,16 @@
 
 ScriptX and Python language type comparison table
 
-|   Python   | ScriptX  |
-| :--------: | :------: |
-|    None    |   Null   |
-|    dict    |  Object  |
-|    list    |  Array   |
-|   string   |  String  |
-| int, float |  Number  |
-|    bool    | Boolean  |
-|  function  | Function |
+|   Python   |  ScriptX   |
+| :--------: | :--------: |
+|    None    |    Null    |
+|    dict    |   Object   |
+|    list    |   Array    |
+|   string   |   String   |
+| int, float |   Number   |
+|    bool    |  Boolean   |
+|  function  |  Function  |
+| bytearray  | ByteBuffer |
 
 ## Language specific implementation of Object
 

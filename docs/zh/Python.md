@@ -2,15 +2,16 @@
 
 ScriptX和Python语言类型对照表
 
-|   Python   | ScriptX  |
-| :--------: | :------: |
-|    None    |   Null   |
-|    dict    |  Object  |
-|    list    |  Array   |
-|   string   |  String  |
-| int, float |  Number  |
-|    bool    | Boolean  |
-|  function  | Function |
+|   Python   |  ScriptX   |
+| :--------: | :--------: |
+|    None    |    Null    |
+|    dict    |   Object   |
+|    list    |   Array    |
+|   string   |   String   |
+| int, float |   Number   |
+|    bool    |  Boolean   |
+|  function  |  Function  |
+| bytearray  | ByteBuffer |
 
 ## Object 的语言特定实现
 
