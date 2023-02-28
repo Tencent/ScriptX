@@ -537,7 +537,7 @@ TEST_F(NativeTest, OverloadedInsBind) {
 
   auto func = ins.get("f").asFunction();
 
-  auto ret = func.call(ins, Number::newNumber(0));
+  auto ret = func.call(ins, Number::newNumber(0));    //TODO: fix OverloadedInsBind
   ASSERT_TRUE(ret.isString());
   EXPECT_EQ(ret.asString().toString(), "number");
   ret = func.call(ins, String::newString("hello"));
@@ -1259,7 +1259,7 @@ TEST_F(NativeTest, FunctionWrapperReceiver) {
     auto withReceiver = func.wrapper<int()>(receiver);
     EXPECT_EQ(withReceiver(), 42);
 
-    auto noReceiver = func.wrapper<int()>();
+    auto noReceiver = func.wrapper<int()>();    //TODO: Python will cause Exception here.
     EXPECT_EQ(noReceiver(), -1);
   } catch (const Exception& e) {
     FAIL() << e;
