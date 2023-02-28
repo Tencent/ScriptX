@@ -105,7 +105,13 @@ return view:readInt8(5) == 2 and view:readInt8(6) == 0 and view:readInt8(7) == 4
 TEST_F(ByteBufferTest, Data) {
   EngineScope engineScope(engine);
 #ifdef SCRIPTX_LANG_PYTHON
-  engine->eval("view = bytearray('1024\\0\\0\\0\\0', encoding='ascii')");
+  engine->eval(R"(
+view = bytearray(8)
+view[0] = 1
+view[1] = 0
+view[2] = 2
+view[3] = 4
+)");
   auto ret = engine->eval("view");
 
 #else
@@ -178,6 +184,13 @@ TEST_F(ByteBufferTest, CreateShared) {
   auto shared = std::shared_ptr<uint8_t>(new uint8_t[8], std::default_delete<uint8_t[]>());
   auto ptr = shared.get();
 
+#ifdef SCRIPTX_LANG_PYTHON
+  // Python does not support sharing buffer pointer,
+  // will throw exception and exit here
+  EXPECT_THROW({ ByteBuffer::newByteBuffer(shared, 8); }, Exception);
+  return;
+#endif
+
   auto buffer = ByteBuffer::newByteBuffer(shared, 8);
   ASSERT_EQ(buffer.getRawBytes(), ptr);
   ASSERT_EQ(buffer.getRawBytesShared().get(), ptr);
@@ -191,10 +204,10 @@ TEST_F(ByteBufferTest, CreateShared) {
 #ifdef SCRIPTX_LANG_PYTHON
   engine->eval(R"(
 view = buffer
-view[0] = ord('1')
-view[1] = ord('0')
-view[2] = ord('2')
-view[3] = ord('4')
+view[0] = 1
+view[1] = 0
+view[2] = 2
+view[3] = 4
 )");
 
 #else

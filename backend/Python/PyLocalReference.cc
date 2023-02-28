@@ -320,7 +320,7 @@ void Local<Array>::clear() const { PyList_SetSlice(val_, 0, PyList_Size(val_), n
 
 ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::kInt8; }
 
-bool Local<ByteBuffer>::isShared() const { return false; }
+bool Local<ByteBuffer>::isShared() const { return true; }
 
 void Local<ByteBuffer>::commit() const {}
 
@@ -330,6 +330,8 @@ size_t Local<ByteBuffer>::byteLength() const { return PyByteArray_Size(val_); }
 
 void* Local<ByteBuffer>::getRawBytes() const { return PyByteArray_AsString(val_); }
 
-std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const { return nullptr; }    //TODO: fix
+std::shared_ptr<void> Local<ByteBuffer>::getRawBytesShared() const {
+   return std::shared_ptr<void>(getRawBytes(), [global = Global<ByteBuffer>(*this)](void* ptr) {}); 
+}
 
 }  // namespace script
