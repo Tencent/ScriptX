@@ -51,7 +51,16 @@ Local<Object> ScriptClass::getScriptObject() const { return internalState_.weakR
 
 Local<Array> ScriptClass::getInternalStore() const {
   PyObject* ref = py_interop::peekPy(internalState_.weakRef_.getValue());
-  return py_interop::toLocal<Array>(py_backend::getAttr(ref, "internal_store"));
+
+  // create internal storage if not exist
+  if(!py_backend::getAttr(ref, "scriptx_internal_store"))     //TODO: Fix internal storage
+  {
+    PyObject *internalList = PyList_New(0);
+    py_backend::setAttr(ref, "scriptx_internal_store", internalList);
+    Py_DECREF(internalList);
+  }
+  
+  return py_interop::toLocal<Array>(py_backend::getAttr(ref, "scriptx_internal_store"));
 }
 
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.scriptEngine_; }

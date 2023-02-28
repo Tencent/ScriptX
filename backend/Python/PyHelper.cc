@@ -22,20 +22,20 @@ namespace script::py_backend {
 
 void setAttr(PyObject* obj, PyObject* key, PyObject* value) {
   if (PyObject_SetAttr(obj, key, value) != 0) {
-    throw Exception();
+    throw Exception(std::string("Fail to set attr"));
   }
 }
 
 void setAttr(PyObject* obj, const char* key, PyObject* value) {
   if (PyObject_SetAttrString(obj, key, value) != 0) {
-    throw Exception();
+    throw Exception(std::string("Fail to set attr named ") + key);
   }
 }
 
 PyObject* getAttr(PyObject* obj, PyObject* key) {
   PyObject* result = PyObject_GetAttr(obj, key);
   if (!result) {
-    throw Exception();
+    throw Exception("Fail to get attr");
   }
   return result;
 }
@@ -43,7 +43,7 @@ PyObject* getAttr(PyObject* obj, PyObject* key) {
 PyObject* getAttr(PyObject* obj, const char* key) {
   PyObject* result = PyObject_GetAttrString(obj, key);
   if (!result) {
-    throw Exception();
+    throw Exception(std::string("Fail to get attr named ") + key);
   }
   return result;
 }
@@ -54,34 +54,34 @@ bool hasAttr(PyObject* obj, const char* key) { return PyObject_HasAttrString(obj
 
 void delAttr(PyObject* obj, PyObject* key) {
   if (PyObject_DelAttr(obj, key) != 0) {
-    throw Exception();
+    throw Exception("Fail to del attr");
   }
 }
 
 void delAttr(PyObject* obj, const char* key) {
   if (PyObject_DelAttrString(obj, key) != 0) {
-    throw Exception();
+    throw Exception(std::string("Fail to del attr named ") + key);
   }
 }
 
 // warn: value's ref +1
 void setDictItem(PyObject* obj, PyObject* key, PyObject* value) {
   if (PyDict_SetItem(obj, key, value) != 0) {
-    throw Exception();
+    throw Exception("Fail to set dict item");
   }
 }
 
 // warn: value's ref +1
 void setDictItem(PyObject* obj, const char* key, PyObject* value) {
   if (PyDict_SetItemString(obj, key, value) != 0) {
-    throw Exception();
+    throw Exception(std::string("Fail to set dict item named ") + key);
   }
 }
 
 PyObject* getDictItem(PyObject* obj, PyObject* key) {
   PyObject* rv = PyDict_GetItemWithError(obj, key);
   if (rv == nullptr && PyErr_Occurred()) {
-    throw Exception();
+    throw Exception("Fail to get dict item");
   }
   return rv;
 }
@@ -90,13 +90,13 @@ PyObject* getDictItem(PyObject* obj, const char* key) {
   PyObject *kv = nullptr, *rv = nullptr;
   kv = PyUnicode_FromString(key);
   if (kv == nullptr) {
-    throw Exception();
+    throw Exception(std::string("Fail to get dict item named ") + key);
   }
 
   rv = PyDict_GetItemWithError(obj, kv);
   Py_DECREF(kv);
   if (rv == nullptr && PyErr_Occurred()) {
-    throw Exception();
+    throw Exception(std::string("Fail to get dict item named ") + key);
   }
   return rv;
 }
