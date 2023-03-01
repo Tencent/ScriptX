@@ -37,15 +37,18 @@ void valueConstructorCheck(PyObject* value) {
 #define REF_IMPL_BASIC_FUNC(ValueType)                                                  \
   Local<ValueType>::Local(const Local<ValueType>& copy) : val_(Py_NewRef(copy.val_)) {} \
   Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {         \
-    move.val_ = nullptr;                                                                \
+    move.val_ = Py_None;                                                                \
   }                                                                                     \
   Local<ValueType>::~Local() { Py_XDECREF(val_); }                                      \
   Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                    \
-    Local(from).swap(*this);                                                            \
+    Py_XDECREF(val_);                                                                   \
+    val_ = Py_NewRef(from.val_);                                                        \
     return *this;                                                                       \
   }                                                                                     \
   Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {                \
-    Local(std::move(move)).swap(*this);                                                 \
+    Py_XDECREF(val_);                                                                   \
+    val_ = move.val_;                                                                   \
+    move.val_ = Py_None;                                                                \
     return *this;                                                                       \
   }                                                                                     \
   void Local<ValueType>::swap(Local& rhs) noexcept { std::swap(val_, rhs.val_); }
@@ -63,7 +66,7 @@ void valueConstructorCheck(PyObject* value) {
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
-  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(Py_NewRef(val_)); }
+  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(val_); }
 
 REF_IMPL_BASIC_FUNC(Value)
 
@@ -109,17 +112,15 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 // ==== value ====
 
-Local<Value>::Local() noexcept : val_(Py_NewRef(Py_None)) {}
+Local<Value>::Local() noexcept : val_(Py_None) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(ref ? ref : Py_None) {
-  if (ref == nullptr) throw Exception("Python exception occurred!");
-}
+Local<Value>::Local(InternalLocalRef ref) : val_(ref ? Py_NewRef(ref) : Py_None) {}
 
 bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
 void Local<Value>::reset() {
-  Py_DECREF(val_);
-  val_ = nullptr;
+  Py_XDECREF(val_);
+  val_ = Py_None;
 }
 
 ValueKind Local<Value>::getKind() const {
@@ -158,7 +159,7 @@ bool Local<Value>::isArray() const { return PyList_CheckExact(val_); }
 
 bool Local<Value>::isByteBuffer() const { return PyByteArray_CheckExact(val_); }
 
-// Object can be dict or class or any instance, for bad design!
+// Object can be dict or class or any instance, bad design!
 bool Local<Value>::isObject() const {
   return PyDict_Check(val_) || PyType_Check(val_) ||
          (Py_TYPE(val_->ob_type) == py_backend::PyEngine::defaultMetaType_);
@@ -216,21 +217,20 @@ Local<String> Local<Value>::describe() const {
 
 Local<Value> Local<Object>::get(const script::Local<script::String>& key) const {
   if (PyDict_CheckExact(val_)) {
-    PyObject* item = py_backend::getDictItem(val_, key.val_);
+    PyObject* item = py_backend::getDictItem(val_, key.val_);   // return a borrowed ref
     if (item)
       return py_interop::toLocal<Value>(item);
     else
       return Local<Value>();
   } else {
-    return py_interop::toLocal<Value>(py_backend::getAttr(val_, key.val_));
+    PyObject* ref = py_backend::getAttr(val_, key.val_);    // warn: return a new ref!
+    return py_interop::asLocal<Value>(ref);
   }
 }
 
 void Local<Object>::set(const script::Local<script::String>& key,
                         const script::Local<script::Value>& value) const {
-  py_backend::setDictItem(val_, key.val_, value.val_);
-  //Py_DECREF(key.val_);
-  //Py_DECREF(value.val_);
+  py_backend::setDictItem(val_, key.val_, value.val_);      // set setDictItem auto +1 ref to value
 }
 
 void Local<Object>::remove(const Local<class script::String>& key) const {
@@ -250,7 +250,7 @@ std::vector<Local<String>> Local<Object>::getKeys() const {
   PyObject* key;
   PyObject* value;
   Py_ssize_t pos = 0;
-  while (PyDict_Next(val_, &pos, &key, &value)) {
+  while (PyDict_Next(val_, &pos, &key, &value)) {       // return borrowed refs
     keys.push_back(py_interop::toLocal<String>(key));
   }
   return keys;
@@ -269,7 +269,7 @@ bool Local<Boolean>::value() const { return Py_IsTrue(val_); }
 Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
   // if thiz is valid, thiz need to be passed as first parameter to call target function
-  // just like "ClassName.funcName(thiz, para1, para2, ...)" in Python
+  // just like "ClassName.funcName(self, para1, para2, ...)" in Python
   bool hasThiz = !thiz.isNull();
   PyObject* args_tuple = PyTuple_New(hasThiz ? size + 1 : size);  
   size_t offset = 0;
@@ -292,7 +292,7 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
 size_t Local<Array>::size() const { return PyList_Size(val_); }
 
 Local<Value> Local<Array>::get(size_t index) const {
-  PyObject* item = PyList_GetItem(val_, index);
+  PyObject* item = PyList_GetItem(val_, index);       // return a borrowed ref
   if (item)
     return py_interop::toLocal<Value>(item);
   else
@@ -304,7 +304,7 @@ void Local<Array>::set(size_t index, const script::Local<script::Value>& value) 
   if (index >= listSize) {
     for (size_t i = listSize; i <= index; ++i) {
       PyList_Append(val_, Py_None);
-      Py_DECREF(Py_None);
+      //Py_DECREF(Py_None);
     }
   }
   Py_INCREF(value.val_);         // PyList_SetItem will steal ref
@@ -312,8 +312,7 @@ void Local<Array>::set(size_t index, const script::Local<script::Value>& value) 
 }
 
 void Local<Array>::add(const script::Local<script::Value>& value) const {
-  PyList_Append(val_, value.val_);
-  Py_DECREF(value.val_);
+  PyList_Append(val_, value.val_);    // not steal ref
 }
 
 void Local<Array>::clear() const { PyList_SetSlice(val_, 0, PyList_Size(val_), nullptr); }

@@ -32,6 +32,7 @@ void setAttr(PyObject* obj, const char* key, PyObject* value) {
   }
 }
 
+// warn: return a new ref
 PyObject* getAttr(PyObject* obj, PyObject* key) {
   PyObject* result = PyObject_GetAttr(obj, key);
   if (!result) {
@@ -40,6 +41,7 @@ PyObject* getAttr(PyObject* obj, PyObject* key) {
   return result;
 }
 
+// warn: return a new ref
 PyObject* getAttr(PyObject* obj, const char* key) {
   PyObject* result = PyObject_GetAttrString(obj, key);
   if (!result) {
@@ -78,6 +80,7 @@ void setDictItem(PyObject* obj, const char* key, PyObject* value) {
   }
 }
 
+// warn: return a borrowed ref
 PyObject* getDictItem(PyObject* obj, PyObject* key) {
   PyObject* rv = PyDict_GetItemWithError(obj, key);
   if (rv == nullptr && PyErr_Occurred()) {
@@ -86,6 +89,7 @@ PyObject* getDictItem(PyObject* obj, PyObject* key) {
   return rv;
 }
 
+// warn: return a borrowed ref
 PyObject* getDictItem(PyObject* obj, const char* key) {
   PyObject *kv = nullptr, *rv = nullptr;
   kv = PyUnicode_FromString(key);

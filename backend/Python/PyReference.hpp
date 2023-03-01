@@ -86,7 +86,7 @@ Local<Value> Global<T>::getValue() const {
 
 template <typename T>
 bool Global<T>::isEmpty() const {
-  return val_ == Py_None || val_ == nullptr;
+  return Py_IsNone(val_) || val_ == nullptr;
 }
 
 template <typename T>
@@ -100,7 +100,7 @@ void Global<T>::reset() {
 namespace py_backend {
 
 inline WeakRefState::WeakRefState(PyObject* obj) {
-  if(obj == Py_None)
+  if(Py_IsNone(obj))
     return;
 
   _ref = PyWeakref_NewRef(obj, NULL);
@@ -191,28 +191,28 @@ inline void WeakRefState::swap(WeakRefState& other){
 
 inline bool WeakRefState::isEmpty() const {
   PyObject *ref = peek();
-  return ref == Py_None || ref == nullptr;
+  return Py_IsNone(ref) || ref == nullptr;
 }
 
 inline PyObject *WeakRefState::get() const{
   if(_isRealWeakRef)
   {
-    if(_ref == Py_None)
+    if(Py_IsNone(_ref))
       return Py_None;
     PyObject* obj = PyWeakref_GetObject(_ref);
-    return (obj == Py_None ? Py_None : Py_NewRef(obj));
+    return (Py_IsNone(obj) ? Py_None : Py_NewRef(obj));
   }
   else
   {
     // is fake weak ref (global ref)
-    return (_ref == Py_None ? Py_None : Py_NewRef(_ref));
+    return (Py_IsNone(_ref) ? Py_None : Py_NewRef(_ref));
   }
 }
 
 inline PyObject *WeakRefState::peek() const{
   if(_isRealWeakRef)
   {
-    return (_ref == Py_None ? Py_None : PyWeakref_GetObject(_ref));
+    return (Py_IsNone(_ref) ? Py_None : PyWeakref_GetObject(_ref));
   }
   else
   {
@@ -226,7 +226,7 @@ inline bool WeakRefState::isRealWeakRef() const {
 }
 
 inline void WeakRefState::reset() {
-  if(!_isRealWeakRef && _ref != Py_None)
+  if(!_isRealWeakRef && !Py_IsNone(_ref))
   {
     Py_XDECREF(_ref);
   }
@@ -236,7 +236,7 @@ inline void WeakRefState::reset() {
 
 inline void WeakRefState::dtor() {
   // if this is not a real ref need to dec ref count
-  if(!_isRealWeakRef && _ref != Py_None)
+  if(!_isRealWeakRef && !Py_IsNone(_ref))
   {
     Py_XDECREF(_ref);
   }
