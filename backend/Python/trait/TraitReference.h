@@ -21,7 +21,37 @@
 #include "../../src/types.h"
 #include "../PyHelper.h"
 
-namespace script::internal {
+namespace script {
+
+namespace py_backend {
+
+struct WeakRefState {
+  PyObject* _ref = Py_None;
+  bool _isRealWeakRef = false;    
+  // if true, _ref is a real weak ref, or _ref will be a global ref instead 
+  // (some builtin types like <int, string, ...> cannot have native weak ref)
+
+  WeakRefState() = default;
+  WeakRefState(PyObject* obj);
+  WeakRefState(const WeakRefState& assign);
+  WeakRefState(WeakRefState&& move) noexcept;
+
+  WeakRefState& operator=(const WeakRefState& assign);
+  WeakRefState& operator=(WeakRefState&& move) noexcept;
+
+  bool isEmpty() const;
+  bool isRealWeakRef() const;
+  void swap(WeakRefState& other);
+
+  PyObject *get() const;          // ref count + 1
+  PyObject *peek() const;   // ref count no change
+  void reset();
+  void dtor();
+};
+
+}   // namespace script::py_backend
+
+namespace internal {
 
 template <typename T>
 struct ImplType<Local<T>> {
@@ -35,7 +65,9 @@ struct ImplType<Global<T>> {
 
 template <typename T>
 struct ImplType<Weak<T>> {
-  using type = PyObject*;
+  using type = py_backend::WeakRefState;
 };
 
 }  // namespace script::internal
+
+}// namespace script
