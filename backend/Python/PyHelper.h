@@ -77,6 +77,7 @@ std::string fromStr(PyObject* s);
 class PyEngine;
 
 void checkError();
+bool checkErrorAndClear();
 PyEngine* currentEngine();
 PyEngine* currentEngineChecked();
 

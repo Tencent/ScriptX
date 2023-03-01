@@ -138,7 +138,11 @@ Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
 
 std::shared_ptr<utils::MessageQueue> PyEngine::messageQueue() { return queue_; }
 
-void PyEngine::gc() {}
+void PyEngine::gc() { 
+  if(isDestroying())
+    return;
+  PyGC_Collect(); 
+}
 
 void PyEngine::adjustAssociatedMemory(int64_t count) {}
 
@@ -146,5 +150,5 @@ ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 
 std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
-bool PyEngine::isDestroying() const { return false; }
+bool PyEngine::isDestroying() const { return false; }   //TODO: fix
 }  // namespace script::py_backend
