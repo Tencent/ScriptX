@@ -134,11 +134,7 @@ void checkError() {
 
 bool checkErrorAndClear() {
   if (PyErr_Occurred()) {
-    PyObject *pType, *pValue, *pTraceback;
-    PyErr_Fetch(&pType, &pValue, &pTraceback);
-    Py_XDECREF(pType);
-    Py_XDECREF(pValue);
-    Py_XDECREF(pTraceback);
+    PyErr_Clear();
     return true;
   }
   return false;
