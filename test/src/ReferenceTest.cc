@@ -168,7 +168,7 @@ TEST_F(ReferenceTest, LocalGc) {
 }
 
 TEST_F(ReferenceTest, WeakGc) {
-  std::vector<Weak<Value>> weaks;
+  std::vector<Weak<Value>> weaks;       //TODO: weak ref to string in python works like strong ref
   {
     std::string chunk;
     chunk.resize(1024 * 1024, '.');
