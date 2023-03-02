@@ -25,6 +25,25 @@ namespace script {
 
 namespace py_backend {
 
+struct GlobalRefState {
+  PyObject* _ref = Py_None;
+
+  GlobalRefState() = default;
+  GlobalRefState(PyObject* obj);
+  GlobalRefState(const GlobalRefState& assign);
+  GlobalRefState(GlobalRefState&& move) noexcept;
+
+  GlobalRefState& operator=(const GlobalRefState& assign);
+  GlobalRefState& operator=(GlobalRefState&& move) noexcept;
+  void swap(GlobalRefState& other);
+
+  bool isEmpty() const;
+  PyObject *get() const;          // ref count + 1
+  PyObject *peek() const;   // ref count no change
+  void reset();
+  void dtor();
+};
+
 struct WeakRefState {
   PyObject* _ref = Py_None;
   bool _isRealWeakRef = false;    
@@ -38,10 +57,10 @@ struct WeakRefState {
 
   WeakRefState& operator=(const WeakRefState& assign);
   WeakRefState& operator=(WeakRefState&& move) noexcept;
+  void swap(WeakRefState& other);
 
   bool isEmpty() const;
   bool isRealWeakRef() const;
-  void swap(WeakRefState& other);
 
   PyObject *get() const;          // ref count + 1
   PyObject *peek() const;   // ref count no change
@@ -60,7 +79,7 @@ struct ImplType<Local<T>> {
 
 template <typename T>
 struct ImplType<Global<T>> {
-  using type = PyObject*;
+  using type = py_backend::GlobalRefState;
 };
 
 template <typename T>

@@ -27,8 +27,8 @@
 // Because python's bad support of sub-interpreter, here to manage GIL & thread state manually.
 // - One engine owns a sub-interpreter, and owns a TLS storage called engine.subThreadState_, 
 // which stores his own current thread state on each thread.
-// - This "thread state" works like "CPU Context" in low-level C programs. When changing engine, 
-// "context" need to be switched to his correct thread state
+// - This "thread state" works like "CPU Context". When changing engine, "context" need to be
+// switched to correct target thread state
 // - When entering a new EngineScope, first check that if an thread state exists. If found,
 // save it into oldThreadStateStack. When exit this EngineScope, old thread state saved before
 // will be poped and recovered.

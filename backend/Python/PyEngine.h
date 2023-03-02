@@ -28,11 +28,18 @@ namespace script::py_backend {
 
 // an PyEngine = a subinterpreter
 class PyEngine : public ScriptEngine {
- private:
+private:
   std::shared_ptr<::script::utils::MessageQueue> queue_;
 
   std::unordered_map<const void*, PyTypeObject*> registeredTypes_;
   std::unordered_map<PyTypeObject*, const void*> registeredTypesReverse_;
+
+  bool destroying = false;
+
+  // refs keeper
+  GlobalOrWeakRefKeeper refsKeeper;
+  friend inline void _updateRefStateInKeeper(GlobalRefState* ref, bool isCreate, bool isEmptyRef);
+  friend inline void _updateRefStateInKeeper(WeakRefState* ref, bool isCreate, bool isEmptyRef);
 
   // Global thread state of main interpreter
   inline static PyThreadState* mainThreadState_ = nullptr;

@@ -19,6 +19,7 @@
 #include "../../src/Native.hpp"
 #include "../../src/Reference.h"
 #include "PyHelper.h"
+#include <set>
 
 namespace script {
 
@@ -80,5 +81,41 @@ PyTypeObject* makeNamespaceType();
 // @return new reference
 PyTypeObject* makeDefaultMetaclass();
 
+class GlobalOrWeakRefKeeper
+{
+private:
+  std::set<GlobalRefState*> globalRefs;
+  std::set<WeakRefState*> weakRefs;
+
+public:
+  inline void keep(GlobalRefState* globalRef) {
+    globalRefs.insert(globalRef);
+  }
+
+  inline void keep(WeakRefState* weakRef) {
+    weakRefs.insert(weakRef);
+  }
+
+  inline bool remove(GlobalRefState* globalRef) {
+    return globalRefs.erase(globalRef) > 0;
+  }
+
+  inline bool remove(WeakRefState* weakRef) {
+    return weakRefs.erase(weakRef) > 0;
+  }
+  
+  void dtor()
+  {
+    for(auto &ref : globalRefs)
+      ref->reset();
+    globalRefs.clear();
+    
+    for(auto &ref : weakRefs)
+      ref->reset();
+    weakRefs.clear();
+  }
+};
+
 }  // namespace py_backend
+
 }  // namespace script
