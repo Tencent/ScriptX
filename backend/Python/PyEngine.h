@@ -162,7 +162,20 @@ private:
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      return py_interop::getPy(data->function());
+      try {
+        Local<Value> ret = data->function();
+        return py_interop::getPy(ret);
+      }
+      catch(const Exception &e) {
+        PyErr_SetString(PyExc_Exception, e.message().c_str());
+      }
+      catch(const std::exception &e) {
+        PyErr_SetString(PyExc_Exception, e.what());
+      }
+      catch(...) {
+        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+      }
+      return nullptr;
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -193,7 +206,20 @@ private:
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
-      return py_interop::getPy(data->function(thiz));
+      try {
+        Local<Value> ret = data->function(thiz);
+        return py_interop::getPy(ret);
+      }
+      catch(const Exception &e) {
+        PyErr_SetString(PyExc_Exception, e.message().c_str());
+      }
+      catch(const std::exception &e) {
+        PyErr_SetString(PyExc_Exception, e.what());
+      }
+      catch(...) {
+        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+      }
+      return nullptr;
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -223,8 +249,20 @@ private:
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
-      Py_RETURN_NONE;
+      try {
+        data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
+        return Py_None;
+      }
+      catch(const Exception &e) {
+        PyErr_SetString(PyExc_Exception, e.message().c_str());
+      }
+      catch(const std::exception &e) {
+        PyErr_SetString(PyExc_Exception, e.what());
+      }
+      catch(...) {
+        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+      }
+      return nullptr;
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -256,8 +294,20 @@ private:
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
-      data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
-      Py_RETURN_NONE;
+      try {
+        data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
+        return Py_None;
+      }
+      catch(const Exception &e) {
+        PyErr_SetString(PyExc_Exception, e.message().c_str());
+      }
+      catch(const std::exception &e) {
+        PyErr_SetString(PyExc_Exception, e.what());
+      }
+      catch(...) {
+        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+      }
+      return nullptr;
     };
 
     PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -335,8 +385,20 @@ private:
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-        return py_interop::getPy(
-            data->function(py_interop::makeArguments(data->engine, self, args)));
+        try {
+          Local<Value> ret = data->function(py_interop::makeArguments(data->engine, self, args));
+          return py_interop::getPy(ret);
+        }
+        catch(const Exception &e) {
+          PyErr_SetString(PyExc_Exception, e.message().c_str());
+        }
+        catch(const std::exception &e) {
+          PyErr_SetString(PyExc_Exception, e.what());
+        }
+        catch(...) {
+          PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+        }
+        return nullptr;
       };
 
       PyCapsule_Destructor destructor = [](PyObject* cap) {
@@ -374,9 +436,22 @@ private:
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
         T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
         PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
-        auto ret = data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
+        try {
+          Local<Value> ret = data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
+          Py_DECREF(real_args);
+          return py_interop::getPy(ret);
+        }
+        catch(const Exception &e) {
+          PyErr_SetString(PyExc_Exception, e.message().c_str());
+        }
+        catch(const std::exception &e) {
+          PyErr_SetString(PyExc_Exception, e.what());
+        }
+        catch(...) {
+          PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+        }
         Py_DECREF(real_args);
-        return py_interop::getPy(ret);
+        return nullptr;
       };
 
       PyCapsule_Destructor destructor = [](PyObject* cap) {
