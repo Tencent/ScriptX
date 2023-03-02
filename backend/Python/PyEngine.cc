@@ -65,12 +65,18 @@ PyEngine::PyEngine() : PyEngine(nullptr) {}
 PyEngine::~PyEngine() = default;
 
 void PyEngine::destroy() noexcept {
-  ScriptEngine::destroyUserData();  // TODO: solve this problem about Py_EndInterpreter
+  destroying = true;
+  ScriptEngine::destroyUserData();
+
+  // destroy all Global and Weak refs
+  refsKeeper.dtor();
+
+  //TODO: fix Py_EndInterpreter: not the last thread
   /*if (PyEngine::engineEnterCount_ == 0) {
     // GIL is not locked. Just lock it
     PyEval_AcquireLock();
   }
-  // Swap to clear thread state & end sub interpreter
+  // Swap to target thread state need to clear & end sub interpreter
   PyThreadState* oldThreadState = PyThreadState_Swap(subThreadState_.get());
   Py_EndInterpreter(subThreadState_.get());
   // Recover old thread state
@@ -150,5 +156,5 @@ ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 
 std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
-bool PyEngine::isDestroying() const { return false; }   //TODO: fix
+bool PyEngine::isDestroying() const { return destroying; }
 }  // namespace script::py_backend
