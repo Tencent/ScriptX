@@ -154,6 +154,41 @@ class OverloadInvalidArguments : public std::exception {};
 template <typename>
 struct ConvertingFuncCallHelper {};
 
+// extract common code to utils, in order to reduce code size in terms of template specialization
+struct ConvertCallHelperUtils {
+  /**
+   * @param args
+   * @param argsCount
+   * @param nothrow
+   * @return true for failure, abort immediately
+   */
+  static bool checkArgs(const Arguments& args, size_t argsCount, bool nothrow) {
+    if (args.size() != argsCount) {
+      // fail fast
+      if (nothrow) return true;
+      std::ostringstream msg;
+      msg << "Argument count mismatch, expect:" << argsCount << " got:" << args.size();
+      throw Exception(msg.str());
+    }
+    return false;
+  }
+
+  static Local<Value> handleParamConvertFailure(const Exception& e, bool nothrow,
+                                                bool throwForOverload) {
+    if (!nothrow && throwForOverload) throw OverloadInvalidArguments();
+    return handleException(e, nothrow);
+  }
+
+  template <typename RetType>
+  static Local<Value> convertAndReturn(RetType&& ret, bool nothrow) {
+    try {
+      return TypeConverter<RetType>::toScript(std::forward<RetType>(ret));
+    } catch (const Exception& e) {
+      return handleException(e, nothrow);
+    }
+  }
+};
+
 template <typename Ret, typename... Args>
 struct ConvertingFuncCallHelper<std::pair<Ret, std::tuple<Args...>>> {
  private:
@@ -173,30 +208,21 @@ struct ConvertingFuncCallHelper<std::pair<Ret, std::tuple<Args...>>> {
     // using std::optional::operator* instead
 
     try {
-      if (args.size() != sizeof...(Args)) {
-        // fail fast
-        if (nothrow) return {};
-        std::ostringstream msg;
-        msg << "Argument count mismatch, expect:" << (sizeof...(Args)) << " got:" << args.size();
-        throw Exception(msg.str());
+      if (ConvertCallHelperUtils::checkArgs(args, ArgsLength, nothrow)) {
+        return {};
       }
       typeHolders.emplace(args[index]...);
       cppArgs.emplace(std::get<index>(*typeHolders).template toCpp<Args>()...);
     } catch (const Exception& e) {
-      if (!nothrow && throwForOverload) throw OverloadInvalidArguments();
-      return handleException(e, nothrow);
+      return ConvertCallHelperUtils::handleParamConvertFailure(e, nothrow, throwForOverload);
     }
 
     if constexpr (std::is_same_v<Ret, void>) {
       std::apply(func, *std::move(cppArgs));
       return {};
     } else {
-      auto ret = std::apply(func, *std::move(cppArgs));
-      try {
-        return TypeConverter<Ret>::toScript(std::forward<Ret>(ret));
-      } catch (const Exception& e) {
-        return handleException(e, nothrow);
-      }
+      return ConvertCallHelperUtils::convertAndReturn<Ret>(std::apply(func, *std::move(cppArgs)),
+                                                           nothrow);
     }
   }
 
@@ -208,30 +234,21 @@ struct ConvertingFuncCallHelper<std::pair<Ret, std::tuple<Args...>>> {
     std::optional<std::tuple<Ins*, typename ConverterDecay<Args>::type...>> cppArgs;
 
     try {
-      if (args.size() != sizeof...(Args)) {
-        // fail fast
-        if (nothrow) return {};
-        std::ostringstream msg;
-        msg << "Argument count mismatch, expect:" << (sizeof...(Args)) << " got:" << args.size();
-        throw Exception(msg.str());
+      if (ConvertCallHelperUtils::checkArgs(args, ArgsLength, nothrow)) {
+        return {};
       }
       typeHolders.emplace(args[index]...);
       cppArgs.emplace(ins, std::get<index>(*typeHolders).template toCpp<Args>()...);
     } catch (const Exception& e) {
-      if (!nothrow && throwForOverload) throw OverloadInvalidArguments();
-      return handleException(e, nothrow);
+      return ConvertCallHelperUtils::handleParamConvertFailure(e, nothrow, throwForOverload);
     }
 
     if constexpr (std::is_same_v<Ret, void>) {
       std::apply(func, *std::move(cppArgs));
       return {};
     } else {
-      auto ret = std::apply(func, *std::move(cppArgs));
-      try {
-        return TypeConverter<Ret>::toScript(std::forward<Ret>(ret));
-      } catch (const Exception& e) {
-        return handleException(e, nothrow);
-      }
+      return ConvertCallHelperUtils::convertAndReturn(std::apply(func, *std::move(cppArgs)),
+                                                      nothrow);
     }
   }
 
