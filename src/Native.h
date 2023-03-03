@@ -361,8 +361,7 @@ auto selectOverloadedFunc(std::decay_t<Signature> func) {
 
 namespace internal {
 
-template <typename T>
-void validateClassDefine(const ClassDefine<T>* classDefine);
+struct ClassDefineState;
 
 // forward declare
 template <typename T>
@@ -375,9 +374,7 @@ class InstanceDefineBuilder;
   friend class ::script::ClassDefineBuilder;                                  \
   friend class ::script::ScriptEngine;                                        \
   friend typename ::script::internal::ImplType<::script::ScriptEngine>::type; \
-  template <typename TT>                                                      \
-  friend void ::script::internal::validateClassDefine(                        \
-      const ::script::ClassDefine<TT>* classDefine);                          \
+  friend struct ::script::internal::ClassDefineState;                         \
   template <typename TT>                                                      \
   friend class ::script::internal::InstanceDefineBuilder
 
@@ -508,6 +505,11 @@ struct ClassDefineState {
         nameSpace(std::move(nameSpace)),
         staticDefine(std::move(staticDefine)),
         instanceDefine(std::move(instanceDefine)) {}
+
+ private:
+  void validateClassDefine(bool isBaseOfScriptClass) const;
+
+  SCRIPTX_CLASS_DEFINE_FRIENDS;
 };
 
 }  // namespace internal
@@ -534,7 +536,9 @@ class ClassDefine : private internal::ClassDefineState {
   ClassDefine(std::string&& className, std::string&& nameSpace,
               internal::StaticDefine&& staticDefine, internal::InstanceDefine&& instanceDefine)
       : internal::ClassDefineState(std::move(className), std::move(nameSpace),
-                                   std::move(staticDefine), std::move(instanceDefine)) {}
+                                   std::move(staticDefine), std::move(instanceDefine)) {
+    validateClassDefine(std::is_base_of_v<ScriptClass, T>);
+  }
 
   SCRIPTX_CLASS_DEFINE_FRIENDS;
 };

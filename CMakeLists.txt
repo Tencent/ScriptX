@@ -54,11 +54,14 @@ add_library(ScriptX STATIC
         ${SCRIPTX_DIR}/src/Reference.h
         ${SCRIPTX_DIR}/src/Reference.cc
         ${SCRIPTX_DIR}/src/Scope.h
+        ${SCRIPTX_DIR}/src/Scope.cc
         ${SCRIPTX_DIR}/src/Value.h
         ${SCRIPTX_DIR}/src/Exception.h
         ${SCRIPTX_DIR}/src/Inspector.h
+        ${SCRIPTX_DIR}/src/Native.h
+        ${SCRIPTX_DIR}/src/Native.hpp
+        ${SCRIPTX_DIR}/src/Native.cc
         ${SCRIPTX_DIR}/src/types.h
-        ${SCRIPTX_DIR}/src/Scope.cc
         ${SCRIPTX_DIR}/src/Utils.cc
         ${SCRIPTX_DIR}/src/utils/GlobalWeakBookkeeping.hpp
         ${SCRIPTX_DIR}/src/utils/Helper.hpp

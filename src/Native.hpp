@@ -745,88 +745,6 @@ ScriptEngine::newNativeClass(T&&... args) {
 namespace internal {
 
 template <typename T>
-void validateClassDefine(const ClassDefine<T>* classDefine) {
-  auto throwException = [classDefine](const char* msg) {
-    std::string info = msg;
-    if (classDefine) {
-      info = "failed to valid class define [" + classDefine->className + "] " + msg;
-    }
-    if (EngineScope::currentEngine()) {
-      throw Exception(info);
-    } else {
-      throw std::runtime_error(info);
-    }
-  };
-
-  if (classDefine == nullptr) {
-    throwException("null class define");
-  }
-
-  if (classDefine->className.empty()) {
-    throwException("empty class name");
-  }
-
-  bool hasStatic =
-      !classDefine->staticDefine.functions.empty() || !classDefine->staticDefine.properties.empty();
-
-  bool hasInstance = static_cast<bool>(classDefine->instanceDefine.constructor) ||
-                     !classDefine->instanceDefine.functions.empty() ||
-                     !classDefine->instanceDefine.properties.empty();
-
-  if (!hasStatic && !hasInstance) {
-    throwException("both static and instance define are empty");
-  }
-
-  if (hasStatic) {
-    for (auto funcDef : classDefine->staticDefine.functions) {
-      if (funcDef.name.empty()) {
-        throwException("staticDefine.functions has no name");
-      }
-      if (funcDef.callback == nullptr) {
-        throwException("staticDefine.functions has no callback");
-      }
-    }
-
-    for (auto propDef : classDefine->staticDefine.properties) {
-      if (propDef.name.empty()) {
-        throwException("staticDefine.properties has no name");
-      }
-      if (propDef.getter == nullptr && propDef.setter == nullptr) {
-        throwException("staticDefine.functions has no getter&setter");
-      }
-    }
-  }
-
-  if (classDefine->instanceDefine.constructor) {
-    if (!std::is_base_of_v<ScriptClass, T>) {
-      throwException("ClassDefine with instance must have a valid type parameter");
-    }
-    for (auto funcDef : classDefine->instanceDefine.functions) {
-      if (funcDef.name.empty()) {
-        throwException("instanceDefine.functions has no name");
-      }
-      if (funcDef.callback == nullptr) {
-        throwException("instanceDefine.functions has no callback");
-      }
-    }
-
-    for (auto propDef : classDefine->instanceDefine.properties) {
-      if (propDef.name.empty()) {
-        throwException("instanceDefine.functions has no name");
-      }
-      if (propDef.getter == nullptr && propDef.setter == nullptr) {
-        throwException("instanceDefine.functions has no getter&setter");
-      }
-    }
-  } else {
-    if (!classDefine->instanceDefine.properties.empty() ||
-        !classDefine->instanceDefine.functions.empty()) {
-      throwException("instance has no constructor");
-    }
-  }
-}
-
-template <typename T>
 class InstanceDefineBuilder {
   template <typename...>
   using sfina = ClassDefineBuilder<T>&;
@@ -1021,7 +939,6 @@ class ClassDefineBuilder : public internal::InstanceDefineBuilder<T> {
                           internal::InstanceDefine{
                               std::move(Instance::constructor_), std::move(Instance::insFunctions_),
                               std::move(Instance::insProperties_), internal::sizeof_helper_v<T>});
-    ::script::internal::validateClassDefine(&define);
     return define;
   }
 };
