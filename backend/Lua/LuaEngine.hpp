@@ -170,7 +170,7 @@ void LuaEngine::defineInstanceConstructor(const ClassDefine<T>& classDefine, int
             // [arg2]
             // [arg ...]
 
-            T* thiz;
+            void* thiz;
             auto argsBase = 2;
             auto argsCount = lua_gettop(lua) - 1;
 
@@ -178,7 +178,7 @@ void LuaEngine::defineInstanceConstructor(const ClassDefine<T>& classDefine, int
                 lua_touserdata(lua, -2) == kLuaNativeConstructorMarker_) {
               // this logic is for
               // ScriptClass::ScriptClass(const ClassDefine<T> &define)
-              thiz = static_cast<T*>(lua_touserdata(lua, -1));
+              thiz = static_cast<void*>(lua_touserdata(lua, -1));
             } else {
               // this logic is for
               // ScriptClass::ScriptClass(const Local<Object>& thiz)
@@ -225,7 +225,7 @@ void LuaEngine::defineInstanceFunctions(const ClassDefine<T>& classDefine,
                                         int instanceFunctionTable) const {
   for (auto& funcDefine : classDefine.instanceDefine.functions) {
     {
-      using FD = typename internal::InstanceDefine<T>::FunctionDefine;
+      using FD = typename internal::InstanceDefine::FunctionDefine;
       lua_pushstring(lua_, funcDefine.name.c_str());
       pushInstanceFunction(
           &funcDefine, &classDefine,
@@ -251,7 +251,7 @@ void LuaEngine::defineInstanceProperties(const ClassDefine<T>& classDefine, int 
   setupMetaTableForProperties(instanceMeta, instanceFunction, getter, setter);
 
   for (auto& propDef : classDefine.instanceDefine.properties) {
-    using PD = typename internal::InstanceDefine<T>::PropertyDefine;
+    using PD = typename internal::InstanceDefine::PropertyDefine;
 
     lua_pushstring(lua_, propDef.name.c_str());
     pushInstanceFunction(
