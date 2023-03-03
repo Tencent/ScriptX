@@ -68,8 +68,11 @@ void PyEngine::destroy() noexcept {
   destroying = true;
   ScriptEngine::destroyUserData();
 
-  // destroy all Global and Weak refs
-  refsKeeper.dtor();
+  {
+    // EngineScope enter(this);
+    refsKeeper.dtor();          // destroy all Global and Weak refs
+    messageQueue()->removeMessageByTag(this);
+  }
 
   //TODO: fix Py_EndInterpreter: not the last thread
   /*if (PyEngine::engineEnterCount_ == 0) {
