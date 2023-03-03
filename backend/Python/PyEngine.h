@@ -63,6 +63,7 @@ private:
   inline static PyTypeObject* staticPropertyType_ = nullptr;
   inline static PyTypeObject* namespaceType_ = nullptr;
   inline static PyTypeObject* defaultMetaType_ = nullptr;
+  PyTypeObject* scriptxExceptionTypeObj;
 
   PyEngine(std::shared_ptr<::script::utils::MessageQueue> queue);
 
@@ -160,6 +161,7 @@ private:
     method->ml_name = name;
     method->ml_flags = METH_VARARGS;
     method->ml_doc = nullptr;
+
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       try {
@@ -167,13 +169,19 @@ private:
         return py_interop::getPy(ret);
       }
       catch(const Exception &e) {
-        PyErr_SetString(PyExc_Exception, e.message().c_str());
+        Local<Value> exception = e.exception();
+        PyObject* exceptionObj = py_interop::peekPy(exception);
+        PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
       }
       catch(const std::exception &e) {
-        PyErr_SetString(PyExc_Exception, e.what());
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, e.what());
       }
       catch(...) {
-        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, "[No Exception Message]");
       }
       return nullptr;
     };
@@ -211,13 +219,19 @@ private:
         return py_interop::getPy(ret);
       }
       catch(const Exception &e) {
-        PyErr_SetString(PyExc_Exception, e.message().c_str());
+        Local<Value> exception = e.exception();
+        PyObject* exceptionObj = py_interop::peekPy(exception);
+        PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
       }
       catch(const std::exception &e) {
-        PyErr_SetString(PyExc_Exception, e.what());
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, e.what());
       }
       catch(...) {
-        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, "[No Exception Message]");
       }
       return nullptr;
     };
@@ -254,13 +268,19 @@ private:
         return Py_None;
       }
       catch(const Exception &e) {
-        PyErr_SetString(PyExc_Exception, e.message().c_str());
+        Local<Value> exception = e.exception();
+        PyObject* exceptionObj = py_interop::peekPy(exception);
+        PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
       }
       catch(const std::exception &e) {
-        PyErr_SetString(PyExc_Exception, e.what());
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, e.what());
       }
       catch(...) {
-        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, "[No Exception Message]");
       }
       return nullptr;
     };
@@ -299,13 +319,19 @@ private:
         return Py_None;
       }
       catch(const Exception &e) {
-        PyErr_SetString(PyExc_Exception, e.message().c_str());
+        Local<Value> exception = e.exception();
+        PyObject* exceptionObj = py_interop::peekPy(exception);
+        PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
       }
       catch(const std::exception &e) {
-        PyErr_SetString(PyExc_Exception, e.what());
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, e.what());
       }
       catch(...) {
-        PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+        PyObject *scriptxType = (PyObject*)
+          EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+        PyErr_SetString(scriptxType, "[No Exception Message]");
       }
       return nullptr;
     };
@@ -390,13 +416,19 @@ private:
           return py_interop::getPy(ret);
         }
         catch(const Exception &e) {
-          PyErr_SetString(PyExc_Exception, e.message().c_str());
+          Local<Value> exception = e.exception();
+          PyObject* exceptionObj = py_interop::peekPy(exception);
+          PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
         }
         catch(const std::exception &e) {
-          PyErr_SetString(PyExc_Exception, e.what());
+          PyObject *scriptxType = (PyObject*)
+            EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+          PyErr_SetString(scriptxType, e.what());
         }
         catch(...) {
-          PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+          PyObject *scriptxType = (PyObject*)
+            EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+          PyErr_SetString(scriptxType, "[No Exception Message]");
         }
         return nullptr;
       };
@@ -442,13 +474,19 @@ private:
           return py_interop::getPy(ret);
         }
         catch(const Exception &e) {
-          PyErr_SetString(PyExc_Exception, e.message().c_str());
+          Local<Value> exception = e.exception();
+          PyObject* exceptionObj = py_interop::peekPy(exception);
+          PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
         }
         catch(const std::exception &e) {
-          PyErr_SetString(PyExc_Exception, e.what());
+          PyObject *scriptxType = (PyObject*)
+            EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+          PyErr_SetString(scriptxType, e.what());
         }
         catch(...) {
-          PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+          PyObject *scriptxType = (PyObject*)
+            EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+          PyErr_SetString(scriptxType, "[No Exception Message]");
         }
         Py_DECREF(real_args);
         return nullptr;

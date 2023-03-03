@@ -20,6 +20,7 @@
 #include "../../src/Scope.h"
 #include "../../src/Value.h"
 #include "PyHelper.hpp"
+#include "PyEngine.h"
 
 namespace script {
 
@@ -94,13 +95,19 @@ Local<Function> Function::newFunction(FunctionCallback callback) {
       return py_interop::getPy(ret);
     }
     catch(const Exception &e) {
-      PyErr_SetString(PyExc_Exception, e.message().c_str());
+      Local<Value> exception = e.exception();
+      PyObject* exceptionObj = py_interop::peekPy(exception);
+      PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
     }
     catch(const std::exception &e) {
-      PyErr_SetString(PyExc_Exception, e.what());
+      PyObject *scriptxType = (PyObject*)
+        EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+      PyErr_SetString(scriptxType, e.what());
     }
     catch(...) {
-      PyErr_SetString(PyExc_Exception, "[No Exception Message]");
+      PyObject *scriptxType = (PyObject*)
+        EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+      PyErr_SetString(scriptxType, "[No Exception Message]");
     }
     return nullptr;
   };

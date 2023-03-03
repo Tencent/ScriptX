@@ -36,12 +36,6 @@ SCRIPTX_END_INCLUDE_LIBRARY
 
 namespace script::py_backend {
 
-struct ExceptionInfo {
-  PyObject* pType;
-  PyObject* pValue;
-  PyObject* pTraceback;
-};
-
 struct GeneralObject : PyObject {
   void* instance;
   PyObject* weakrefs;
@@ -76,6 +70,8 @@ std::string fromStr(PyObject* s);
 
 class PyEngine;
 
+PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback);
+PyObject* createExceptionInstance(std::string msg);
 void checkError();
 bool checkErrorAndClear();
 PyEngine* currentEngine();
