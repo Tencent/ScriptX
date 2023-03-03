@@ -111,24 +111,64 @@ PyObject* toStr(const std::string& s) { return PyUnicode_FromStringAndSize(s.c_s
 
 std::string fromStr(PyObject* s) { return PyUnicode_Check(s) ? PyUnicode_AsUTF8(s) : ""; }
 
+PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback)
+{
+  // get exception type class
+  PyTypeObject* exceptionType = pType ? (PyTypeObject*)pType :
+    EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+  
+  // get exception message
+  // NameError: name 'hello' is not defined
+  std::string message{pType->tp_name};
+  PyObject *msgObj = PyObject_Str(pValue);
+  if (msgObj) {
+    message = message + ": " + PyUnicode_AsUTF8(msgObj);
+  }
+
+  // create arguments list for constructor
+  PyObject* tuple = PyTuple_New(1);
+  PyTuple_SetItem(tuple, 0, py_backend::toStr(message));    // args[0] = message
+  // PyTuple_SetItem will steal the ref
+
+  // create new exception instance object
+  PyObject* exceptionObj = exceptionType->tp_new(exceptionType, tuple, nullptr);
+  Py_DECREF(tuple);
+
+  // set traceback if exists
+  if(pTraceback && pTraceback != Py_None)
+    PyException_SetTraceback(exceptionObj, pTraceback);  // no need to incref
+
+  return exceptionObj;
+}
+
+PyObject* createExceptionInstance(std::string msg)
+{
+  // get exception type class
+  PyTypeObject* exceptionType = 
+    EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+  
+  // get exception message
+  std::string message = "ScriptxException: " + msg;
+
+  // create arguments list for constructor
+  PyObject* tuple = PyTuple_New(1);
+  PyTuple_SetItem(tuple, 0, py_backend::toStr(message));    // args[0] = message
+  // PyTuple_SetItem will steal the ref
+
+  // create new exception instance object
+  PyObject* exceptionObj = exceptionType->tp_new(exceptionType, tuple, nullptr);
+  Py_DECREF(tuple);
+  return exceptionObj;
+}
+
 void checkError() {
   if (PyErr_Occurred()) {
-    PyObject *pType, *pValue, *pTraceback;
-    PyErr_Fetch(&pType, &pValue, &pTraceback);
-    PyErr_NormalizeException(&pType, &pValue, &pTraceback);
+    PyTypeObject *pType;
+    PyObject *pValue, *pTraceback;
+    PyErr_Fetch((PyObject**)(&pType), &pValue, &pTraceback);
+    PyErr_NormalizeException((PyObject**)(&pType), &pValue, &pTraceback);
 
-    ExceptionInfo* errStruct = new ExceptionInfo;
-    errStruct->pType = pType;
-    errStruct->pValue = pValue;
-    errStruct->pTraceback = pTraceback;
-
-    PyObject* capsule = PyCapsule_New(errStruct, nullptr, [](PyObject* cap) {
-      void* ptr = PyCapsule_GetPointer(cap, nullptr);
-      delete static_cast<ExceptionInfo*>(ptr);
-    });
-
-    if (!capsule) return;
-    throw Exception(py_interop::asLocal<Value>(capsule));
+    throw Exception(py_interop::asLocal<Value>(createExceptionInstance(pType, pValue, pTraceback)));
   }
 }
 

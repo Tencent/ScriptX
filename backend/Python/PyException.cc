@@ -17,52 +17,45 @@
 
 #include <ScriptX/ScriptX.h>
 #include "PyHelper.h"
+#include "PyEngine.h"
 
 namespace script {
 
 namespace py_backend {
 
-void ExceptionFields::fillMessage() const noexcept {
-  if (exception_.isEmpty() || exception_.getValue().isString()) {
-    return;
-  }
-  PyObject *capsule = py_interop::peekPy(exception_.getValue());
-  if (!PyCapsule_IsValid(capsule, nullptr)) {
-    return;
-  }
-  ExceptionInfo *errStruct =
-      (ExceptionInfo *)PyCapsule_GetPointer(capsule, nullptr);
+std::string ExceptionFields::getMessage() const noexcept {
+  if(hasMessage_)
+    return message_;
+  
+  Local<Value> obj = exceptionObj_.get();
+  PyObject* exceptionObj = py_interop::peekPy(obj);
 
-  PyTypeObject *typeObj = (PyTypeObject *)(errStruct->pType);
-  PyObject *formattedMsg = PyObject_Str(errStruct->pValue);
-  if (!formattedMsg) {
-    return;
-  }
-  // NameError: name 'hello' is not defined
-  message_ = std::string(typeObj->tp_name) + ": " + PyUnicode_AsUTF8(formattedMsg);
+  PyObject *argsData = py_backend::getAttr(exceptionObj, "args");     // borrowed
+  if(!PyTuple_Check(argsData) || PyTuple_Size(argsData) == 0)
+    return "[No Exception Message]";
+  PyObject *msg = PyTuple_GetItem(argsData, 0);     // borrowed
+
+  message_ = py_backend::fromStr(msg);
   hasMessage_ = true;
+  return message_;
 }
 
-void ExceptionFields::fillStacktrace() const noexcept {
-  if (exception_.isEmpty() || exception_.getValue().isString()) {
-    return;
-  }
-  PyObject *capsule = py_interop::peekPy(exception_.getValue());
-  if (!PyCapsule_IsValid(capsule, nullptr)) {
-    return;
-  }
-  ExceptionInfo *errStruct =
-      (ExceptionInfo *)PyCapsule_GetPointer(capsule, nullptr);
+std::string ExceptionFields::getStacktrace() const noexcept {
+  if(hasStacktrace_)
+    return stacktrace_;
 
-  PyTracebackObject *tb = (PyTracebackObject *)(errStruct->pTraceback);
-  if (tb == nullptr)
-      return;
+  Local<Value> obj = exceptionObj_.get();
+  PyObject* exceptionObj = py_interop::peekPy(obj);
+
+  PyTracebackObject* pStacktrace = (PyTracebackObject*)PyException_GetTraceback(exceptionObj);
+  if(pStacktrace == nullptr || pStacktrace == (PyTracebackObject*)Py_None)
+    return "[No Stacktrace]";
 
   // Get the deepest trace possible.
-  while (tb->tb_next) {
-    tb = tb->tb_next;
+  while (pStacktrace->tb_next) {
+    pStacktrace = pStacktrace->tb_next;
   }
-  PyFrameObject *frame = tb->tb_frame;
+  PyFrameObject *frame = pStacktrace->tb_frame;
   Py_XINCREF(frame);
   stacktrace_ = "Traceback (most recent call last):";
   while (frame) {
@@ -79,46 +72,41 @@ void ExceptionFields::fillStacktrace() const noexcept {
     frame = frame->f_back;
   }
   hasStacktrace_ = true;
+  return stacktrace_;
 }
 
 }  // namespace py_backend
 
-Exception::Exception(std::string msg) : std::exception(), exception_() {
-  exception_.message_ = msg;
-  exception_.hasMessage_ = true;
+Exception::Exception(std::string msg) :std::exception(), exception_() {
+  exception_.exceptionObj_ = py_interop::asLocal<Value>(py_backend::createExceptionInstance(msg));
 }
 
 Exception::Exception(const script::Local<script::String> &message)
     : std::exception(), exception_() {
-  exception_.exception_ = message;
-  exception_.hasMessage_ = true;
+  exception_.exceptionObj_ = 
+    py_interop::asLocal<Value>(py_backend::createExceptionInstance(message.toString()));
 }
 
 Exception::Exception(const script::Local<script::Value> &exception)
     : std::exception(), exception_({}) {
-  exception_.exception_ = exception;
+  exception_.exceptionObj_ = exception;
 }
 
 Local<Value> Exception::exception() const {
-  if (exception_.exception_.isEmpty()) {
-    exception_.exception_ = String::newString(exception_.message_);
-  }
-  return exception_.exception_.getValue();
+  return exception_.exceptionObj_.get();
 }
 
 std::string Exception::message() const noexcept {
-  exception_.fillMessage();
-  return exception_.hasMessage_ ? exception_.message_ : "[No Exception Message]";
+  return exception_.getMessage();
 }
 
 std::string Exception::stacktrace() const noexcept {
-  exception_.fillStacktrace();
-  return exception_.hasStacktrace_ ? exception_.stacktrace_ : "[No Stacktrace]";
+  return exception_.getStacktrace();
 }
 
 const char *Exception::what() const noexcept {
-  exception_.fillMessage();
-  return exception_.hasMessage_ ? exception_.message_.c_str() : "[No Exception Message]";
+  exception_.getMessage();
+  return exception_.message_.c_str();
 }
 
 }  // namespace script

@@ -45,12 +45,17 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
   if (PyEngine::engineEnterCount_ == 0) {
     PyEval_AcquireLock();
   }
+
   // Create new interpreter
   PyThreadState* newSubState = Py_NewInterpreter();
   if (!newSubState) {
     throw Exception("Fail to create sub interpreter");
   }
   subInterpreterState_ = newSubState->interp;
+
+  // Create exception class
+  scriptxExceptionTypeObj = (PyTypeObject*)PyErr_NewExceptionWithDoc("Scriptx.ScriptxException",
+    "Exception from ScriptX", PyExc_Exception, NULL);
 
   // If GIL is released before, unlock it
   if (PyEngine::engineEnterCount_ == 0) {
@@ -160,4 +165,5 @@ ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
 bool PyEngine::isDestroying() const { return destroying; }
+
 }  // namespace script::py_backend
