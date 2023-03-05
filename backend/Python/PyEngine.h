@@ -531,6 +531,9 @@ private:
     type->tp_basicsize = static_cast<Py_ssize_t>(sizeof(GeneralObject));
     type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
 
+    // enable object dict
+    type->tp_dictoffset = offsetof(GeneralObject, instanceDict);
+
     type->tp_new = [](PyTypeObject* type, PyObject* args, PyObject* kwds) -> PyObject* {
       PyObject* self = type->tp_alloc(type, 0);
       if (type->tp_init(self, args, kwds) < 0) {
@@ -562,7 +565,7 @@ private:
     type->tp_weaklistoffset = offsetof(GeneralObject, weakrefs);
 
     if (PyType_Ready(type) < 0) {
-      Py_FatalError("PyType_Ready failed in make_object_base_type()");
+      throw Exception("PyType_Ready failed in make_object_base_type()");
     }
 
     setAttr((PyObject*)type, "__module__", toStr("scriptx_builtins"));
