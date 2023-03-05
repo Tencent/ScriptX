@@ -39,6 +39,7 @@ namespace script::py_backend {
 struct GeneralObject : PyObject {
   void* instance;
   PyObject* weakrefs;
+  PyObject* instanceDict;
 
   template <typename T>
   static T* getInstance(PyObject* self) {
@@ -73,7 +74,7 @@ class PyEngine;
 PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback);
 PyObject* createExceptionInstance(std::string msg);
 void checkError();
-bool checkErrorAndClear();
+bool checkAndClearError();
 PyEngine* currentEngine();
 PyEngine* currentEngineChecked();
 
