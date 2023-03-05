@@ -227,9 +227,8 @@ inline WeakRefState::WeakRefState(PyObject* obj) {
 inline WeakRefState::WeakRefState(const WeakRefState& assign) {
   if(assign.isEmpty())
     return;
-  _isRealWeakRef = assign._isRealWeakRef;
   PyObject *originRef = assign.peek();
-  if(_isRealWeakRef)
+  if(assign._isRealWeakRef)
   {
     _ref = PyWeakref_NewRef(originRef, NULL);
     if(checkAndClearError() || !_ref)
@@ -238,6 +237,8 @@ inline WeakRefState::WeakRefState(const WeakRefState& assign) {
       _isRealWeakRef = false;
       _ref = Py_NewRef(originRef);
     }
+    else
+      _isRealWeakRef = true;
   }
   else
   {
@@ -261,9 +262,8 @@ inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
   if(assign.isEmpty())
     return *this;
 
-  _isRealWeakRef = assign._isRealWeakRef;
   PyObject *originRef = assign.peek();
-  if(_isRealWeakRef)
+  if(assign._isRealWeakRef)
   {
     _ref = PyWeakref_NewRef(originRef, NULL);
     if(checkAndClearError() || !_ref)
@@ -272,6 +272,8 @@ inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
       _isRealWeakRef = false;
       _ref = Py_NewRef(originRef);
     }
+    else
+      _isRealWeakRef = true;
   }
   else
   {
@@ -307,7 +309,7 @@ inline bool WeakRefState::isEmpty() const {
 inline PyObject *WeakRefState::get() const{
   if(_isRealWeakRef)
   {
-    if(Py_IsNone(_ref))
+    if(!PyWeakref_Check(_ref))
       return Py_None;
     PyObject* obj = PyWeakref_GetObject(_ref);
     return (Py_IsNone(obj) ? Py_None : Py_NewRef(obj));
@@ -322,7 +324,7 @@ inline PyObject *WeakRefState::get() const{
 inline PyObject *WeakRefState::peek() const{
   if(_isRealWeakRef)
   {
-    return (Py_IsNone(_ref) ? Py_None : PyWeakref_GetObject(_ref));
+    return (PyWeakref_Check(_ref) ? PyWeakref_GetObject(_ref) : Py_None);
   }
   else
   {
