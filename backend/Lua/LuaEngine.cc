@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include "LuaEngine.hpp"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -489,13 +488,14 @@ bool LuaEngine::isInstanceOf(lua_State* lua, int classIndex, int selfIndex) {
 
   lua_backend::luaEnsureStack(lua, 1);
   lua_rawgetp(lua, classIndex, kLuaTableNativeClassDefinePtrToken_);
-  auto classDefine = lua_touserdata(lua, -1);
+  auto classDefine = static_cast<const internal::ClassDefineState*>(lua_touserdata(lua, -1));
   lua_pop(lua, 1);
 
   return isInstanceOf(lua, classDefine, selfIndex);
 }
 
-bool LuaEngine::isInstanceOf(lua_State* lua, const void* classDefine, int selfIndex) {
+bool LuaEngine::isInstanceOf(lua_State* lua, const internal::ClassDefineState* classDefine,
+                             int selfIndex) {
   if (selfIndex == 0 || classDefine == nullptr) {
     return false;
   }
@@ -511,7 +511,8 @@ bool LuaEngine::isInstanceOf(lua_State* lua, const void* classDefine, int selfIn
   return ptr == classDefine;
 }
 
-void* LuaEngine::getNativeThis(lua_State* lua, const void* classDefine, int selfIndex) {
+void* LuaEngine::getNativeThis(lua_State* lua, const internal::ClassDefineState* classDefine,
+                               int selfIndex) {
   lua_backend::luaEnsureStack(lua, 2);
 
   if (!isInstanceOf(lua, classDefine, selfIndex)) {
@@ -524,13 +525,14 @@ void* LuaEngine::getNativeThis(lua_State* lua, const void* classDefine, int self
   return ptr;
 }
 
-void LuaEngine::pushInstanceFunction(const void* data, const void* classDefine,
+void LuaEngine::pushInstanceFunction(const void* data,
+                                     const internal::ClassDefineState* classDefine,
                                      PushInstanceFunctionCallback callable) const {
   lua_backend::luaEnsureStack(lua_, 4);
 
   lua_pushlightuserdata(lua_, const_cast<void*>(data));
   lua_pushlightuserdata(lua_, reinterpret_cast<void*>(callable));
-  lua_pushlightuserdata(lua_, const_cast<void*>(classDefine));
+  lua_pushlightuserdata(lua_, const_cast<void*>(static_cast<const void*>(classDefine)));
   lua_pushlightuserdata(lua_, const_cast<LuaEngine*>(this));
 
   lua_pushcclosure(
@@ -539,7 +541,8 @@ void LuaEngine::pushInstanceFunction(const void* data, const void* classDefine,
         std::optional<std::string> exception;
 
         try {
-          auto classDefine = lua_touserdata(lua, lua_upvalueindex(3));
+          auto classDefine = static_cast<const internal::ClassDefineState*>(
+              lua_touserdata(lua, lua_upvalueindex(3)));
           auto engine = static_cast<LuaEngine*>(lua_touserdata(lua, lua_upvalueindex(4)));
 
           void* thiz = nullptr;

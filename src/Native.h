@@ -361,7 +361,7 @@ auto selectOverloadedFunc(std::decay_t<Signature> func) {
 
 namespace internal {
 
-struct ClassDefineState;
+class ClassDefineState;
 
 // forward declare
 template <typename T>
@@ -374,7 +374,7 @@ class InstanceDefineBuilder;
   friend class ::script::ClassDefineBuilder;                                  \
   friend class ::script::ScriptEngine;                                        \
   friend typename ::script::internal::ImplType<::script::ScriptEngine>::type; \
-  friend struct ::script::internal::ClassDefineState;                         \
+  friend class ::script::internal::ClassDefineState;                          \
   template <typename TT>                                                      \
   friend class ::script::internal::InstanceDefineBuilder
 
@@ -485,7 +485,7 @@ class InstanceDefine {
 
 namespace internal {
 
-struct ClassDefineState {
+class ClassDefineState {
   const std::string className;
   const std::string nameSpace;
 
@@ -506,8 +506,9 @@ struct ClassDefineState {
         staticDefine(std::move(staticDefine)),
         instanceDefine(std::move(instanceDefine)) {}
 
- private:
   void validateClassDefine(bool isBaseOfScriptClass) const;
+
+  bool hasInstanceDefine() const { return static_cast<bool>(instanceDefine.constructor); }
 
   SCRIPTX_CLASS_DEFINE_FRIENDS;
 };

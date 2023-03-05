@@ -15,10 +15,7 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include "../../src/Scope.h"
-#include "../../src/Utils.h"
+#include "../../src/Native.hpp"
 #include "../../src/utils/Helper.hpp"
 #include "LuaEngine.h"
 #include "LuaHelper.hpp"
@@ -74,11 +71,11 @@ namespace script::lua_backend {
  * @tparam T
  * @param classDefine
  */
-template <typename T>
-void LuaEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
+void LuaEngine::performRegisterNativeClass(internal::TypeIndex typeIndex,
+                                           const internal::ClassDefineState* classDefine) {
   StackFrameScope stackFrameScope;
 
-  auto ns = ::script::internal::getNamespaceObject(this, classDefine->getNameSpace(),
+  auto ns = ::script::internal::getNamespaceObject(this, classDefine->nameSpace,
                                                    get(kLuaGlobalEnvName).asObject())
                 .asObject();
 
@@ -90,7 +87,7 @@ void LuaEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
   registerStaticDefine(classDefine->staticDefine, table, staticMeta);
 
   if (classDefine->instanceDefine.constructor) {
-    registerInstanceDefine<T>(*classDefine, table, staticMeta);
+    registerInstanceDefine(classDefine, table, staticMeta);
   }
 
   lua_pushvalue(lua_, staticMeta);
@@ -102,8 +99,7 @@ void LuaEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
   nativeDefineRegistry_.emplace(classDefine, Global<Object>(make<Local<Object>>(obj)));
 }
 
-template <typename T>
-void LuaEngine::registerInstanceDefine(const ClassDefine<T>& classDefine, int table,
+void LuaEngine::registerInstanceDefine(const internal::ClassDefineState* classDefine, int table,
                                        int staticMeta) {
   StackFrameScope stack;
 
@@ -124,13 +120,12 @@ void LuaEngine::registerInstanceDefine(const ClassDefine<T>& classDefine, int ta
   lua_pushvalue(lua_, instanceMeta);
   lua_rawsetp(lua_, table, kLuaBuiltinDefinedClassMetaDataToken_);
 
-  lua_pushlightuserdata(lua_, const_cast<void*>(static_cast<const void*>(&classDefine)));
+  lua_pushlightuserdata(lua_, const_cast<void*>(static_cast<const void*>(classDefine)));
   lua_rawsetp(lua_, table, kLuaTableNativeClassDefinePtrToken_);
 }
 
-template <typename T>
-void LuaEngine::defineInstanceConstructor(const ClassDefine<T>& classDefine, int instanceMeta,
-                                          int staticMeta) const {
+void LuaEngine::defineInstanceConstructor(const internal::ClassDefineState* classDefine,
+                                          int instanceMeta, int staticMeta) const {
   luaEnsureStack(lua_, 4);
 
   {
@@ -139,7 +134,7 @@ void LuaEngine::defineInstanceConstructor(const ClassDefine<T>& classDefine, int
 
     // value
     lua_pushvalue(lua_, instanceMeta);
-    lua_pushlightuserdata(lua_, const_cast<void*>(static_cast<const void*>(&classDefine)));
+    lua_pushlightuserdata(lua_, const_cast<void*>(static_cast<const void*>(classDefine)));
     lua_pushlightuserdata(lua_, const_cast<LuaEngine*>(this));
 
     lua_pushcclosure(
@@ -150,7 +145,8 @@ void LuaEngine::defineInstanceConstructor(const ClassDefine<T>& classDefine, int
 
           std::optional<std::string> exception;
           try {
-            auto define = static_cast<ClassDefine<T>*>(lua_touserdata(lua, lua_upvalueindex(2)));
+            auto define =
+                static_cast<internal::ClassDefineState*>(lua_touserdata(lua, lua_upvalueindex(2)));
             lua_newtable(lua);  // this table
 
             // copy instance functions
@@ -220,29 +216,26 @@ void LuaEngine::defineInstanceConstructor(const ClassDefine<T>& classDefine, int
   }
 }
 
-template <typename T>
-void LuaEngine::defineInstanceFunctions(const ClassDefine<T>& classDefine,
+void LuaEngine::defineInstanceFunctions(const internal::ClassDefineState* classDefine,
                                         int instanceFunctionTable) const {
-  for (auto& funcDefine : classDefine.instanceDefine.functions) {
+  for (auto& funcDefine : classDefine->instanceDefine.functions) {
     {
       using FD = typename internal::InstanceDefine::FunctionDefine;
       lua_pushstring(lua_, funcDefine.name.c_str());
       pushInstanceFunction(
-          &funcDefine, &classDefine,
+          &funcDefine, classDefine,
           [](lua_State* lua, void* data, void* thiz, const Arguments& args) -> Local<Value> {
             auto fd = static_cast<FD*>(data);
-            auto scriptClass = static_cast<T*>(thiz);
             Tracer trace(args.engine(), fd->traceName);
-            return fd->callback(scriptClass, args);
+            return fd->callback(thiz, args);
           });
       lua_rawset(lua_, instanceFunctionTable);
     }
   }
 }
 
-template <typename T>
-void LuaEngine::defineInstanceProperties(const ClassDefine<T>& classDefine, int instanceMeta,
-                                         int instanceFunction) const {
+void LuaEngine::defineInstanceProperties(const internal::ClassDefineState* classDefine,
+                                         int instanceMeta, int instanceFunction) const {
   lua_newtable(lua_);
   auto getter = lua_gettop(lua_);
   lua_newtable(lua_);
@@ -250,19 +243,18 @@ void LuaEngine::defineInstanceProperties(const ClassDefine<T>& classDefine, int 
 
   setupMetaTableForProperties(instanceMeta, instanceFunction, getter, setter);
 
-  for (auto& propDef : classDefine.instanceDefine.properties) {
+  for (auto& propDef : classDefine->instanceDefine.properties) {
     using PD = typename internal::InstanceDefine::PropertyDefine;
 
     lua_pushstring(lua_, propDef.name.c_str());
     pushInstanceFunction(
-        &propDef, &classDefine,
+        &propDef, classDefine,
         [](lua_State* /*lua*/, void* data, void* thiz, const Arguments& args) -> Local<Value> {
           // __index(table, index)
           auto pf = static_cast<PD*>(data);
-          auto scriptClass = static_cast<T*>(thiz);
           if (pf->getter) {
             Tracer trace(args.engine(), pf->traceName);
-            return pf->getter(scriptClass);
+            return pf->getter(thiz);
           }
           return {};
         });
@@ -270,15 +262,14 @@ void LuaEngine::defineInstanceProperties(const ClassDefine<T>& classDefine, int 
 
     lua_pushstring(lua_, propDef.name.c_str());
     pushInstanceFunction(
-        &propDef, &classDefine,
+        &propDef, classDefine,
         [](lua_State* /*lua*/, void* data, void* thiz, const Arguments& args) -> Local<Value> {
           // __newindex(table, index, value)
 
           auto pf = static_cast<PD*>(data);
-          auto scriptClass = static_cast<T*>(thiz);
           if (pf->setter) {
             Tracer trace(args.engine(), pf->traceName);
-            pf->setter(scriptClass, args[1]);
+            pf->setter(thiz, args[1]);
           }
           return {};
         });
@@ -286,26 +277,26 @@ void LuaEngine::defineInstanceProperties(const ClassDefine<T>& classDefine, int 
   }
 }
 
-template <typename T>
-Local<Object> LuaEngine::newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                            const Local<Value>* ptr) {
-  auto it = nativeDefineRegistry_.find(static_cast<const void*>(classDefine));
+Local<Object> LuaEngine::performNewNativeClass(internal::TypeIndex typeIndex,
+                                               const internal::ClassDefineState* classDefine,
+                                               size_t size, const Local<script::Value>* args) {
+  auto it = nativeDefineRegistry_.find(classDefine);
   if (it == nativeDefineRegistry_.end()) {
-    registerNativeClassImpl(classDefine);
-    it = nativeDefineRegistry_.find(static_cast<const void*>(classDefine));
+    performRegisterNativeClass(typeIndex, classDefine);
+    it = nativeDefineRegistry_.find(classDefine);
   }
 
-  return luaNewObject(it->second.getValue(), size, ptr);
+  return luaNewObject(it->second.getValue(), size, args);
 }
 
-template <typename T>
-bool LuaEngine::isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
+bool LuaEngine::performIsInstanceOf(const Local<script::Value>& value,
+                                    const internal::ClassDefineState* classDefine) {
   return isInstanceOf(lua_, classDefine, localRefIndex(value));
 }
 
-template <typename T>
-T* LuaEngine::getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-  return static_cast<T*>(getNativeThis(lua_, classDefine, localRefIndex(value)));
+void* LuaEngine::performGetNativeInstance(const Local<script::Value>& value,
+                                          const internal::ClassDefineState* classDefine) {
+  return getNativeThis(lua_, classDefine, localRefIndex(value));
 }
 
 }  // namespace script::lua_backend

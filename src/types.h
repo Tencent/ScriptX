@@ -166,6 +166,8 @@ namespace internal {
 
 class StaticDefine;
 
+class ClassDefineState;
+
 template <typename T, typename>
 struct TypeHolder;
 

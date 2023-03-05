@@ -24,10 +24,35 @@ void ScriptEngine::setData(std::shared_ptr<void> arbitraryData) {
   userData_ = std::move(arbitraryData);
 }
 
-void ScriptEngine::registerNativeClass(const NativeRegister& nativeRegister) {
+void ScriptEngine::destroyUserData() { userData_.reset(); }
+
+void ScriptEngine::registerNativeClass(const script::NativeRegister& nativeRegister) {
   nativeRegister.registerNativeClass(this);
 }
 
-void ScriptEngine::destroyUserData() { userData_.reset(); }
+void ScriptEngine::registerNativeClassInternal(internal::TypeIndex typeIndex,
+                                               const internal::ClassDefineState* classDefine) {
+  if ((!classDefine->hasInstanceDefine() &&
+       staticClassDefineRegistry_.find(classDefine) != staticClassDefineRegistry_.end()) ||
+      classDefineRegistry_.find(typeIndex) != classDefineRegistry_.end()) {
+    throw Exception(std::string("already registered for " + classDefine->className));
+  }
+  performRegisterNativeClass(typeIndex, classDefine);
+
+  if (!classDefine->hasInstanceDefine()) {
+    staticClassDefineRegistry_.emplace(classDefine);
+  } else {
+    classDefineRegistry_.emplace(typeIndex, classDefine);
+  }
+}
+
+const internal::ClassDefineState* ScriptEngine::getClassDefineInternal(
+    internal::TypeIndex typeIndex) const {
+  auto it = classDefineRegistry_.find(typeIndex);
+  if (it == classDefineRegistry_.end()) {
+    throw Exception(std::string("ClassDefine is not registered"));
+  }
+  return it->second;
+}
 
 }  // namespace script

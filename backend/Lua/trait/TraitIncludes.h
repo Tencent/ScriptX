@@ -18,7 +18,6 @@
 #pragma once
 
 #include "../LuaEngine.h"
-#include "../LuaEngine.hpp"
 #include "../LuaNative.hpp"
 #include "../LuaReference.hpp"
 #include "../LuaScope.hpp"
