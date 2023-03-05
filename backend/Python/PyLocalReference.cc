@@ -285,7 +285,7 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
   }
   PyObject* result = PyObject_CallObject(val_, args_tuple);
   Py_DECREF(args_tuple);
-  py_backend::checkError();
+  py_backend::checkAndThrowError();
   return py_interop::asLocal<Value>(result);
 }
 

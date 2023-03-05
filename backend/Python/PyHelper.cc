@@ -22,14 +22,14 @@ namespace script::py_backend {
 
 void setAttr(PyObject* obj, PyObject* key, PyObject* value) {
   if (PyObject_SetAttr(obj, key, value) != 0) {
-    checkError();
+    checkAndThrowError();
     throw Exception(std::string("Fail to set attr"));
   }
 }
 
 void setAttr(PyObject* obj, const char* key, PyObject* value) {
   if (PyObject_SetAttrString(obj, key, value) != 0) {
-    checkError();
+    checkAndThrowError();
     throw Exception(std::string("Fail to set attr named ") + key);
   }
 }
@@ -38,7 +38,7 @@ void setAttr(PyObject* obj, const char* key, PyObject* value) {
 PyObject* getAttr(PyObject* obj, PyObject* key) {
   PyObject* result = PyObject_GetAttr(obj, key);
   if (!result) {
-    checkError();
+    checkAndThrowError();
     throw Exception("Fail to get attr");
   }
   return result;
@@ -48,7 +48,7 @@ PyObject* getAttr(PyObject* obj, PyObject* key) {
 PyObject* getAttr(PyObject* obj, const char* key) {
   PyObject* result = PyObject_GetAttrString(obj, key);
   if (!result) {
-    checkError();
+    checkAndThrowError();
     throw Exception(std::string("Fail to get attr named ") + key);
   }
   return result;
@@ -60,14 +60,14 @@ bool hasAttr(PyObject* obj, const char* key) { return PyObject_HasAttrString(obj
 
 void delAttr(PyObject* obj, PyObject* key) {
   if (PyObject_DelAttr(obj, key) != 0) {
-    checkError();
+    checkAndThrowError();
     throw Exception("Fail to del attr");
   }
 }
 
 void delAttr(PyObject* obj, const char* key) {
   if (PyObject_DelAttrString(obj, key) != 0) {
-    checkError();
+    checkAndThrowError();
     throw Exception(std::string("Fail to del attr named ") + key);
   }
 }
@@ -163,7 +163,7 @@ PyObject* createExceptionInstance(std::string msg)
   return exceptionObj;
 }
 
-void checkError() {
+void checkAndThrowError() {
   if (PyErr_Occurred()) {
     PyTypeObject *pType;
     PyObject *pValue, *pTraceback;

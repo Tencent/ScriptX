@@ -192,11 +192,11 @@ private:
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
-    checkError();
+    checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkError();
+    checkAndThrowError();
     return function;
   }
 
@@ -242,11 +242,11 @@ private:
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
-    checkError();
+    checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkError();
+    checkAndThrowError();
 
     return function;
   }
@@ -291,11 +291,11 @@ private:
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
-    checkError();
+    checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkError();
+    checkAndThrowError();
 
     return function;
   }
@@ -342,11 +342,11 @@ private:
     };
     PyObject* capsule =
         PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
-    checkError();
+    checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
     Py_DECREF(capsule);
-    checkError();
+    checkAndThrowError();
 
     return function;
   }
@@ -439,11 +439,11 @@ private:
       };
       PyObject* capsule =
           PyCapsule_New(new FunctionData{f.callback, this}, nullptr, destructor);
-      checkError();
+      checkAndThrowError();
 
       PyObject* function = PyCFunction_New(method, capsule);
       Py_DECREF(capsule);
-      checkError();
+      checkAndThrowError();
 
       PyObject* staticMethod = PyStaticMethod_New(function);
       Py_DECREF(function);
@@ -498,11 +498,11 @@ private:
       };
       PyObject* capsule =
           PyCapsule_New(new FunctionData{f.callback, this}, nullptr, destructor);
-      checkError();
+      checkAndThrowError();
 
       PyObject* function = PyCFunction_New(method, capsule);
       Py_DECREF(capsule);
-      checkError();
+      checkAndThrowError();
 
       PyObject* instanceMethod = PyInstanceMethod_New(function);
       Py_DECREF(function);
