@@ -73,7 +73,7 @@ class PyEngine;
 
 PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback);
 PyObject* createExceptionInstance(std::string msg);
-void checkError();
+void checkAndThrowError();
 bool checkAndClearError();
 PyEngine* currentEngine();
 PyEngine* currentEngineChecked();

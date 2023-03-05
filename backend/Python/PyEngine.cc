@@ -125,7 +125,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
     oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
-  checkError();
+  checkAndThrowError();
   return py_interop::asLocal<Value>(result);
 }
 

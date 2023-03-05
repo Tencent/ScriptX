@@ -28,7 +28,7 @@ Local<Object> Object::newObject() { return py_interop::asLocal<Object>(PyDict_Ne
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
-  throw Exception("Python can't use this function");
+  throw Exception("Python can't create a dict with data in array");
   return py_interop::asLocal<Object>(PyDict_New());
 }
 
@@ -118,11 +118,11 @@ Local<Function> Function::newFunction(FunctionCallback callback) {
   };
   PyObject* capsule = PyCapsule_New(
       new FunctionData{callback, py_backend::currentEngine()}, nullptr, destructor);
-  py_backend::checkError();
+  py_backend::checkAndThrowError();
 
   PyObject* function = PyCFunction_New(method, capsule);
   Py_DECREF(capsule);
-  py_backend::checkError();
+  py_backend::checkAndThrowError();
 
   return py_interop::asLocal<Function>(function);
 }
