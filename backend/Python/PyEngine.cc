@@ -62,7 +62,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     PyEval_ReleaseLock();
   }
   // Store created new sub thread state & recover old thread state stored before
-  subThreadState_.set(PyThreadState_Swap(oldState));
+  subThreadStateInTLS_.set(PyThreadState_Swap(oldState));
 }
 
 PyEngine::PyEngine() : PyEngine(nullptr) {}
@@ -85,8 +85,8 @@ void PyEngine::destroy() noexcept {
     PyEval_AcquireLock();
   }
   // Swap to target thread state need to clear & end sub interpreter
-  PyThreadState* oldThreadState = PyThreadState_Swap(subThreadState_.get());
-  Py_EndInterpreter(subThreadState_.get());
+  PyThreadState* oldThreadState = PyThreadState_Swap(subThreadStateInTLS_.get());
+  Py_EndInterpreter(subThreadStateInTLS_.get());
   // Recover old thread state
   PyThreadState_Swap(oldThreadState);
 

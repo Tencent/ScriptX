@@ -46,7 +46,7 @@ private:
   // Sub interpreter storage
   PyInterpreterState* subInterpreterState_;
   // Sub thread state of this sub interpreter (in TLS)
-  TssStorage<PyThreadState> subThreadState_;
+  TssStorage<PyThreadState> subThreadStateInTLS_;
 
   // When you use EngineScope to enter a new engine(subinterpreter)
   // and find that there is an existing thread state owned by another engine,
