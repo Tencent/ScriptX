@@ -213,9 +213,9 @@ private:
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+      T* cppThiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
       try {
-        Local<Value> ret = data->function(thiz);
+        Local<Value> ret = data->function(cppThiz);
         return py_interop::getPy(ret);
       }
       catch(const Exception &e) {
@@ -313,9 +313,9 @@ private:
     method->ml_doc = nullptr;
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-      T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+      T* cppThiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
       try {
-        data->function(thiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
+        data->function(cppThiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
         return Py_None;
       }
       catch(const Exception &e) {
@@ -465,10 +465,26 @@ private:
       method->ml_flags = METH_VARARGS;
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+        // 
+        // - "self" is not real self pointer to object instance, but a capsule for that
+        //   we need it to pass params like impl-function, thiz, engine, ...etc
+        //   into ml_meth here.
+        //
+        // - Structure of "args" is:
+        //      <real-self>, <param1>, <param2>, ...
+        // 
+        // - The first <real-self> is added by CPython when call a class method, which is the owner
+        //   object instance of this method.
+        //   (Looked into function "method_vectorcall" in CPython source code "Objects/methodobjects.c")
+        // 
+        // - Python does not support thiz redirection.
+        //   (Looked into comments in PyLocalReference.cc)
+        //
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
         PyObject *thiz = PyTuple_GetItem(args, 0);
         T* cppThiz = GeneralObject::getInstance<T>(thiz);
         PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
+
         try {
           Local<Value> ret = data->function(cppThiz, py_interop::makeArguments(data->engine, thiz, real_args));
           Py_DECREF(real_args);
