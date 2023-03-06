@@ -466,10 +466,11 @@ private:
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
-        T* thiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
+        PyObject *thiz = PyTuple_GetItem(args, 0);
+        T* cppThiz = GeneralObject::getInstance<T>(thiz);
         PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
         try {
-          Local<Value> ret = data->function(thiz, py_interop::makeArguments(data->engine, self, real_args));
+          Local<Value> ret = data->function(cppThiz, py_interop::makeArguments(data->engine, thiz, real_args));
           Py_DECREF(real_args);
           return py_interop::getPy(ret);
         }
