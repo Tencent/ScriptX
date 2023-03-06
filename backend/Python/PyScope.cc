@@ -24,18 +24,35 @@
 // https://stackoverflow.com/questions/26061298/python-multi-thread-multi-interpreter-c-api
 // https://stackoverflow.com/questions/15470367/pyeval-initthreads-in-python-3-how-when-to-call-it-the-saga-continues-ad-naus
 //
-// Because python's bad support of sub-interpreter, here to manage GIL & thread state manually.
+// Because python's bad support of sub-interpreter, we need to manage GIL & thread state manually.
+//
 // - One engine owns a sub-interpreter, and owns a TLS storage called engine.subThreadState_, 
 //   which stores his own current thread state on each thread.
 // - This "thread state" works like "CPU Context". When changing engine, "context" need to be
-//   switched to correct target thread state
-// - When entering a new EngineScope, first check that if an thread state exists. If found,
-//   save it into oldThreadStateStack. When exit this EngineScope, old thread state saved before
-//   will be poped and recovered.
-// - GIL is locked when any EngineScope is entered, and it is a global state (which means that 
-//   this lock is shared by all threads). When the last EngineScope exited, the GIL will be released.
+//   switched to correct target thread state.
+//
+// - One sub-interpreter may own more than one thread states. Each thread state corresponds to 
+//   one thread.
+// - When a sub-interpreter is created, a thread state for current thread will be created too. 
+// - In default, this sub-interpreter can only be used in the thread which he was created. 
+//   When we need to use this sub-interpreter in a new thread, we need to create thread state
+//   for it manually in that new thread before using it.
+//
+// - Implementations: 
+//   1. When entering a new EngineScope, first check that if there is another existing thread 
+//     state loaded now (For example, put by another engine before). If exists, push the old 
+//     one into oldThreadStateStack.
+//   2. Then check that if an thread state stored in engine's TLS storage subThreadState_.
+//   - If found a stored thread state, just load it.
+//   - If the TLS storage is empty, it means that this engine enters this thread for the first 
+//     time. So create a new thread state for it manually (and loaded too), then save it 
+//     to TLS storage subThreadState_.
+//   3. When exiting an EngineScope, if old thread state is saved before, it will be poped and 
+//     recovered.
+//   4. GIL is locked when any EngineScope is entered, and it is a global state (which means that 
+//     this lock is shared by all threads). When the last EngineScope exited, the GIL will be released.
 // 
-// GIL keeps at one time only one engine can be running and this fucking situation is caused by 
+// GIL keeps at one time only one thread can be running. This unpleasant situation is caused by 
 // bad design of CPython. Hope that GIL will be removed in next versions and sub-interpreter support
 // will be public. Only that can save us from managing these annoying things manually
 //
@@ -44,36 +61,44 @@ namespace script::py_backend {
 
 EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
   managedEngine = enginePtr;
-  // Get thread state to enter
-  PyThreadState *currentThreadState = engine.subThreadState_.get();
-  if (currentThreadState == NULL) {
-    // New thread entered first time with no threadstate
-    // Create a new thread state for the the sub interpreter in the new thread
-    // correct thread state after this
-    currentThreadState = PyThreadState_New(engine.subInterpreterState_);
-    // Save to TLS storage
-    engine.subThreadState_.set(currentThreadState);
+
+  // Check if there is another existing thread state (maybe put by another engine)   
+  // PyThreadState_GET will cause FATAL error if oldState is NULL
+  // so here get & check oldState by swap twice
+  PyThreadState* oldState = PyThreadState_Swap(NULL);
+  bool isOldStateNotEmpty = oldState != nullptr;
+  PyThreadState_Swap(oldState);
+  if (isOldStateNotEmpty) {
+      // Another thread state is loaded
+      // Push the old one into stack 
+      engine.oldThreadStateStack_.push(PyThreadState_Swap(NULL));
   }
   else
   {
-      // Thread state of this engine on current thread is inited & saved in TLS
-      // Check if there is another existing thread state (is another engine entered)
-      
-      // PyThreadState_GET will cause FATAL error if oldState is NULL
-      // so here get & check oldState by swap twice
-      PyThreadState* oldState = PyThreadState_Swap(NULL);
-      bool isOldStateNotEmpty = oldState != nullptr;
-      PyThreadState_Swap(oldState);
-      if (isOldStateNotEmpty) {
-          // Another engine is entered
-          // Push his thread state into stack 
-          engine.oldThreadStateStack_.push(PyThreadState_Swap(NULL));
-      }
-      // Swap to thread state of engine which is to enter
-      PyThreadState_Swap(currentThreadState);
+    // Push a nullptr into stack, means that no need to recover when exit EngineScope
+    engine.oldThreadStateStack_.push(nullptr);
   }
 
-  // First enginescope to enter, so lock GIL
+  // Get current engine's thread state in TLS storage
+  PyThreadState *currentThreadState = engine.subThreadStateInTLS_.get();
+  if (currentThreadState == NULL) {
+    // Sub-interpreter enter new thread first time with no thread state
+    // Create a new thread state for the the sub interpreter in the new thread
+    currentThreadState = PyThreadState_New(engine.subInterpreterState_);
+    // Save to TLS storage
+    engine.subThreadStateInTLS_.set(currentThreadState);
+
+    // Load the thread state created just now
+    PyThreadState_Swap(currentThreadState);
+  }
+  else
+  {
+    // Thread state of this engine on current thread is inited & saved in TLS
+    // Just load it
+    PyThreadState_Swap(currentThreadState);
+  }
+
+  // This is first EngineScope to enter, so lock GIL
   if (PyEngine::engineEnterCount_ == 0)
   {
       PyEval_AcquireLock();
@@ -103,7 +128,9 @@ ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &engine) {
   // Restore old thread state saved if needed
   auto oldThreadStateStack = engine.oldThreadStateStack_;
   if (!oldThreadStateStack.empty()) {
-    PyThreadState_Swap(oldThreadStateStack.top());
+    PyThreadState *top = oldThreadStateStack.top();
+    if(top)       // if top is nullptr it means no need to recover
+      PyThreadState_Swap(top);
     oldThreadStateStack.pop();
   }
 }
