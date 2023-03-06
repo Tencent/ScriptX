@@ -26,14 +26,14 @@
 //
 // Because python's bad support of sub-interpreter, here to manage GIL & thread state manually.
 // - One engine owns a sub-interpreter, and owns a TLS storage called engine.subThreadState_, 
-// which stores his own current thread state on each thread.
+//   which stores his own current thread state on each thread.
 // - This "thread state" works like "CPU Context". When changing engine, "context" need to be
-// switched to correct target thread state
+//   switched to correct target thread state
 // - When entering a new EngineScope, first check that if an thread state exists. If found,
-// save it into oldThreadStateStack. When exit this EngineScope, old thread state saved before
-// will be poped and recovered.
+//   save it into oldThreadStateStack. When exit this EngineScope, old thread state saved before
+//   will be poped and recovered.
 // - GIL is locked when any EngineScope is entered, and it is a global state (which means that 
-// this lock is shared by all threads). When the last EngineScope exited, the GIL will be released.
+//   this lock is shared by all threads). When the last EngineScope exited, the GIL will be released.
 // 
 // GIL keeps at one time only one engine can be running and this fucking situation is caused by 
 // bad design of CPython. Hope that GIL will be removed in next versions and sub-interpreter support

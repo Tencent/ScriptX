@@ -465,7 +465,7 @@ private:
       method->ml_flags = METH_VARARGS;
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
-        // 
+        //
         // - "self" is not real self pointer to object instance, but a capsule for that
         //   we need it to pass params like impl-function, thiz, engine, ...etc
         //   into ml_meth here.
@@ -473,11 +473,9 @@ private:
         // - Structure of "args" is:
         //      <real-self>, <param1>, <param2>, ...
         // 
-        // - The first <real-self> is added by CPython when call a class method, which is the owner
-        //   object instance of this method.
+        // - The first <real-self> is added by CPython when call a class method, which must be 
+        //   the owner object instance of this method. Python does not support thiz redirection.
         //   (Looked into function "method_vectorcall" in CPython source code "Objects/methodobjects.c")
-        // 
-        // - Python does not support thiz redirection.
         //   (Looked into comments in PyLocalReference.cc)
         //
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
