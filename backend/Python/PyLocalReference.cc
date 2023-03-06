@@ -268,20 +268,16 @@ bool Local<Boolean>::value() const { return Py_IsTrue(val_); }
 
 Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
-  // if thiz is valid, thiz need to be passed as first parameter to call target function
-  // just like "ClassName.funcName(self, para1, para2, ...)" in Python
-  bool hasThiz = !thiz.isNull();
-  PyObject* args_tuple = PyTuple_New(hasThiz ? size + 1 : size);  
-  size_t offset = 0;
-  if(hasThiz)
-  {
-    PyTuple_SetItem(args_tuple, 0, py_interop::getPy(thiz));    // PyTuple_SetItem will steal the ref
-    offset = 1;
-  }
+  // - Python does not support thiz rediction!!!! Param "thiz" is ignored!
+  // - If this function is a class method, thiz is locked to 
+  //   the owner object instance of this method.
+  // - If this function is a common function or a static method,
+  //   thiz is locked to "None"
+  PyObject* args_tuple = PyTuple_New(size);
 
   for (size_t i = 0; i < size; ++i) {
     Py_INCREF(args[i].val_);         // PyTuple_SetItem will steal the ref
-    PyTuple_SetItem(args_tuple, i + offset, args[i].val_);
+    PyTuple_SetItem(args_tuple, i, args[i].val_);
   }
   PyObject* result = PyObject_CallObject(val_, args_tuple);
   Py_DECREF(args_tuple);
