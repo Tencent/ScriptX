@@ -268,7 +268,7 @@ bool Local<Boolean>::value() const { return Py_IsTrue(val_); }
 
 Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
                                        const Local<Value>* args) const {
-  // - Python does not support thiz rediction!!!! Param "thiz" is ignored!
+  // - Attention! Python does not support thiz rediction, Param "thiz" is ignored.
   // - If this function is a class method, thiz is locked to 
   //   the owner object instance of this method.
   // - If this function is a common function or a static method,
