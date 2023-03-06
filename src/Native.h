@@ -510,6 +510,10 @@ class ClassDefineState {
 
   bool hasInstanceDefine() const { return static_cast<bool>(instanceDefine.constructor); }
 
+#ifdef __cpp_rtti
+  void visit(script::ClassDefineVisitor& visitor) const;
+#endif
+
   SCRIPTX_CLASS_DEFINE_FRIENDS;
 };
 

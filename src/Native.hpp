@@ -1000,27 +1000,7 @@ inline NativeRegister ClassDefine<T>::getNativeRegister() const {
 
 template <typename T>
 void script::ClassDefine<T>::visit(script::ClassDefineVisitor& visitor) const {
-  visitor.beginClassDefine(className, nameSpace);
-
-  for (auto&& prop : staticDefine.properties) {
-    visitor.visitStaticProperty(prop.name, prop.getter.target_type(), prop.setter.target_type());
-  }
-  for (auto&& function : staticDefine.functions) {
-    visitor.visitStaticFunction(function.name, function.callback.target_type());
-  }
-
-  if (instanceDefine.constructor) {
-    visitor.visitConstructor(instanceDefine.constructor.target_type());
-  }
-
-  for (auto&& prop : instanceDefine.properties) {
-    visitor.visitInstanceProperty(prop.name, prop.getter.target_type(), prop.setter.target_type());
-  }
-  for (auto&& function : instanceDefine.functions) {
-    visitor.visitInstanceFunction(function.name, function.callback.target_type());
-  }
-
-  visitor.endClassDefine();
+  internal::ClassDefineState::visit(visitor);
 }
 
 #else

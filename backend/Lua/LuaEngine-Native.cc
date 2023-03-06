@@ -19,6 +19,7 @@
 #include "../../src/utils/Helper.hpp"
 #include "LuaEngine.h"
 #include "LuaHelper.hpp"
+#include "LuaReference.hpp"
 
 namespace script::lua_backend {
 
