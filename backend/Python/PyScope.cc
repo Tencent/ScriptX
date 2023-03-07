@@ -45,7 +45,7 @@
 //   2. Then check that if an thread state stored in engine's TLS storage subThreadState_.
 //   - If found a stored thread state, just load it.
 //   - If the TLS storage is empty, it means that this engine enters this thread for the first 
-//     time. So create a new thread state for it manually (and loaded too), then save it 
+//     time. So create a new thread state for it manually (and load it too), then save it 
 //     to TLS storage subThreadState_.
 //   3. When exiting an EngineScope, if old thread state is saved before, it will be poped and 
 //     recovered.
@@ -126,7 +126,7 @@ ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &engine) {
   PyThreadState_Swap(NULL);
   
   // Restore old thread state saved if needed
-  auto oldThreadStateStack = engine.oldThreadStateStack_;
+  auto &oldThreadStateStack = engine.oldThreadStateStack_;
   if (!oldThreadStateStack.empty()) {
     PyThreadState *top = oldThreadStateStack.top();
     if(top)       // if top is nullptr it means no need to recover
