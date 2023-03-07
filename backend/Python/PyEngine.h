@@ -573,6 +573,8 @@ private:
       auto type = Py_TYPE(self);
       delete reinterpret_cast<GeneralObject*>(self)->instance;
       type->tp_free(self);
+      //engine->registeredTypes_.erase(type);
+      //engine->registeredTypesReverse_.erase(type);
       Py_DECREF(type);
     };
 
