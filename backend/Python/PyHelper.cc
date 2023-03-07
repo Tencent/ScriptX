@@ -354,9 +354,8 @@ PyTypeObject* makeDefaultMetaclass() {
   type->tp_dealloc = [](PyObject* obj) {
     auto* type = (PyTypeObject*)obj;
     auto engine = currentEngine();
-
-    engine->registeredTypes_.erase(type);
-    engine->registeredTypesReverse_.erase(type);
+    //engine->registeredTypes_.erase(type);
+    //engine->registeredTypesReverse_.erase(type);
     PyType_Type.tp_dealloc(obj);
   };
 

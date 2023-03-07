@@ -19,6 +19,7 @@
 #include <cstring>
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
+#include "PyInternalHelper.h"
 
 namespace script::py_backend {
 
@@ -79,21 +80,43 @@ void PyEngine::destroy() noexcept {
     messageQueue()->removeMessageByTag(this);
   }
 
-  //TODO: fix Py_EndInterpreter: not the last thread
-  /*if (PyEngine::engineEnterCount_ == 0) {
+  if (PyEngine::engineEnterCount_ == 0) {
     // GIL is not locked. Just lock it
     PyEval_AcquireLock();
   }
-  // Swap to target thread state need to clear & end sub interpreter
-  PyThreadState* oldThreadState = PyThreadState_Swap(subThreadStateInTLS_.get());
-  Py_EndInterpreter(subThreadStateInTLS_.get());
+
+  // =========================================
+  // Attention! The logic below is partially referenced from Py_FinalizeEx and Py_EndInterpreter
+  // in Python source code, so it may need to be re-adapted as the CPython backend's version 
+  // is updated.
+  
+  // Swap to correct target thread state
+  PyThreadState* tstate = subThreadStateInTLS_.get();
+  PyInterpreterState *interp = tstate->interp;
+  PyThreadState* oldThreadState = PyThreadState_Swap(tstate);
+
+  // Set finalizing sign
+  interp->finalizing = 1;
+
+  /* Destroy the state of all threads of the interpreter, except of the
+    current thread. In practice, only daemon threads should still be alive,
+    except if wait_for_thread_shutdown() has been cancelled by CTRL+C.
+    Clear frames of other threads to call objects destructors. Destructors
+    will be called in the current Python thread. */
+  _PyThreadState_DeleteExcept(tstate->interp->runtime, tstate);
+
+  // End sub-interpreter
+  Py_EndInterpreter(tstate);
+
   // Recover old thread state
   PyThreadState_Swap(oldThreadState);
+
+  // =========================================
 
   if (PyEngine::engineEnterCount_ == 0) {
       // Unlock the GIL because it is not locked before
       PyEval_ReleaseLock();
-  }*/
+  }
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
