@@ -361,7 +361,6 @@ private:
           PyObject_CallFunctionObjArgs((PyObject*)staticPropertyType_, g, s, Py_None, doc, nullptr);
       Py_DECREF(g);
       Py_DECREF(s);
-      // Py_DECREF(Py_None);
       Py_DECREF(doc);
       setAttr(type, property.name.c_str(), warpped_property);
       Py_DECREF(warpped_property);
@@ -404,6 +403,9 @@ private:
       method->ml_flags = METH_VARARGS;
       method->ml_doc = nullptr;
       method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+        // - "self" is not real self pointer to object instance, but a capsule for that
+        //   we need it to pass params like impl-function, thiz, engine, ...etc
+        //   into ml_meth here.
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
         try {
           Local<Value> ret = data->function(py_interop::makeArguments(data->engine, self, args));
@@ -546,7 +548,7 @@ private:
     type->tp_new = [](PyTypeObject* type, PyObject* args, PyObject* kwds) -> PyObject* {
       PyObject* self = type->tp_alloc(type, 0);
       if (type->tp_init(self, args, kwds) < 0) {
-        throw Exception();
+        throw Exception("Fail to execute tp_init when registering native class");
       }
       return self;
     };
