@@ -25,18 +25,28 @@ namespace script::py_backend {
 
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
-  if (Py_IsInitialized() == 0) {
+  if (Py_IsInitialized() == 0)
+  {
+    // Not initialized. So no thread state at this time
+
     Py_SetStandardStreamEncoding("utf-8", nullptr);
-    // Python not initialized. Init main interpreter
+    // Init main interpreter
     Py_InitializeEx(0);
     // Init threading environment
     PyEval_InitThreads();
-    // Initialize type
+    // Initialize types
     namespaceType_ = makeNamespaceType();
     staticPropertyType_ = makeStaticPropertyType();
     defaultMetaType_ = makeDefaultMetaclass();
-    // Save main thread state & release GIL
-    mainThreadState_ = PyEval_SaveThread();
+
+    PyEval_ReleaseLock();   // release GIL
+
+    // PyThreadState_GET will cause FATAL error if oldState is NULL
+    // so here get mainThreadState_ by swap twice
+    mainThreadState_ = PyThreadState_Swap(NULL);
+    PyThreadState_Swap(mainThreadState_);
+
+    // After this, thread state of main interpreter is loaded
   }
 
   // Resume main thread state (to execute Py_NewInterpreter)
@@ -113,6 +123,8 @@ void PyEngine::destroy() noexcept {
 
   // =========================================
 
+  // Even if all engine is destroyed, there will be main interpreter thread state loaded.
+  // So ReleaseLock will not cause any problem.
   if (PyEngine::engineEnterCount_ == 0) {
       // Unlock the GIL because it is not locked before
       PyEval_ReleaseLock();
