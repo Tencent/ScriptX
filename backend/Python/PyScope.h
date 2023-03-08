@@ -24,6 +24,9 @@ namespace script::py_backend {
 class PyEngine;
 
 class EngineScopeImpl {
+  // Previous thread state
+  PyThreadState* prevThreadState;
+
  public:
   explicit EngineScopeImpl(PyEngine &, PyEngine *);
 
@@ -31,10 +34,13 @@ class EngineScopeImpl {
 };
 
 class ExitEngineScopeImpl {
+  // Entered thread state
+  PyThreadState* enteredThreadState;
+
  public:
   explicit ExitEngineScopeImpl(PyEngine &);
 
-  ~ExitEngineScopeImpl() = default;
+  ~ExitEngineScopeImpl();
 };
 
 class StackFrameScopeImpl {
