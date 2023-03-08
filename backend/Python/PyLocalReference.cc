@@ -37,7 +37,7 @@ void valueConstructorCheck(PyObject* value) {
 #define REF_IMPL_BASIC_FUNC(ValueType)                                                  \
   Local<ValueType>::Local(const Local<ValueType>& copy) : val_(Py_NewRef(copy.val_)) {} \
   Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {         \
-    move.val_ = Py_None;                                                                \
+    move.val_ = Py_NewRef(Py_None);                                                                \
   }                                                                                     \
   Local<ValueType>::~Local() { Py_XDECREF(val_); }                                      \
   Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                    \
@@ -48,7 +48,7 @@ void valueConstructorCheck(PyObject* value) {
   Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {                \
     Py_XDECREF(val_);                                                                   \
     val_ = move.val_;                                                                   \
-    move.val_ = Py_None;                                                                \
+    move.val_ = Py_NewRef(Py_None);                                                                \
     return *this;                                                                       \
   }                                                                                     \
   void Local<ValueType>::swap(Local& rhs) noexcept { std::swap(val_, rhs.val_); }
@@ -112,15 +112,15 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 // ==== value ====
 
-Local<Value>::Local() noexcept : val_(Py_None) {}
+Local<Value>::Local() noexcept : val_(Py_NewRef(Py_None)) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(ref ? Py_NewRef(ref) : Py_None) {}
+Local<Value>::Local(InternalLocalRef ref) : val_(ref ? Py_NewRef(ref) : Py_NewRef(Py_None)) {}
 
 bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
 void Local<Value>::reset() {
   Py_XDECREF(val_);
-  val_ = Py_None;
+  val_ = Py_NewRef(Py_None);
 }
 
 ValueKind Local<Value>::getKind() const {
@@ -299,8 +299,7 @@ void Local<Array>::set(size_t index, const script::Local<script::Value>& value) 
   size_t listSize = size();
   if (index >= listSize) {
     for (size_t i = listSize; i <= index; ++i) {
-      PyList_Append(val_, Py_None);
-      //Py_DECREF(Py_None);
+      PyList_Append(val_, Py_None);   // No need to add ref to Py_None
     }
   }
   Py_INCREF(value.val_);         // PyList_SetItem will steal ref

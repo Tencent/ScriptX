@@ -26,9 +26,9 @@ namespace script {
 namespace py_backend {
 
 struct GlobalRefState {
-  PyObject* _ref = Py_None;
+  PyObject* _ref;
 
-  GlobalRefState() = default;
+  GlobalRefState();
   GlobalRefState(PyObject* obj);
   GlobalRefState(const GlobalRefState& assign);
   GlobalRefState(GlobalRefState&& move) noexcept;
@@ -45,12 +45,12 @@ struct GlobalRefState {
 };
 
 struct WeakRefState {
-  PyObject* _ref = Py_None;
+  PyObject* _ref;
   bool _isRealWeakRef = false;    
   // if true, _ref is a real weak ref, or _ref will be a global ref instead 
   // (some builtin types like <int, string, ...> cannot have native weak ref)
 
-  WeakRefState() = default;
+  WeakRefState();
   WeakRefState(PyObject* obj);
   WeakRefState(const WeakRefState& assign);
   WeakRefState(WeakRefState&& move) noexcept;
