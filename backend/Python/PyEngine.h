@@ -52,7 +52,12 @@ private:
   // and find that there is an existing thread state owned by another engine,
   // we need to push its thread state to stack and release GIL to avoid dead-lock
   // -- see more code in "PyScope.cc"
-  std::stack<PyThreadState*> oldThreadStateStack_;
+  struct threadStateStackData
+  {
+    PyThreadState* threadState;
+    bool aboveScopeIsExited;
+  };
+  inline static std::stack<threadStateStackData> oldThreadStateStack_;
 
   // Record global EngineScope enter times to determine
   // whether it is needed to unlock GIL when exit EngineScope

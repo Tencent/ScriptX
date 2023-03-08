@@ -60,9 +60,7 @@
 namespace script::py_backend {
 
 EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
-  managedEngine = enginePtr;
-
-  // Check if there is another existing thread state (maybe put by another engine)   
+  // Check if there is another existing thread state (put by another engine)   
   // PyThreadState_GET will cause FATAL error if oldState is NULL
   // so here get & check oldState by swap twice
   PyThreadState* oldState = PyThreadState_Swap(NULL);
@@ -71,12 +69,12 @@ EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
   if (isOldStateNotEmpty) {
       // Another thread state is loaded
       // Push the old one into stack 
-      engine.oldThreadStateStack_.push(PyThreadState_Swap(NULL));
+      PyEngine::oldThreadStateStack_.push({PyThreadState_Swap(NULL), false});
   }
   else
   {
-    // Push a nullptr into stack, means that no need to recover when exit EngineScope
-    engine.oldThreadStateStack_.push(nullptr);
+    // Push a NULL into stack, means that no need to recover when exit EngineScope
+    PyEngine::oldThreadStateStack_.push({NULL, false});
   }
 
   // Get current engine's thread state in TLS storage
@@ -98,10 +96,10 @@ EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
     PyThreadState_Swap(currentThreadState);
   }
 
-  // This is first EngineScope to enter, so lock GIL
   if (PyEngine::engineEnterCount_ == 0)
   {
-      PyEval_AcquireLock();
+    // This is first EngineScope to enter, so lock GIL
+    PyEval_AcquireLock();
   }
   ++PyEngine::engineEnterCount_;
   // GIL locked & correct thread state here
@@ -109,29 +107,60 @@ EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
 }
 
 EngineScopeImpl::~EngineScopeImpl() {
-  PyEngine *currentEngine = py_backend::currentEngine();
-  if (currentEngine == managedEngine) {
-    // Engine existing. Need to exit
-    ExitEngineScopeImpl exitEngine(*currentEngine);
+  auto &oldStatesStack = PyEngine::oldThreadStateStack_;
+  if(oldStatesStack.empty())
+  {
+    // why? it cannot be empty here!
+    throw Exception("Bad old_thread_state_stack status");
   }
+  auto &topData = oldStatesStack.top();
+  if(topData.threadState == PyEngine::mainThreadState_)
+  {
+    // why? it cannot be main thread state here!
+    throw Exception("Bad old_thread_state_stack status");
+  }
+  if(!topData.aboveScopeIsExited)
+  {
+    // Current scope has not been exited. Exit it
+    PyEngine *currentEngine = py_backend::currentEngine();
+    ExitEngineScopeImpl exit(*currentEngine);
+  }
+  // Set old thread state stored back
+  PyThreadState_Swap(topData.threadState);
+  oldStatesStack.pop();
 }
 
 ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &engine) {
-  if ((--PyEngine::engineEnterCount_) == 0)
+  if(PyEngine::oldThreadStateStack_.empty())
   {
-      // This is the last enginescope to exit, so release GIL
-      PyEval_ReleaseLock();
+    // why? it cannot be empty here!
+    throw Exception("Cannot exit an EngineScope when no EngineScope is entered");
   }
-  // Swap to clear thread state
-  PyThreadState_Swap(NULL);
-  
-  // Restore old thread state saved if needed
-  auto &oldThreadStateStack = engine.oldThreadStateStack_;
-  if (!oldThreadStateStack.empty()) {
-    PyThreadState *top = oldThreadStateStack.top();
-    if(top)       // if top is nullptr it means no need to recover
-      PyThreadState_Swap(top);
-    oldThreadStateStack.pop();
+  auto &topData = PyEngine::oldThreadStateStack_.top();
+  if(topData.threadState == PyEngine::mainThreadState_)
+  {
+    // why? it cannot be main thread state here!
+    throw Exception("Cannot exit an EngineScope when no EngineScope is entered");
+  }
+  if(topData.aboveScopeIsExited)
+  {
+    // Current scope has been exited. Nothing need to do here
+    return;
+  }
+  else
+  {
+    // Exit current scope
+    topData.aboveScopeIsExited = true;
+
+    if ((--PyEngine::engineEnterCount_) == 0)
+    {
+        // This is the last enginescope to exit, so release GIL
+        PyEval_ReleaseLock();
+    }
+    // Swap to clear thread state
+    PyThreadState_Swap(NULL);
+
+    // Do not pop topData here. Let the dtor of EngineScope to do pop and recover work later.
   }
 }
 
