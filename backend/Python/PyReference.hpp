@@ -67,6 +67,8 @@ inline void _updateRefStateInKeeper(WeakRefState* ref, bool isCreate, bool isEmp
 
 namespace py_backend {
 
+inline GlobalRefState::GlobalRefState() :_ref(Py_NewRef(Py_None)) {}
+
 inline GlobalRefState::GlobalRefState(PyObject* obj) 
   :_ref(Py_NewRef(obj)) {}
 
@@ -80,13 +82,12 @@ inline GlobalRefState::GlobalRefState(GlobalRefState&& move) noexcept
 }
 
 inline GlobalRefState& GlobalRefState::operator=(const GlobalRefState& assign){
-  reset();
-  _ref = Py_NewRef(assign._ref);
+  reset(assign._ref);
   return *this;
 }
 
 inline GlobalRefState& GlobalRefState::operator=(GlobalRefState&& move) noexcept{
-  reset();
+  Py_XDECREF(_ref);
   _ref = move._ref;
   move._ref = Py_NewRef(Py_None);
   return *this;
@@ -108,9 +109,9 @@ inline PyObject *GlobalRefState::peek() const{
     return _ref;
 }
 
-inline void GlobalRefState::reset() {
+inline void GlobalRefState::reset(PyObject *newObj) {
   Py_XDECREF(_ref);
-  _ref = Py_NewRef(Py_None);
+  _ref = Py_NewRef(newObj);
 }
 
 inline void GlobalRefState::dtor() {
@@ -121,7 +122,7 @@ inline void GlobalRefState::dtor() {
 }   // namespace py_backend
 
 template <typename T>
-Global<T>::Global() noexcept : val_(Py_None) {}   // empty refs is not tracked in ref keeper
+Global<T>::Global() noexcept : val_() {}   // empty refs is not tracked in ref keeper
 
 template <typename T>
 Global<T>::Global(const script::Local<T>& localReference) 
@@ -263,7 +264,7 @@ inline WeakRefState::WeakRefState(WeakRefState&& move) noexcept{
 }
 
 inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
-  reset();
+  Py_XDECREF(_ref);
 
   PyObject *originRef = assign.peek();
   if(assign._isRealWeakRef)
@@ -288,7 +289,7 @@ inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
 }
 
 inline WeakRefState& WeakRefState::operator=(WeakRefState&& move) noexcept{
-  reset();
+  Py_XDECREF(_ref);
 
   _isRealWeakRef = move._isRealWeakRef;
   _ref = move._ref;
@@ -312,7 +313,7 @@ inline PyObject *WeakRefState::get() const{
   if(_isRealWeakRef)
   {
     if(!PyWeakref_Check(_ref))
-      return Py_NewRef(Py_None);
+      return Py_NewRef(Py_None);      // error!
     PyObject* obj = PyWeakref_GetObject(_ref);
     return Py_NewRef(obj);
   }
@@ -340,21 +341,13 @@ inline bool WeakRefState::isRealWeakRef() const {
 }
 
 inline void WeakRefState::reset() {
-  // if this is not a real ref need to dec ref count
-  if(!_isRealWeakRef)
-  {
-    Py_XDECREF(_ref);
-  }
+  Py_XDECREF(_ref);
   _ref = Py_NewRef(Py_None);
   _isRealWeakRef = false;
 }
 
 inline void WeakRefState::dtor() {
-  // if this is not a real ref need to dec ref count
-  if(!_isRealWeakRef)
-  {
-    Py_XDECREF(_ref);
-  }
+  Py_XDECREF(_ref);
   _ref = nullptr;
   _isRealWeakRef = false;
 }

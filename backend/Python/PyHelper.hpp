@@ -107,11 +107,11 @@ public:
   void dtor()
   {
     for(auto &ref : globalRefs)
-      ref->reset();
+      ref->dtor();
     globalRefs.clear();
     
     for(auto &ref : weakRefs)
-      ref->reset();
+      ref->dtor();
     weakRefs.clear();
   }
 };

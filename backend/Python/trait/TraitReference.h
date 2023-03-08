@@ -38,9 +38,9 @@ struct GlobalRefState {
   void swap(GlobalRefState& other);
 
   bool isEmpty() const;
-  PyObject *get() const;          // ref count + 1
+  PyObject *get() const;    // ref count + 1
   PyObject *peek() const;   // ref count no change
-  void reset();
+  void reset(PyObject *newObj = Py_None);
   void dtor();
 };
 
