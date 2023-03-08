@@ -68,31 +68,27 @@ inline void _updateRefStateInKeeper(WeakRefState* ref, bool isCreate, bool isEmp
 namespace py_backend {
 
 inline GlobalRefState::GlobalRefState(PyObject* obj) 
-  :_ref(Py_IsNone(obj) ? Py_None : Py_NewRef(obj)) {}
+  :_ref(Py_NewRef(obj)) {}
 
 inline GlobalRefState::GlobalRefState(const GlobalRefState& assign)
-  :_ref(assign.isEmpty() ? Py_None : Py_NewRef(assign._ref)) {}
+  :_ref(Py_NewRef(assign._ref)) {}
 
 inline GlobalRefState::GlobalRefState(GlobalRefState&& move) noexcept
   : _ref(move._ref)
 {
-  move._ref = Py_None;
+  move._ref = Py_NewRef(Py_None);
 }
 
 inline GlobalRefState& GlobalRefState::operator=(const GlobalRefState& assign){
-  if(!isEmpty())
-    reset();
-  if(!assign.isEmpty())
-    _ref = Py_NewRef(assign._ref);
+  reset();
+  _ref = Py_NewRef(assign._ref);
   return *this;
 }
 
 inline GlobalRefState& GlobalRefState::operator=(GlobalRefState&& move) noexcept{
-  if(!isEmpty())
-    reset();
-
+  reset();
   _ref = move._ref;
-  move._ref = Py_None;
+  move._ref = Py_NewRef(Py_None);
   return *this;
 }
 
@@ -105,7 +101,7 @@ inline bool GlobalRefState::isEmpty() const {
 }
 
 inline PyObject *GlobalRefState::get() const {
-    return (isEmpty() ? Py_None : Py_NewRef(_ref));
+  return Py_NewRef(_ref);
 }
 
 inline PyObject *GlobalRefState::peek() const{
@@ -113,11 +109,13 @@ inline PyObject *GlobalRefState::peek() const{
 }
 
 inline void GlobalRefState::reset() {
-  _ref = Py_None;
+  Py_XDECREF(_ref);
+  _ref = Py_NewRef(Py_None);
 }
 
 inline void GlobalRefState::dtor() {
-  reset();
+  Py_XDECREF(_ref);
+  _ref = nullptr;
 }
 
 }   // namespace py_backend
@@ -209,9 +207,14 @@ void Global<T>::reset() {
 
 namespace py_backend {
 
+inline WeakRefState::WeakRefState() :_ref(Py_NewRef(Py_None)) {}
+
 inline WeakRefState::WeakRefState(PyObject* obj) {
   if(Py_IsNone(obj))
+  {
+    _ref = Py_NewRef(Py_None);
     return;
+  }
 
   _ref = PyWeakref_NewRef(obj, NULL);
   if(checkAndClearError() || !_ref)
@@ -226,7 +229,10 @@ inline WeakRefState::WeakRefState(PyObject* obj) {
 
 inline WeakRefState::WeakRefState(const WeakRefState& assign) {
   if(assign.isEmpty())
+  {
+    _ref = Py_NewRef(Py_None);
     return;
+  }
   PyObject *originRef = assign.peek();
   if(assign._isRealWeakRef)
   {
@@ -252,15 +258,12 @@ inline WeakRefState::WeakRefState(WeakRefState&& move) noexcept{
   _isRealWeakRef = move._isRealWeakRef;
   _ref = move._ref;
 
-  move._ref = Py_None;
+  move._ref = Py_NewRef(Py_None);
   move._isRealWeakRef = false;
 }
 
 inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
-  if(!isEmpty())
-    reset();
-  if(assign.isEmpty())
-    return *this;
+  reset();
 
   PyObject *originRef = assign.peek();
   if(assign._isRealWeakRef)
@@ -285,13 +288,12 @@ inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
 }
 
 inline WeakRefState& WeakRefState::operator=(WeakRefState&& move) noexcept{
-  if(!isEmpty())
-    reset();
+  reset();
 
   _isRealWeakRef = move._isRealWeakRef;
   _ref = move._ref;
 
-  move._ref = Py_None;
+  move._ref = Py_NewRef(Py_None);
   move._isRealWeakRef = false;
   return *this;
 }
@@ -310,14 +312,14 @@ inline PyObject *WeakRefState::get() const{
   if(_isRealWeakRef)
   {
     if(!PyWeakref_Check(_ref))
-      return Py_None;
+      return Py_NewRef(Py_None);
     PyObject* obj = PyWeakref_GetObject(_ref);
-    return (Py_IsNone(obj) ? Py_None : Py_NewRef(obj));
+    return Py_NewRef(obj);
   }
   else
   {
     // is fake weak ref (global ref)
-    return (Py_IsNone(_ref) ? Py_None : Py_NewRef(_ref));
+    return Py_NewRef(_ref);
   }
 }
 
@@ -339,16 +341,22 @@ inline bool WeakRefState::isRealWeakRef() const {
 
 inline void WeakRefState::reset() {
   // if this is not a real ref need to dec ref count
-  if(!_isRealWeakRef && !Py_IsNone(_ref))
+  if(!_isRealWeakRef)
   {
     Py_XDECREF(_ref);
   }
-  _ref = Py_None;
+  _ref = Py_NewRef(Py_None);
   _isRealWeakRef = false;
 }
 
 inline void WeakRefState::dtor() {
-  reset();
+  // if this is not a real ref need to dec ref count
+  if(!_isRealWeakRef)
+  {
+    Py_XDECREF(_ref);
+  }
+  _ref = nullptr;
+  _isRealWeakRef = false;
 }
 
 }   // namespace py_backend

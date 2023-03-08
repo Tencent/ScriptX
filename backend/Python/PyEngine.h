@@ -259,7 +259,7 @@ private:
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       try {
         data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
-        return Py_None;
+        Py_RETURN_NONE;
       }
       catch(const Exception &e) {
         Local<Value> exception = e.exception();
@@ -310,7 +310,7 @@ private:
       T* cppThiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
       try {
         data->function(cppThiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
-        return Py_None;
+        Py_RETURN_NONE;
       }
       catch(const Exception &e) {
         Local<Value> exception = e.exception();
@@ -361,7 +361,7 @@ private:
           PyObject_CallFunctionObjArgs((PyObject*)staticPropertyType_, g, s, Py_None, doc, nullptr);
       Py_DECREF(g);
       Py_DECREF(s);
-      Py_DECREF(Py_None);
+      // Py_DECREF(Py_None);
       Py_DECREF(doc);
       setAttr(type, property.name.c_str(), warpped_property);
       Py_DECREF(warpped_property);
@@ -384,7 +384,7 @@ private:
           PyObject_CallFunctionObjArgs((PyObject*)&PyProperty_Type, g, s, Py_None, doc, nullptr);
       Py_DECREF(g);
       Py_DECREF(s);
-      Py_DECREF(Py_None);
+      // Py_DECREF(Py_None);
       Py_DECREF(doc);
       setAttr(type, property.name.c_str(), warpped_property);
       Py_DECREF(warpped_property);
