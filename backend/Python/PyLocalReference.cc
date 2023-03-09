@@ -242,7 +242,14 @@ bool Local<Object>::has(const Local<class script::String>& key) const {
 }
 
 bool Local<Object>::instanceOf(const Local<class script::Value>& type) const {
-  return PyObject_IsInstance(val_, type.val_);
+  bool ret;
+  if(PyType_Check(type.val_))
+    ret = PyObject_IsInstance(val_, type.val_);
+  else
+    ret = PyObject_IsInstance(val_, (PyObject*)Py_TYPE(type.val_));
+  if (py_backend::checkAndClearError())
+    return false;
+  return ret;
 }
 
 std::vector<Local<String>> Local<Object>::getKeys() const {
