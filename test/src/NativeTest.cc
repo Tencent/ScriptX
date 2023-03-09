@@ -1054,27 +1054,30 @@ TEST_F(NativeTest, ClassDefineBuilder) {
   ASSERT_TRUE(ret1.isBoolean());
   ASSERT_EQ(ret1.asBoolean().value(), true);
 
+#ifdef SCRIPTX_LANG_PYTHON
+  engine->eval("native_test_var_general = test.BindInstanceFunc()");
+#endif
+
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().helloMe0(\"js\");")
                           .lua("return test.BindInstanceFunc():helloMe0(\"js\");")
-                          .py("test.BindInstanceFunc().helloMe0(\"js\")")
+                          .py("native_test_var_general.helloMe0(\"js\")")
                           .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "Native hello js");
 
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().helloMe('js');")
                           .lua("return test.BindInstanceFunc():helloMe('js');")
-                          .py("test.BindInstanceFunc().helloMe('js')")
+                          .py("native_test_var_general.helloMe('js')")
                           .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "Native hello js");
 
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().name;")
                           .lua("return test.BindInstanceFunc().name;")
-                          .py("test.BindInstanceFunc().name")
+                          .py("native_test_var_general.name")
                           .select());
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "Native");
-
 #ifdef SCRIPTX_LANG_PYTHON
   engine->eval("native_test_var = test.BindInstanceFunc()\nnative_test_var.name='What'");
   ret1 = engine->eval("native_test_var.name");
@@ -1093,13 +1096,21 @@ TEST_F(NativeTest, ClassDefineBuilder) {
 #endif
   ASSERT_TRUE(ret1.isString());
   ASSERT_EQ(ret1.asString().toString(), "What");
-
+  
+#ifdef SCRIPTX_LANG_PYTHON
+  engine->eval("native_test_var2 = test.BindInstanceFunc()");
+#endif
   ret1 = engine->eval(TS().js("new test.BindInstanceFunc().age;")
                           .lua("return test.BindInstanceFunc().age;")
-                          .py("test.BindInstanceFunc().age")
+                          .py("native_test_var2.age")
                           .select());
   ASSERT_TRUE(ret1.isNumber());
   ASSERT_EQ(ret1.asNumber().toInt32(), 0);
+
+  // TODO: eval code like:
+  // ret1 = engine->eval("test.BindInstanceFunc().age");
+  // and then use ret1 will cause ref count exception at destroy
+  // (The fact is that it can be explained, but is there a way to avoid it?)
 }
 }  // namespace
 
