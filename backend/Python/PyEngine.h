@@ -96,13 +96,12 @@ private:
 
  private:
   template <typename T>
-  void nameSpaceSet(const ClassDefine<T>* classDefine, const std::string& name, PyObject* value) {
+  void nameSpaceSet(const ClassDefine<T>* classDefine, const std::string& name, PyObject* type) {
     std::string nameSpace = classDefine->getNameSpace();
     PyObject* nameSpaceObj = getGlobalDict();
 
     if (nameSpace.empty()) {
-      setDictItem(nameSpaceObj, name.c_str(), value);
-      Py_DECREF(value);
+      setDictItem(nameSpaceObj, name.c_str(), type);
     } else {  // namespace can be aaa.bbb.ccc
       std::size_t begin = 0;
       while (begin < nameSpace.size()) {
@@ -123,8 +122,7 @@ private:
             setDictItem(nameSpaceObj, key.c_str(), sub);
             Py_DECREF(sub);
           }
-          setAttr(sub, name.c_str(), value);
-          Py_DECREF(value);
+          setAttr(sub, name.c_str(), type);
         } else /*namespace type*/ {
           if (hasAttr(nameSpaceObj, key.c_str())) {
             sub = getAttr(nameSpaceObj, key.c_str());
@@ -136,8 +134,7 @@ private:
             setAttr(nameSpaceObj, key.c_str(), sub);
             Py_DECREF(sub);
           }
-          setAttr(sub, name.c_str(), value);
-          Py_DECREF(value);
+          setAttr(sub, name.c_str(), type);
         }
         nameSpaceObj = sub;
         begin = index + 1;

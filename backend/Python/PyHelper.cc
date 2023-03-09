@@ -250,7 +250,7 @@ PyTypeObject* makeStaticPropertyType() {
 }
 
 PyTypeObject* makeNamespaceType() {
-  constexpr auto* name = "namespace";
+  constexpr auto* name = "scriptx_namespace";
   auto name_obj = toStr(name);
 
   auto* heap_type = (PyHeapTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
