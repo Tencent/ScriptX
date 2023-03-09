@@ -26,7 +26,11 @@ template <typename T>
 ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {
   auto engine = py_backend::currentEngineChecked();
   internalState_.scriptEngine_ = engine;
-  internalState_.weakRef_ = engine->newNativeClass<T>({});
+
+  auto ref = engine->newNativeClass<T>({});
+  internalState_.weakRef_ = ref;
+
+  py_backend::extendLifeTimeToNextLoop(engine, py_interop::getPy(ref.asValue()));
 }
 
 template <typename T>
