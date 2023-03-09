@@ -80,4 +80,6 @@ PyEngine* currentEngineChecked();
 
 // @return borrowed ref
 PyObject* getGlobalDict();
+
+void extendLifeTimeToNextLoop(PyEngine* engine, PyObject* obj);
 }  // namespace script::py_backend

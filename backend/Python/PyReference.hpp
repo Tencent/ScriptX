@@ -265,6 +265,12 @@ inline WeakRefState::WeakRefState(WeakRefState&& move) noexcept{
 
 inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
   Py_XDECREF(_ref);
+  if(assign.isEmpty())
+  {
+    _ref = Py_NewRef(Py_None);
+    _isRealWeakRef = false;
+    return *this;
+  }
 
   PyObject *originRef = assign.peek();
   if(assign._isRealWeakRef)

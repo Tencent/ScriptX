@@ -364,4 +364,16 @@ PyTypeObject* makeDefaultMetaclass() {
   return type;
 }
 
+void extendLifeTimeToNextLoop(PyEngine* engine, PyObject* obj)
+{
+  utils::Message msg(
+    [](auto& msg) { Py_XDECREF((PyObject*)(uintptr_t)msg.data0); }, 
+    [](auto& msg) {});
+
+  msg.tag = engine;
+  msg.data0 = (int64_t)obj;
+
+  engine->messageQueue()->postMessage(msg);
+}
+
 }  // namespace script::py_backend
