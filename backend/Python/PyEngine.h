@@ -95,6 +95,9 @@ private:
   ~PyEngine() override;
 
  private:
+  /*
+  * namespace will be created as a dict object, which is set in the Global Dict
+  */
   template <typename T>
   void nameSpaceSet(const ClassDefine<T>* classDefine, const std::string& name, PyObject* type) {
     std::string nameSpace = classDefine->getNameSpace();
@@ -102,7 +105,7 @@ private:
 
     if (nameSpace.empty()) {
       setDictItem(nameSpaceObj, name.c_str(), type);
-    } else {  // namespace can be aaa.bbb.ccc
+    } else {  // "nameSpace" can be aaa.bbb.ccc, so we should parse the string to create more dict
       std::size_t begin = 0;
       while (begin < nameSpace.size()) {
         auto index = nameSpace.find('.', begin);
