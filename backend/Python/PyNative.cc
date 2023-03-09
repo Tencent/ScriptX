@@ -47,7 +47,9 @@ ScriptClass::ScriptClass(const Local<Object>& scriptObject) : internalState_() {
   internalState_.weakRef_ = scriptObject;
 }
 
-Local<Object> ScriptClass::getScriptObject() const { return internalState_.weakRef_.get(); }
+Local<Object> ScriptClass::getScriptObject() const { 
+  return internalState_.weakRef_.get(); 
+}
 
 Local<Array> ScriptClass::getInternalStore() const {
   Local<Value> weakRef = internalState_.weakRef_.getValue();

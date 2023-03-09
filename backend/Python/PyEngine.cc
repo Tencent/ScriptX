@@ -115,6 +115,8 @@ void PyEngine::destroy() noexcept {
     will be called in the current Python thread. */
   _PyThreadState_DeleteExcept(tstate->interp->runtime, tstate);
 
+  PyGC_Collect();
+
   // End sub-interpreter
   Py_EndInterpreter(tstate);
 
