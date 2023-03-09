@@ -545,6 +545,9 @@ private:
     // enable object dict
     type->tp_dictoffset = offsetof(GeneralObject, instanceDict);
 
+    /* Support weak references (needed for the keep_alive feature) */
+    type->tp_weaklistoffset = offsetof(GeneralObject, weakrefs);
+
     type->tp_new = [](PyTypeObject* type, PyObject* args, PyObject* kwds) -> PyObject* {
       PyObject* self = type->tp_alloc(type, 0);
       if (type->tp_init(self, args, kwds) < 0) {
@@ -560,22 +563,17 @@ private:
         reinterpret_cast<GeneralObject*>(self)->instance =
             classDefine->instanceDefine.constructor(py_interop::makeArguments(engine, self, args));
       } else {
-        PyErr_Format(PyExc_Exception, "%s: no constructor", Py_TYPE(self)->tp_name);
+        throw Exception(std::string("Class ") + Py_TYPE(self)->tp_name + " has no constructor");
         return -1;
       }
       return 0;
     };
     type->tp_dealloc = [](PyObject* self) {
       auto type = Py_TYPE(self);
-      delete reinterpret_cast<GeneralObject*>(self)->instance;
+      delete (T*)(reinterpret_cast<GeneralObject*>(self)->instance);
       type->tp_free(self);
-      //engine->registeredTypes_.erase(type);
-      //engine->registeredTypesReverse_.erase(type);
       Py_DECREF(type);
     };
-
-    /* Support weak references (needed for the keep_alive feature) */
-    type->tp_weaklistoffset = offsetof(GeneralObject, weakrefs);
 
     if (PyType_Ready(type) < 0) {
       throw Exception("PyType_Ready failed in make_object_base_type()");
@@ -604,7 +602,7 @@ private:
     PyTypeObject* type = registeredTypes_[classDefine];
     PyObject* obj = type->tp_new(type, tuple, nullptr);
     Py_DECREF(tuple);
-    return py_interop::toLocal<Object>(obj);
+    return py_interop::asLocal<Object>(obj);
   }
 
   template <typename T>
