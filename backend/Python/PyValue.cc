@@ -117,7 +117,7 @@ Local<Function> Function::newFunction(FunctionCallback callback) {
     delete static_cast<FunctionData*>(ptr);
   };
   PyObject* capsule = PyCapsule_New(
-      new FunctionData{callback, py_backend::currentEngine()}, nullptr, destructor);
+      new FunctionData{std::move(callback), py_backend::currentEngine()}, nullptr, destructor);
   py_backend::checkAndThrowError();
 
   PyObject* function = PyCFunction_New(method, capsule);
