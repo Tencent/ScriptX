@@ -57,6 +57,7 @@ private:
   inline static PyTypeObject* staticPropertyType_ = nullptr;
   inline static PyTypeObject* namespaceType_ = nullptr;
   inline static PyTypeObject* defaultMetaType_ = nullptr;
+  inline static PyObject* weakRefGcEmptyCallback = nullptr;
   PyTypeObject* scriptxExceptionTypeObj;
 
   PyEngine(std::shared_ptr<::script::utils::MessageQueue> queue);

@@ -80,6 +80,8 @@ PyTypeObject* makeStaticPropertyType();
 PyTypeObject* makeNamespaceType();
 // @return new reference
 PyTypeObject* makeDefaultMetaclass();
+// @return new reference
+PyObject *makeWeakRefGcEmptyCallback();
 
 class GlobalOrWeakRefKeeper
 {
