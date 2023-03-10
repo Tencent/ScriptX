@@ -220,7 +220,7 @@ TEST_F(ReferenceTest, WeakGlobal) {
   }
 }
 
-TEST_F(ReferenceTest, WeakNotClrear) {
+TEST_F(ReferenceTest, WeakNotClear) {
   Weak<String> weak;
   {
     EngineScope engineScope(engine);
