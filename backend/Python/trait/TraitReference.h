@@ -42,7 +42,7 @@ struct GlobalRefState {
   PyObject *get() const;    // ref count + 1
   PyObject *peek() const;   // ref count no change
   void reset();
-  void dtor();
+  void dtor(bool eraseFromList = true);
 };
 
 struct WeakRefState {
@@ -67,7 +67,7 @@ struct WeakRefState {
   PyObject *get() const;          // ref count + 1
   PyObject *peek() const;   // ref count no change
   void reset();
-  void dtor();
+  void dtor(bool eraseFromList = true);
 };
 
 }   // namespace script::py_backend
