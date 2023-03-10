@@ -88,7 +88,7 @@ void PyEngine::destroy() noexcept {
     // EngineScope enter(this);
     messageQueue()->removeMessageByTag(this);
     messageQueue()->shutdown();
-    refsKeeper.dtor();          // destroy all Global and Weak refs
+    PyEngine::refsKeeper.dtor(this);          // destroy all Global and Weak refs of current engine
   }
 
   if (PyEngine::engineEnterCount_ == 0) {

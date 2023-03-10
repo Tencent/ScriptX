@@ -56,7 +56,7 @@ std::string ExceptionFields::getStacktrace() const noexcept {
     pStacktrace = pStacktrace->tb_next;
   }
   PyFrameObject *frame = pStacktrace->tb_frame;
-  Py_XINCREF(frame);
+  Py_XINCREF(frame);    // TODO: why incref here?
   stacktrace_ = "Traceback (most recent call last):";
   while (frame) {
     stacktrace_ += '\n';
@@ -68,7 +68,7 @@ std::string ExceptionFields::getStacktrace() const noexcept {
     stacktrace_ += std::to_string(lineno);
     stacktrace_ += ", in ";
     stacktrace_ += PyUnicode_AsUTF8(f_code->co_name);
-    Py_DECREF(f_code);
+    Py_DECREF(f_code);    // TODO: why decref here?
     frame = frame->f_back;
   }
   hasStacktrace_ = true;

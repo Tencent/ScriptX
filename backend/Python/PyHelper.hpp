@@ -19,7 +19,7 @@
 #include "../../src/Native.hpp"
 #include "../../src/Reference.h"
 #include "PyHelper.h"
-#include <set>
+#include <unordered_map>
 
 namespace script {
 
@@ -84,16 +84,17 @@ PyTypeObject* makeDefaultMetaclass();
 class GlobalOrWeakRefKeeper
 {
 private:
-  std::set<GlobalRefState*> globalRefs;
-  std::set<WeakRefState*> weakRefs;
+  // PyEngine* recorded below is just a sign, used for engines to reset all existing Global<> and Weak<> when destroying
+  std::unordered_map<GlobalRefState*, PyEngine*> globalRefs;
+  std::unordered_map<WeakRefState*, PyEngine*> weakRefs;
 
 public:
-  inline void keep(GlobalRefState* globalRef) {
-    globalRefs.insert(globalRef);
+  inline void update(GlobalRefState* globalRef, PyEngine* engine) {
+    globalRefs[globalRef] = engine;
   }
 
-  inline void keep(WeakRefState* weakRef) {
-    weakRefs.insert(weakRef);
+  inline void update(WeakRefState* weakRef, PyEngine* engine) {
+    weakRefs[weakRef] = engine;
   }
 
   inline bool remove(GlobalRefState* globalRef) {
@@ -104,15 +105,14 @@ public:
     return weakRefs.erase(weakRef) > 0;
   }
   
-  void dtor()
+  void dtor(PyEngine* dtorEngine)
   {
-    for(auto &ref : globalRefs)
-      ref->dtor();
-    globalRefs.clear();
-    
-    for(auto &ref : weakRefs)
-      ref->dtor();
-    weakRefs.clear();
+    std::erase_if(globalRefs, 
+      [dtorEngine](auto &refData) { return refData.second == dtorEngine; }
+    );
+    std::erase_if(weakRefs, 
+      [dtorEngine](auto &refData) { return refData.second == dtorEngine; }
+    );
   }
 };
 

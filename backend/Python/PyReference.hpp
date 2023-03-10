@@ -23,78 +23,58 @@
 
 namespace script {
 
-namespace py_backend {
-// =============== Refkeepers Helper ===============
-// keep or remove refs from ref keeper
-// isCreate: 1 create 0 destroy
-inline void _updateRefStateInKeeper(GlobalRefState* ref, bool isCreate, bool isEmptyRef)
-{
-  PyEngine* engine = EngineScope::currentEngineAs<PyEngine>();
-  if(!engine)
-    return;
-
-  if(isCreate)
-  {
-    if(!isEmptyRef)
-      engine->refsKeeper.keep(ref);
-    else
-      engine->refsKeeper.remove(ref);    // empty refs is not tracked in ref keeper
-  }
-  else
-    engine->refsKeeper.remove(ref);
-}
-
-inline void _updateRefStateInKeeper(WeakRefState* ref, bool isCreate, bool isEmptyRef)    
-{
-  PyEngine* engine = EngineScope::currentEngineAs<PyEngine>();
-  if(!engine)
-    return;
-
-  if(isCreate)
-  {
-    if(!isEmptyRef)
-      engine->refsKeeper.keep(ref);
-    else
-      engine->refsKeeper.remove(ref);    // empty refs is not tracked in ref keeper
-  }
-  else
-    engine->refsKeeper.remove(ref);
-}
-
-} // namespace py_backend
-
 // =============== Global ===============
 
 namespace py_backend {
 
-inline GlobalRefState::GlobalRefState() :_ref(Py_NewRef(Py_None)) {}
+inline GlobalRefState::GlobalRefState() 
+  :_ref(Py_NewRef(Py_None)), _engine(EngineScope::currentEngineAs<PyEngine>())
+{
+  PyEngine::refsKeeper.update(this, _engine);
+}
 
 inline GlobalRefState::GlobalRefState(PyObject* obj) 
-  :_ref(Py_NewRef(obj)) {}
+  :_ref(Py_NewRef(obj)), _engine(EngineScope::currentEngineAs<PyEngine>()) 
+{
+  PyEngine::refsKeeper.update(this, _engine);
+}
 
 inline GlobalRefState::GlobalRefState(const GlobalRefState& assign)
-  :_ref(Py_NewRef(assign._ref)) {}
+  :_ref(Py_NewRef(assign._ref)), _engine(assign._engine) 
+{
+  PyEngine::refsKeeper.update(this, _engine);
+}
 
 inline GlobalRefState::GlobalRefState(GlobalRefState&& move) noexcept
-  : _ref(move._ref)
+  : _ref(move._ref), _engine(move._engine)
 {
+  PyEngine::refsKeeper.update(this, _engine);
   move._ref = Py_NewRef(Py_None);
 }
 
 inline GlobalRefState& GlobalRefState::operator=(const GlobalRefState& assign){
-  reset(assign._ref);
+  Py_XDECREF(_ref);
+  _ref = Py_NewRef(assign._ref);
+  _engine = assign._engine;
+  PyEngine::refsKeeper.update(this, _engine);
   return *this;
 }
 
 inline GlobalRefState& GlobalRefState::operator=(GlobalRefState&& move) noexcept{
   Py_XDECREF(_ref);
   _ref = move._ref;
+  _engine = move._engine;
+  PyEngine::refsKeeper.update(this, _engine);
+
   move._ref = Py_NewRef(Py_None);
   return *this;
 }
 
 inline void GlobalRefState::swap(GlobalRefState& other){
   std::swap(_ref, other._ref);
+  std::swap(_engine, other._engine);
+  PyEngine::refsKeeper.update(this, _engine);
+  PyEngine::refsKeeper.update(&other, other._engine);
 }
 
 inline bool GlobalRefState::isEmpty() const {
@@ -109,69 +89,57 @@ inline PyObject *GlobalRefState::peek() const{
     return _ref;
 }
 
-inline void GlobalRefState::reset(PyObject *newObj) {
+inline void GlobalRefState::reset() {
   Py_XDECREF(_ref);
-  _ref = Py_NewRef(newObj);
+  _ref = Py_NewRef(Py_None);
 }
 
 inline void GlobalRefState::dtor() {
+  PyEngine::refsKeeper.remove(this);
   Py_XDECREF(_ref);
   _ref = nullptr;
+  _engine = nullptr;
 }
 
 }   // namespace py_backend
 
 template <typename T>
-Global<T>::Global() noexcept : val_() {}   // empty refs is not tracked in ref keeper
+Global<T>::Global() noexcept : val_() {}
 
 template <typename T>
-Global<T>::Global(const script::Local<T>& localReference) 
-  :val_(py_interop::peekPy(localReference))
-{
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
-}
+Global<T>::Global(const script::Local<T>& localReference) :val_(py_interop::peekPy(localReference)) {}
 
 template <typename T>
-Global<T>::Global(const script::Weak<T>& weak) : val_(weak.val_.peek()) {
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
-}
+Global<T>::Global(const script::Weak<T>& weak) : val_(weak.val_.peek()) {}
 
 template <typename T>
-Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
-}
+Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {}
 
 template <typename T>
-Global<T>::Global(script::Global<T>&& move) noexcept : val_(std::move(move.val_)) {
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
-  py_backend::_updateRefStateInKeeper(&move.val_, true, true);
-}
+Global<T>::Global(script::Global<T>&& move) noexcept : val_(std::move(move.val_)) {}
 
 template <typename T>
 Global<T>::~Global() {
   val_.dtor();
-  py_backend::_updateRefStateInKeeper(&val_, false, true);
 }
 
 template <typename T>
 Global<T>& Global<T>::operator=(const script::Global<T>& assign) {
   val_ = assign.val_;
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
   return *this;
 }
 
 template <typename T>
 Global<T>& Global<T>::operator=(script::Global<T>&& move) noexcept {
   val_ = std::move(move.val_);
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
-  py_backend::_updateRefStateInKeeper(&move.val_, true, true);
   return *this;
 }
 
 template <typename T>
 Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
-  val_ = py_backend::GlobalRefState(py_interop::peekPy(assign));
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
+  auto state = py_backend::GlobalRefState(py_interop::peekPy(assign));
+  val_ = std::move(state);
+  state.dtor();
   return *this;
 }
 
@@ -179,8 +147,6 @@ Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
 template <typename T>
 void Global<T>::swap(Global& rhs) noexcept {
   val_.swap(rhs.val_);
-  py_backend::_updateRefStateInKeeper(&val_, true, isEmpty());
-  py_backend::_updateRefStateInKeeper(&rhs.val_, true, rhs.isEmpty());
 }
 
 template <typename T>
@@ -201,16 +167,22 @@ bool Global<T>::isEmpty() const {
 template <typename T>
 void Global<T>::reset() {
   val_.reset();
-  py_backend::_updateRefStateInKeeper(&val_, false, true);
 }
 
 // =============== Weak ===============
 
 namespace py_backend {
 
-inline WeakRefState::WeakRefState() :_ref(Py_NewRef(Py_None)) {}
+inline WeakRefState::WeakRefState() 
+  :_ref(Py_NewRef(Py_None)), _engine(EngineScope::currentEngineAs<PyEngine>()) 
+{
+  PyEngine::refsKeeper.update(this, _engine);
+}
 
-inline WeakRefState::WeakRefState(PyObject* obj) {
+inline WeakRefState::WeakRefState(PyObject* obj) 
+  :_engine(EngineScope::currentEngineAs<PyEngine>()) 
+{
+  PyEngine::refsKeeper.update(this, _engine);
   if(Py_IsNone(obj))
   {
     _ref = Py_NewRef(Py_None);
@@ -228,7 +200,10 @@ inline WeakRefState::WeakRefState(PyObject* obj) {
     _isRealWeakRef = true;
 }
 
-inline WeakRefState::WeakRefState(const WeakRefState& assign) {
+inline WeakRefState::WeakRefState(const WeakRefState& assign) 
+  :_engine(assign._engine) 
+{
+  PyEngine::refsKeeper.update(this, _engine);
   if(assign.isEmpty())
   {
     _ref = Py_NewRef(Py_None);
@@ -255,7 +230,10 @@ inline WeakRefState::WeakRefState(const WeakRefState& assign) {
   }
 }
 
-inline WeakRefState::WeakRefState(WeakRefState&& move) noexcept{
+inline WeakRefState::WeakRefState(WeakRefState&& move) noexcept
+  :_engine(move._engine)
+{
+  PyEngine::refsKeeper.update(this, _engine);
   _isRealWeakRef = move._isRealWeakRef;
   _ref = move._ref;
 
@@ -265,6 +243,9 @@ inline WeakRefState::WeakRefState(WeakRefState&& move) noexcept{
 
 inline WeakRefState& WeakRefState::operator=(const WeakRefState& assign){
   Py_XDECREF(_ref);
+  _engine = assign._engine;
+  PyEngine::refsKeeper.update(this, _engine);
+
   if(assign.isEmpty())
   {
     _ref = Py_NewRef(Py_None);
@@ -299,6 +280,8 @@ inline WeakRefState& WeakRefState::operator=(WeakRefState&& move) noexcept{
 
   _isRealWeakRef = move._isRealWeakRef;
   _ref = move._ref;
+  _engine = move._engine;
+  PyEngine::refsKeeper.update(this, _engine);
 
   move._ref = Py_NewRef(Py_None);
   move._isRealWeakRef = false;
@@ -308,6 +291,9 @@ inline WeakRefState& WeakRefState::operator=(WeakRefState&& move) noexcept{
 inline void WeakRefState::swap(WeakRefState& other){
   std::swap(_isRealWeakRef, other._isRealWeakRef);
   std::swap(_ref, other._ref);
+  std::swap(_engine, other._engine);
+  PyEngine::refsKeeper.update(this, _engine);
+  PyEngine::refsKeeper.update(&other, other._engine);
 }
 
 inline bool WeakRefState::isEmpty() const {
@@ -353,6 +339,7 @@ inline void WeakRefState::reset() {
 }
 
 inline void WeakRefState::dtor() {
+  PyEngine::refsKeeper.remove(this);
   Py_XDECREF(_ref);
   _ref = nullptr;
   _isRealWeakRef = false;
@@ -361,64 +348,48 @@ inline void WeakRefState::dtor() {
 }   // namespace py_backend
 
 template <typename T>
-Weak<T>::Weak() noexcept {};   // empty refs is not tracked in ref keeper
+Weak<T>::Weak() noexcept {};
 
 template <typename T>
 Weak<T>::~Weak() {
   val_.dtor();
-  py_backend::_updateRefStateInKeeper(&val_, false, true);
 }
 
 template <typename T>
-Weak<T>::Weak(const script::Local<T>& localReference) 
-  : val_(py_interop::peekPy(localReference))
-{
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
-}
+Weak<T>::Weak(const script::Local<T>& localReference) : val_(py_interop::peekPy(localReference)) {}
 
 template <typename T>
-Weak<T>::Weak(const script::Global<T>& globalReference) : val_(globalReference.val_.peek()) {
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
-}
+Weak<T>::Weak(const script::Global<T>& globalReference) : val_(globalReference.val_.peek()) {}
 
 template <typename T>
-Weak<T>::Weak(const script::Weak<T>& copy) : val_(copy.val_) {
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
-}
+Weak<T>::Weak(const script::Weak<T>& copy) : val_(copy.val_) {}
 
 template <typename T>
-Weak<T>::Weak(script::Weak<T>&& move) noexcept : val_(std::move(move.val_)) {
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
-  py_backend::_updateRefStateInKeeper(&move.val_, true, true);
-}
+Weak<T>::Weak(script::Weak<T>&& move) noexcept : val_(std::move(move.val_)) {}
 
 template <typename T>
 Weak<T>& Weak<T>::operator=(const script::Weak<T>& assign) {
   val_ = assign.val_;
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
   return *this;
 }
 
 template <typename T>
 Weak<T>& Weak<T>::operator=(script::Weak<T>&& move) noexcept {
   val_ = std::move(move.val_);
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
-  py_backend::_updateRefStateInKeeper(&move.val_, true, true);
   return *this;
 }
 
 template <typename T>
 Weak<T>& Weak<T>::operator=(const script::Local<T>& assign) {
-  val_ = py_backend::WeakRefState(py_interop::peekPy(assign));
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
+  auto state = py_backend::WeakRefState(py_interop::peekPy(assign));
+  val_ = std::move(state);
+  state.dtor();
   return *this;
 }
 
 template <typename T>
 void Weak<T>::swap(Weak& rhs) noexcept {
   val_.swap(rhs.val_);
-  py_backend::_updateRefStateInKeeper(&val_, true, val_.isEmpty());
-  py_backend::_updateRefStateInKeeper(&rhs.val_, true, rhs.val_.isEmpty());
 }
 
 template <typename T>
@@ -441,7 +412,6 @@ bool Weak<T>::isEmpty() const {
 template <typename T>
 void Weak<T>::reset() noexcept {
   val_.reset();
-  py_backend::_updateRefStateInKeeper(&val_, false, true);
 }
 
 }  // namespace script

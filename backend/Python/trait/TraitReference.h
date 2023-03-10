@@ -27,6 +27,7 @@ namespace py_backend {
 
 struct GlobalRefState {
   PyObject* _ref;
+  PyEngine *_engine;
 
   GlobalRefState();
   GlobalRefState(PyObject* obj);
@@ -40,13 +41,14 @@ struct GlobalRefState {
   bool isEmpty() const;
   PyObject *get() const;    // ref count + 1
   PyObject *peek() const;   // ref count no change
-  void reset(PyObject *newObj = Py_None);
+  void reset();
   void dtor();
 };
 
 struct WeakRefState {
   PyObject* _ref;
-  bool _isRealWeakRef = false;    
+  bool _isRealWeakRef = false;  
+  PyEngine* _engine;  
   // if true, _ref is a real weak ref, or _ref will be a global ref instead 
   // (some builtin types like <int, string, ...> cannot have native weak ref)
 

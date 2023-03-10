@@ -37,9 +37,9 @@ private:
   bool destroying = false;
 
   // refs keeper
-  GlobalOrWeakRefKeeper refsKeeper;
-  friend inline void _updateRefStateInKeeper(GlobalRefState* ref, bool isCreate, bool isEmptyRef);
-  friend inline void _updateRefStateInKeeper(WeakRefState* ref, bool isCreate, bool isEmptyRef);
+  inline static GlobalOrWeakRefKeeper refsKeeper;
+  friend class GlobalRefState;
+  friend class WeakRefState;
 
   // Global thread state of main interpreter
   inline static PyThreadState* mainThreadState_ = nullptr;
