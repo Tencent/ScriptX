@@ -364,6 +364,19 @@ PyTypeObject* makeDefaultMetaclass() {
   return type;
 }
 
+PyObject *makeWeakRefGcEmptyCallback() {
+  PyMethodDef* method = new PyMethodDef;
+  method->ml_name = "scriptx_function";
+  method->ml_flags = METH_VARARGS;
+  method->ml_doc = nullptr;
+  method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+    Py_RETURN_NONE;
+  };
+  PyObject* function = PyCFunction_New(method, Py_None);
+  py_backend::checkAndThrowError();
+  return function;
+}
+
 void extendLifeTimeToNextLoop(PyEngine* engine, PyObject* obj)
 {
   utils::Message msg(
