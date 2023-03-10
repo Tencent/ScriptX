@@ -78,7 +78,7 @@ inline void GlobalRefState::swap(GlobalRefState& other){
 }
 
 inline bool GlobalRefState::isEmpty() const {
-  return Py_IsNone(_ref) || _ref == nullptr;
+  return _ref == nullptr || Py_IsNone(_ref);
 }
 
 inline PyObject *GlobalRefState::get() const {
@@ -94,8 +94,11 @@ inline void GlobalRefState::reset() {
   _ref = Py_NewRef(Py_None);
 }
 
-inline void GlobalRefState::dtor() {
-  PyEngine::refsKeeper.remove(this);
+inline void GlobalRefState::dtor(bool eraseFromList) {
+  if(!_ref)
+    return;     // is destroyed
+  if(eraseFromList)
+    PyEngine::refsKeeper.remove(this);
   Py_XDECREF(_ref);
   _ref = nullptr;
   _engine = nullptr;
@@ -137,7 +140,7 @@ Global<T>& Global<T>::operator=(script::Global<T>&& move) noexcept {
 
 template <typename T>
 Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
-  auto state = py_backend::GlobalRefState(py_interop::peekPy(assign));
+  auto state{py_backend::GlobalRefState(py_interop::peekPy(assign))};
   val_ = std::move(state);
   state.dtor();
   return *this;
@@ -298,7 +301,7 @@ inline void WeakRefState::swap(WeakRefState& other){
 
 inline bool WeakRefState::isEmpty() const {
   PyObject *ref = peek();
-  return Py_IsNone(ref) || ref == nullptr;
+  return ref == nullptr || Py_IsNone(ref);
 }
 
 inline PyObject *WeakRefState::get() const{
@@ -338,8 +341,11 @@ inline void WeakRefState::reset() {
   _isRealWeakRef = false;
 }
 
-inline void WeakRefState::dtor() {
-  PyEngine::refsKeeper.remove(this);
+inline void WeakRefState::dtor(bool eraseFromList) {
+  if(!_ref)
+    return;     // is destroyed
+  if(eraseFromList)
+    PyEngine::refsKeeper.remove(this);
   Py_XDECREF(_ref);
   _ref = nullptr;
   _isRealWeakRef = false;
@@ -381,7 +387,7 @@ Weak<T>& Weak<T>::operator=(script::Weak<T>&& move) noexcept {
 
 template <typename T>
 Weak<T>& Weak<T>::operator=(const script::Local<T>& assign) {
-  auto state = py_backend::WeakRefState(py_interop::peekPy(assign));
+  auto state{py_backend::WeakRefState(py_interop::peekPy(assign))};
   val_ = std::move(state);
   state.dtor();
   return *this;

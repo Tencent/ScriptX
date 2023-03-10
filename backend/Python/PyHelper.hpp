@@ -107,9 +107,16 @@ public:
   
   void dtor(PyEngine* dtorEngine)
   {
+    for(auto &refData : globalRefs)
+      if(refData.second == dtorEngine)
+        refData.first->dtor(false);
     std::erase_if(globalRefs, 
       [dtorEngine](auto &refData) { return refData.second == dtorEngine; }
     );
+
+    for(auto &refData : weakRefs)
+      if(refData.second == dtorEngine)
+        refData.first->dtor(false);
     std::erase_if(weakRefs, 
       [dtorEngine](auto &refData) { return refData.second == dtorEngine; }
     );
