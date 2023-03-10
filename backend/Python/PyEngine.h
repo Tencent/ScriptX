@@ -186,7 +186,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -236,7 +236,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -285,7 +285,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -336,7 +336,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{callback, this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -435,7 +435,7 @@ private:
         delete static_cast<FunctionData*>(ptr);
       };
       PyObject* capsule =
-          PyCapsule_New(new FunctionData{f.callback, this}, nullptr, destructor);
+          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
       checkAndThrowError();
 
       PyObject* function = PyCFunction_New(method, capsule);
@@ -509,7 +509,7 @@ private:
         delete static_cast<FunctionData*>(ptr);
       };
       PyObject* capsule =
-          PyCapsule_New(new FunctionData{f.callback, this}, nullptr, destructor);
+          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
       checkAndThrowError();
 
       PyObject* function = PyCFunction_New(method, capsule);
