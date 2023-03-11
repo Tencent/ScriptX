@@ -36,8 +36,9 @@ void valueConstructorCheck(PyObject* value) {
 
 #define REF_IMPL_BASIC_FUNC(ValueType)                                                  \
   Local<ValueType>::Local(const Local<ValueType>& copy) : val_(Py_NewRef(copy.val_)) {} \
-  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(move.val_) {         \
-    move.val_ = Py_NewRef(Py_None);                                                                \
+  Local<ValueType>::Local(Local<ValueType>&& move) noexcept : val_(std::move(move.val_)) \
+  {                                                                                     \
+    move.val_ = Py_NewRef(Py_None);                                                     \
   }                                                                                     \
   Local<ValueType>::~Local() { Py_XDECREF(val_); }                                      \
   Local<ValueType>& Local<ValueType>::operator=(const Local& from) {                    \
@@ -48,7 +49,7 @@ void valueConstructorCheck(PyObject* value) {
   Local<ValueType>& Local<ValueType>::operator=(Local&& move) noexcept {                \
     Py_XDECREF(val_);                                                                   \
     val_ = move.val_;                                                                   \
-    move.val_ = Py_NewRef(Py_None);                                                                \
+    move.val_ = Py_NewRef(Py_None);                                                     \
     return *this;                                                                       \
   }                                                                                     \
   void Local<ValueType>::swap(Local& rhs) noexcept { std::swap(val_, rhs.val_); }
@@ -59,14 +60,15 @@ void valueConstructorCheck(PyObject* value) {
   }
 
 #define REF_IMPL_BASIC_NOT_VALUE(ValueType)                                         \
-  Local<ValueType>::Local(InternalLocalRef val) : val_(val) {                       \
+  /* warn: will steal the ref */                                                    \
+  Local<ValueType>::Local(InternalLocalRef val) : val_(std::move(val)) {            \
     py_backend::valueConstructorCheck(val);                                         \
   }                                                                                 \
   Local<String> Local<ValueType>::describe() const { return asValue().describe(); } \
   std::string Local<ValueType>::describeUtf8() const { return asValue().describeUtf8(); }
 
 #define REF_IMPL_TO_VALUE(ValueType) \
-  Local<Value> Local<ValueType>::asValue() const { return Local<Value>(val_); }
+  Local<Value> Local<ValueType>::asValue() const { return py_interop::toLocal<Value>(val_); }
 
 REF_IMPL_BASIC_FUNC(Value)
 
@@ -114,7 +116,8 @@ REF_IMPL_TO_VALUE(Unsupported)
 
 Local<Value>::Local() noexcept : val_(Py_NewRef(Py_None)) {}
 
-Local<Value>::Local(InternalLocalRef ref) : val_(ref ? Py_NewRef(ref) : Py_NewRef(Py_None)) {}
+// warn: will steal the ref
+Local<Value>::Local(InternalLocalRef ref) : val_(ref ? ref : Py_NewRef(Py_None)) {}
 
 bool Local<Value>::isNull() const { return Py_IsNone(val_); }
 
