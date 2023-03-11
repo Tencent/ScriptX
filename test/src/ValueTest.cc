@@ -662,7 +662,7 @@ TEST_F(ValueTest, Unsupported) {
   lua_newuserdata(lua, 4);
   auto strange = lua_interop::makeLocal<Value>(lua_gettop(lua));
 #elif defined(SCRIPTX_LANG_PYTHON)
-  auto strange = py_interop::asLocal<Value>(PyImport_AddModule("__main__"));
+  auto strange = py_interop::toLocal<Value>(PyImport_AddModule("__main__"));    // return borrowed ref
 #else
   FAIL() << "add test here";
   auto strange = Local<Value>();
