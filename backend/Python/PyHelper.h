@@ -71,8 +71,9 @@ std::string fromStr(PyObject* s);
 
 class PyEngine;
 
-PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback);
-PyObject* createExceptionInstance(std::string msg);
+PyObject* newCustomInstance(PyTypeObject* pType, PyObject* argsTuple, PyObject* kwds = nullptr);
+PyObject* newExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback);
+PyObject* newExceptionInstance(std::string msg);
 void checkAndThrowError();
 bool checkAndClearError();
 PyEngine* currentEngine();

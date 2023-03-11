@@ -117,7 +117,21 @@ PyObject* toStr(const std::string& s) { return PyUnicode_FromStringAndSize(s.c_s
 
 std::string fromStr(PyObject* s) { return PyUnicode_Check(s) ? PyUnicode_AsUTF8(s) : ""; }
 
-PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback)
+PyObject* newCustomInstance(PyTypeObject* pType, PyObject* argsTuple, PyObject* kwds)
+{
+  PyObject* self = pType->tp_new(pType, argsTuple, kwds);
+  if(self == nullptr) {
+    checkAndThrowError();
+    throw Exception(std::string("Fail to alloc space for new instance of type ") + pType->tp_name);
+  }
+  if (pType->tp_init(self, argsTuple, kwds) < 0) {
+    checkAndThrowError();
+    throw Exception(std::string("Fail to init new instance of type ") + pType->tp_name);
+  }
+  return self;
+}
+
+PyObject* newExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObject* pTraceback)
 {
   // get exception type class
   PyTypeObject* exceptionType = pType ? (PyTypeObject*)pType :
@@ -136,7 +150,7 @@ PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObjec
   // PyTuple_SetItem will steal the ref
 
   // create new exception instance object
-  PyObject* exceptionObj = exceptionType->tp_new(exceptionType, tuple, nullptr);
+  PyObject* exceptionObj = newCustomInstance(exceptionType, tuple);
   Py_DECREF(tuple);
 
   // set traceback if exists
@@ -146,7 +160,7 @@ PyObject* createExceptionInstance(PyTypeObject *pType, PyObject* pValue, PyObjec
   return exceptionObj;
 }
 
-PyObject* createExceptionInstance(std::string msg)
+PyObject* newExceptionInstance(std::string msg)
 {
   // get exception type class
   PyTypeObject* exceptionType = 
@@ -158,7 +172,7 @@ PyObject* createExceptionInstance(std::string msg)
   // PyTuple_SetItem will steal the ref
 
   // create new exception instance object
-  PyObject* exceptionObj = exceptionType->tp_new(exceptionType, tuple, nullptr);
+  PyObject* exceptionObj = newCustomInstance(exceptionType, tuple);
   Py_DECREF(tuple);
   return exceptionObj;
 }
@@ -170,7 +184,7 @@ void checkAndThrowError() {
     PyErr_Fetch((PyObject**)(&pType), &pValue, &pTraceback);
     PyErr_NormalizeException((PyObject**)(&pType), &pValue, &pTraceback);
 
-    throw Exception(py_interop::asLocal<Value>(createExceptionInstance(pType, pValue, pTraceback)));
+    throw Exception(py_interop::asLocal<Value>(newExceptionInstance(pType, pValue, pTraceback)));
   }
 }
 

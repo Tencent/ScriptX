@@ -78,13 +78,13 @@ std::string ExceptionFields::getStacktrace() const noexcept {
 }  // namespace py_backend
 
 Exception::Exception(std::string msg) :std::exception(), exception_() {
-  exception_.exceptionObj_ = py_interop::asLocal<Value>(py_backend::createExceptionInstance(msg));
+  exception_.exceptionObj_ = py_interop::asLocal<Value>(py_backend::newExceptionInstance(msg));
 }
 
 Exception::Exception(const script::Local<script::String> &message)
     : std::exception(), exception_() {
   exception_.exceptionObj_ = 
-    py_interop::asLocal<Value>(py_backend::createExceptionInstance(message.toString()));
+    py_interop::asLocal<Value>(py_backend::newExceptionInstance(message.toString()));
 }
 
 Exception::Exception(const script::Local<script::Value> &exception)
