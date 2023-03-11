@@ -551,9 +551,6 @@ private:
 
     type->tp_new = [](PyTypeObject* type, PyObject* args, PyObject* kwds) -> PyObject* {
       PyObject* self = type->tp_alloc(type, 0);
-      if (type->tp_init(self, args, kwds) < 0) {
-        throw Exception("Fail to execute tp_init when registering native class");
-      }
       return self;
     };
     type->tp_init = [](PyObject* self, PyObject* args, PyObject* kwds) -> int {
@@ -601,7 +598,7 @@ private:
     }
 
     PyTypeObject* type = registeredTypes_[classDefine];
-    PyObject* obj = type->tp_new(type, tuple, nullptr);
+    PyObject* obj = py_backend::newCustomInstance(type, tuple);
     Py_DECREF(tuple);
     return py_interop::asLocal<Object>(obj);
   }
