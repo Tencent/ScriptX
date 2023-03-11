@@ -24,6 +24,7 @@
 #include "Engine.h"
 #include "Exception.h"
 #include "Reference.h"
+#include "Scope.h"
 #include SCRIPTX_BACKEND(Native.h)
 #include SCRIPTX_BACKEND(Engine.h)
 #include SCRIPTX_BACKEND(Utils.h)
@@ -170,7 +171,10 @@ class ScriptClass {
    * policy.
    */
   template <typename T>
-  explicit ScriptClass(ConstructFromCpp<T> policy);
+  explicit ScriptClass(ConstructFromCpp<T> policy) {
+    performConstructFromCpp(internal::typeIndexOf<T>(),
+                            &EngineScope::currentEngineChecked().getClassDefine<T>());
+  }
 
   /**
    * get the script instance representing the native instance.
@@ -220,6 +224,15 @@ class ScriptClass {
    * is destroying
    */
   virtual ~ScriptClass();
+
+ private:
+  /**
+   * non-template version of `explicit ScriptClass(ConstructFromCpp<T> policy)`
+   * @param typeIndex
+   * @param classDefine
+   */
+  void performConstructFromCpp(internal::TypeIndex typeIndex,
+                               const internal::ClassDefineState* classDefine);
 
  private:
   using InternalScriptClass = typename ::script::internal::ImplType<ScriptClass>::type;
@@ -375,11 +388,12 @@ class InstanceDefineBuilderState;
   template <typename TT>                                                      \
   friend class ::script::ClassDefineBuilder;                                  \
   friend class ::script::ScriptEngine;                                        \
+  friend class ::script::ScriptClass;                                         \
   friend typename ::script::internal::ImplType<::script::ScriptEngine>::type; \
   friend class ::script::internal::ClassDefineState;                          \
   template <typename TT>                                                      \
   friend class ::script::internal::InstanceDefineBuilder;                     \
-  friend class ::script::internal::InstanceDefineBuilderState
+  friend class ::script::internal::InstanceDefineBuilderState;
 
 class StaticDefine {
   class PropertyDefine {
@@ -395,7 +409,7 @@ class StaticDefine {
           setter(std::move(setter)),
           traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
   };
 
   struct FunctionDefine {
@@ -406,7 +420,7 @@ class StaticDefine {
     FunctionDefine(std::string name, FunctionCallback callback, std::string traceName)
         : name(std::move(name)), callback(std::move(callback)), traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
   };
 
   const std::vector<FunctionDefine> functions{};
@@ -415,7 +429,7 @@ class StaticDefine {
   StaticDefine(std::vector<FunctionDefine> functions, std::vector<PropertyDefine> properties)
       : functions(std::move(functions)), properties(std::move(properties)) {}
 
-  SCRIPTX_CLASS_DEFINE_FRIENDS;
+  SCRIPTX_CLASS_DEFINE_FRIENDS
 };
 
 template <typename T>
@@ -441,7 +455,7 @@ class InstanceDefine {
           setter(std::move(setter)),
           traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
   };
 
   class FunctionDefine {
@@ -454,7 +468,7 @@ class InstanceDefine {
     FunctionDefine(std::string name, FunctionCallback callback, std::string traceName)
         : name(std::move(name)), callback(std::move(callback)), traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
   };
 
   /**
@@ -474,7 +488,7 @@ class InstanceDefine {
         properties(std::move(properties)),
         instanceSize(instanceSize) {}
 
-  SCRIPTX_CLASS_DEFINE_FRIENDS;
+  SCRIPTX_CLASS_DEFINE_FRIENDS
 };
 
 }  // namespace internal
@@ -510,7 +524,7 @@ class ClassDefineState {
   void visit(script::ClassDefineVisitor& visitor) const;
 #endif
 
-  SCRIPTX_CLASS_DEFINE_FRIENDS;
+  SCRIPTX_CLASS_DEFINE_FRIENDS
 };
 
 }  // namespace internal
@@ -541,7 +555,7 @@ class ClassDefine : private internal::ClassDefineState {
     validateClassDefine(std::is_base_of_v<ScriptClass, T>);
   }
 
-  SCRIPTX_CLASS_DEFINE_FRIENDS;
+  SCRIPTX_CLASS_DEFINE_FRIENDS
 };
 
 class ClassDefineVisitor {
