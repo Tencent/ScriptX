@@ -13,7 +13,7 @@ target_sources(ScriptX PRIVATE
 
 target_sources(ScriptX PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/JscEngine.h
-        ${CMAKE_CURRENT_LIST_DIR}/JscEngine.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/JscEngine-Native.cc
         ${CMAKE_CURRENT_LIST_DIR}/JscReference.hpp
         ${CMAKE_CURRENT_LIST_DIR}/JscNative.hpp
         ${CMAKE_CURRENT_LIST_DIR}/JscScope.h

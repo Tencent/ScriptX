@@ -260,6 +260,11 @@ class ScriptEngine {
   virtual bool performIsInstanceOf(const Local<Value>& value,
                                    const internal::ClassDefineState* classDefine) = 0;
 
+  /**
+   * @param value
+   * @param classDefine
+   * @return pointer of the instance
+   */
   virtual void* performGetNativeInstance(const Local<Value>& value,
                                          const internal::ClassDefineState* classDefine) = 0;
 };
