@@ -744,25 +744,34 @@ ScriptEngine::newNativeClass(T&&... args) {
 
 namespace internal {
 
+class InstanceDefineBuilderState {
+ public:
+  void* thiz = nullptr;
+
+  // instance
+  InstanceConstructor constructor_{};
+  std::vector<InstanceDefine::FunctionDefine> insFunctions_{};
+  std::vector<InstanceDefine::PropertyDefine> insProperties_{};
+};
+
 template <typename T>
-class InstanceDefineBuilder {
+class InstanceDefineBuilder : public InstanceDefineBuilderState {
   template <typename...>
   using sfina = ClassDefineBuilder<T>&;
 
-  ClassDefineBuilder<T>& thiz;
+  ClassDefineBuilder<T>& thiz() {
+    return *static_cast<ClassDefineBuilder<T>*>(InstanceDefineBuilderState::thiz);
+  };
 
  protected:
-  // instance
-  InstanceDefine::Constructor constructor_{};
-  std::vector<InstanceDefine::FunctionDefine> insFunctions_{};
-  std::vector<InstanceDefine::PropertyDefine> insProperties_{};
-
-  explicit InstanceDefineBuilder(ClassDefineBuilder<T>& thiz) : thiz(thiz) {}
+  explicit InstanceDefineBuilder(ClassDefineBuilder<T>& thiz) {
+    InstanceDefineBuilderState::thiz = &thiz;
+  }
 
  public:
   ClassDefineBuilder<T>& constructor(InstanceConstructor constructor) {
     constructor_ = std::move(constructor);
-    return thiz;
+    return thiz();
   }
 
   /**
@@ -774,7 +783,7 @@ class InstanceDefineBuilder {
   ClassDefineBuilder<T>& constructor() {
     static_assert(ClassConstructorHelper<T>::value);
     constructor_ = internal::bindConstructor<T>();
-    return thiz;
+    return thiz();
   }
 
   /**
@@ -782,13 +791,13 @@ class InstanceDefineBuilder {
    */
   ClassDefineBuilder<T>& constructor(std::nullptr_t) {
     constructor_ = [](const Arguments&) -> T* { return nullptr; };
-    return thiz;
+    return thiz();
   }
 
   ClassDefineBuilder<T>& instanceFunction(std::string name, InstanceFunctionCallback func) {
     insFunctions_.push_back(
         typename InstanceDefine::FunctionDefine{std::move(name), std::move(func), {}});
-    return thiz;
+    return thiz();
   }
 
   template <typename Func>
@@ -796,7 +805,7 @@ class InstanceDefineBuilder {
       std::string name, Func func, bool nothrow = kBindingNoThrowDefaultValue) {
     insFunctions_.push_back(typename InstanceDefine::FunctionDefine{
         std::move(name), internal::bindInstanceFunc<T>(std::move(func), nothrow), {}});
-    return thiz;
+    return thiz();
   }
 
   template <typename G, typename S = InstanceSetterCallback>
@@ -809,7 +818,7 @@ class InstanceDefineBuilder {
         internal::bindInstanceGet<T>(std::forward<G>(getter), nothrow),
         internal::bindInstanceSet<T>(std::forward<S>(setterCallback), nothrow),
         {}});
-    return thiz;
+    return thiz();
   }
 
   template <typename S>
@@ -820,7 +829,7 @@ class InstanceDefineBuilder {
         nullptr,
         internal::bindInstanceSet<T>(std::forward<S>(setterCallback), nothrow),
         {}});
-    return thiz;
+    return thiz();
   }
 
   template <typename P, typename BaseClass>
@@ -831,18 +840,14 @@ class InstanceDefineBuilder {
     auto prop = internal::bindInstanceProp<T, BaseClass, P>(ptr, nothrow);
     insProperties_.push_back(typename InstanceDefine::PropertyDefine{
         std::move(name), std::move(prop.first), std::move(prop.second), {}});
-    return thiz;
+    return thiz();
   }
 };
 
 // specialize for void
 template <>
-class InstanceDefineBuilder<void> {
+class InstanceDefineBuilder<void> : public InstanceDefineBuilderState {
  protected:
-  InstanceDefine::Constructor constructor_{};
-  std::vector<InstanceDefine::FunctionDefine> insFunctions_{};
-  std::vector<InstanceDefine::PropertyDefine> insProperties_{};
-
   explicit InstanceDefineBuilder(ClassDefineBuilder<void>&) {}
 
  public:

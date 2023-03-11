@@ -367,6 +367,8 @@ class ClassDefineState;
 template <typename T>
 class InstanceDefineBuilder;
 
+class InstanceDefineBuilderState;
+
 #define SCRIPTX_CLASS_DEFINE_FRIENDS                                          \
   template <typename TT>                                                      \
   friend class ::script::ClassDefine;                                         \
@@ -376,7 +378,8 @@ class InstanceDefineBuilder;
   friend typename ::script::internal::ImplType<::script::ScriptEngine>::type; \
   friend class ::script::internal::ClassDefineState;                          \
   template <typename TT>                                                      \
-  friend class ::script::internal::InstanceDefineBuilder
+  friend class ::script::internal::InstanceDefineBuilder;                     \
+  friend class ::script::internal::InstanceDefineBuilderState
 
 class StaticDefine {
   class PropertyDefine {
@@ -421,14 +424,7 @@ constexpr inline size_t sizeof_helper_v = sizeof(T);
 template <>
 constexpr inline size_t sizeof_helper_v<void> = 0;
 
-// template <typename T>
 class InstanceDefine {
-  //  static_assert(std::is_void_v<T> || std::is_base_of_v<ScriptClass, T>,
-  //                "T must be subclass of ScriptClass, "
-  //                "and can be void if no instance is required.");
-
-  using Constructor = InstanceConstructor;
-
   class PropertyDefine {
     using SetterCallback = InstanceSetterCallback;
     using GetterCallback = InstanceGetterCallback;
@@ -466,12 +462,12 @@ class InstanceDefine {
    * when null is returned, an exception is thrown.
    * (Either inside the constructor, or if not, by the ScriptEngine).
    */
-  const Constructor constructor{};
+  const InstanceConstructor constructor{};
   const std::vector<FunctionDefine> functions{};
   const std::vector<PropertyDefine> properties{};
   const size_t instanceSize;  // = internal::sizeof_helper_v<T>;
 
-  InstanceDefine(Constructor constructor, std::vector<FunctionDefine> functions,
+  InstanceDefine(InstanceConstructor constructor, std::vector<FunctionDefine> functions,
                  std::vector<PropertyDefine> properties, size_t instanceSize)
       : constructor(std::move(constructor)),
         functions(std::move(functions)),
