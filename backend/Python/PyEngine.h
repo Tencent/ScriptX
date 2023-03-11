@@ -150,6 +150,7 @@ private:
     struct FunctionData {
       GetterCallback function;
       PyEngine* engine;
+      std::string name;
     };
 
     PyMethodDef* method = new PyMethodDef;
@@ -160,6 +161,7 @@ private:
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       try {
+        Tracer tracer(data->engine, data->name);
         Local<Value> ret = data->function();
         return py_interop::getPy(ret);
       }
@@ -186,7 +188,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this, name}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -200,6 +202,7 @@ private:
     struct FunctionData {
       InstanceGetterCallback<T> function;
       PyEngine* engine;
+      std::string name;
     };
 
     PyMethodDef* method = new PyMethodDef;
@@ -210,6 +213,7 @@ private:
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       T* cppThiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
       try {
+        Tracer tracer(data->engine, data->name);
         Local<Value> ret = data->function(cppThiz);
         return py_interop::getPy(ret);
       }
@@ -236,7 +240,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this, name}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -250,6 +254,7 @@ private:
     struct FunctionData {
       SetterCallback function;
       PyEngine* engine;
+      std::string name;
     };
 
     PyMethodDef* method = new PyMethodDef;
@@ -259,6 +264,7 @@ private:
     method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       try {
+        Tracer tracer(data->engine, data->name);
         data->function(py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
         Py_RETURN_NONE;
       }
@@ -285,7 +291,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this, name}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -300,6 +306,7 @@ private:
     struct FunctionData {
       InstanceSetterCallback<T> function;
       PyEngine* engine;
+      std::string name;
     };
 
     PyMethodDef* method = new PyMethodDef;
@@ -310,6 +317,7 @@ private:
       auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
       T* cppThiz = GeneralObject::getInstance<T>(PyTuple_GetItem(args, 0));
       try {
+        Tracer tracer(data->engine, data->name);
         data->function(cppThiz, py_interop::toLocal<Value>(PyTuple_GetItem(args, 1)));
         Py_RETURN_NONE;
       }
@@ -336,7 +344,7 @@ private:
       delete static_cast<FunctionData*>(ptr);
     };
     PyObject* capsule =
-        PyCapsule_New(new FunctionData{std::move(callback), this}, nullptr, destructor);
+        PyCapsule_New(new FunctionData{std::move(callback), this, name}, nullptr, destructor);
     checkAndThrowError();
 
     PyObject* function = PyCFunction_New(method, capsule);
@@ -397,6 +405,7 @@ private:
       struct FunctionData {
         FunctionCallback function;
         py_backend::PyEngine* engine;
+        std::string name;
       };
 
       PyMethodDef* method = new PyMethodDef;
@@ -409,6 +418,7 @@ private:
         //   into ml_meth here.
         auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
         try {
+          Tracer tracer(data->engine, data->name);
           Local<Value> ret = data->function(py_interop::makeArguments(data->engine, self, args));
           return py_interop::getPy(ret);
         }
@@ -435,7 +445,7 @@ private:
         delete static_cast<FunctionData*>(ptr);
       };
       PyObject* capsule =
-          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
+          PyCapsule_New(new FunctionData{std::move(f.callback), this, f.name}, nullptr, destructor);
       checkAndThrowError();
 
       PyObject* function = PyCFunction_New(method, capsule);
@@ -455,6 +465,7 @@ private:
       struct FunctionData {
         InstanceFunctionCallback<T> function;
         py_backend::PyEngine* engine;
+        std::string name;
       };
 
       PyMethodDef* method = new PyMethodDef;
@@ -481,6 +492,7 @@ private:
         PyObject* real_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
 
         try {
+          Tracer tracer(data->engine, data->name);
           Local<Value> ret = data->function(cppThiz, py_interop::makeArguments(data->engine, thiz, real_args));
           Py_DECREF(real_args);
           return py_interop::getPy(ret);
@@ -509,7 +521,7 @@ private:
         delete static_cast<FunctionData*>(ptr);
       };
       PyObject* capsule =
-          PyCapsule_New(new FunctionData{std::move(f.callback), this}, nullptr, destructor);
+          PyCapsule_New(new FunctionData{std::move(f.callback), this, f.name}, nullptr, destructor);
       checkAndThrowError();
 
       PyObject* function = PyCFunction_New(method, capsule);
@@ -557,7 +569,9 @@ private:
       auto engine = currentEngine();
       auto classDefine =
           reinterpret_cast<const ClassDefine<T>*>(engine->registeredTypesReverse_[self->ob_type]);
-      if (classDefine->instanceDefine.constructor) {
+      if (classDefine->instanceDefine.constructor)
+      {
+        Tracer tracer(engine, classDefine->getClassName());
         reinterpret_cast<GeneralObject*>(self)->instance =
             classDefine->instanceDefine.constructor(py_interop::makeArguments(engine, self, args));
       } else {

@@ -91,6 +91,7 @@ Local<Function> Function::newFunction(FunctionCallback callback) {
   method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
     auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
     try{
+      Tracer tracer(data->engine, "CppFunction");
       Local<Value> ret = data->function(py_interop::makeArguments(data->engine, self, args));
       return py_interop::getPy(ret);
     }
