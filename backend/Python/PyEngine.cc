@@ -155,12 +155,14 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<String>& so
 }
 
 Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sourceFile) {
-  // Limitation: one line code must be expression (no "\n", no "=")
+  // Only if code to eval is an expression (no "\n", no "=") can eval() return its result,
+  // otherwise eval() will always return None. It is the deliberate design of CPython.
+  Tracer tracer(this, "PyEngine::eval");
   const char* source = script.toStringHolder().c_str();
   bool oneLine = true;
   if (strchr(source, '\n') != nullptr)
     oneLine = false;
-  else if (strstr(source, " = ") != nullptr)
+  else if (strstr(source, "=") != nullptr)
     oneLine = false;
   PyObject* result = PyRun_StringFlags(source, oneLine ? Py_eval_input : Py_file_input,
                                        getGlobalDict(), nullptr, nullptr);
@@ -169,6 +171,7 @@ Local<Value> PyEngine::eval(const Local<String>& script, const Local<Value>& sou
 }
 
 Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
+  Tracer tracer(this, "PyEngine::loadFile");
   std::string sourceFilePath = scriptFile.toString();
   if (sourceFilePath.empty()) {
     throw Exception("script file no found");
