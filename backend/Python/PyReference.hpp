@@ -174,6 +174,10 @@ void Global<T>::reset() {
 
 // =============== Weak ===============
 
+// Tips: Not all types in CPython support weak ref. So when creating a weak ref to the
+//       type that do not support weak ref, returned Weak<> will behavior like a Global<>.
+// See https://stackoverflow.com/questions/60213902/why-cant-subclasses-of-tuple-and-str-support-weak-references-in-python
+
 namespace py_backend {
 
 inline WeakRefState::WeakRefState() 
