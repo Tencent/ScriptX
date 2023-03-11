@@ -30,14 +30,15 @@ void ScriptEngine::registerNativeClass(const script::NativeRegister& nativeRegis
   nativeRegister.registerNativeClass(this);
 }
 
-void ScriptEngine::registerNativeClassInternal(internal::TypeIndex typeIndex,
-                                               const internal::ClassDefineState* classDefine) {
+void ScriptEngine::registerNativeClassInternal(
+    internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*)) {
   if ((!classDefine->hasInstanceDefine() &&
        staticClassDefineRegistry_.find(classDefine) != staticClassDefineRegistry_.end()) ||
       classDefineRegistry_.find(typeIndex) != classDefineRegistry_.end()) {
     throw Exception(std::string("already registered for " + classDefine->className));
   }
-  performRegisterNativeClass(typeIndex, classDefine);
+  performRegisterNativeClass(typeIndex, classDefine, instanceTypeToScriptClass);
 
   if (!classDefine->hasInstanceDefine()) {
     staticClassDefineRegistry_.emplace(classDefine);

@@ -241,15 +241,17 @@ class ScriptEngine {
 
   // non-template version of ClassDefine related api
  private:
-  void registerNativeClassInternal(internal::TypeIndex typeIndex,
-                                   const internal::ClassDefineState* classDefine);
+  void registerNativeClassInternal(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      ScriptClass* (*instanceTypeToScriptClass)(void* instancePointer));
 
   const internal::ClassDefineState* getClassDefineInternal(internal::TypeIndex typeIndex) const;
 
   // implemented by backend
  protected:
-  virtual void performRegisterNativeClass(internal::TypeIndex typeIndex,
-                                          const internal::ClassDefineState* classDefine) = 0;
+  virtual void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      ScriptClass* (*instanceTypeToScriptClass)(void* instancePointer)) = 0;
 
   virtual Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
                                               const internal::ClassDefineState* classDefine,

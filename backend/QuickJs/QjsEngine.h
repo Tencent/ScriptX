@@ -109,8 +109,9 @@ class QjsEngine : public ScriptEngine {
  protected:
   ~QjsEngine() override;
 
-  void performRegisterNativeClass(internal::TypeIndex typeIndex,
-                                  const internal::ClassDefineState* classDefine) override;
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override;
 
   void* performGetNativeInstance(const Local<script::Value>& value,
                                  const internal::ClassDefineState* classDefine) override;
@@ -130,7 +131,7 @@ class QjsEngine : public ScriptEngine {
                             const internal::StaticDefine& staticDefine);
 
   Local<Object> newConstructor(const internal::ClassDefineState* define,
-                               const void* (*typeCast)(const void*));
+                               ScriptClass* (*instanceTypeToScriptClass)(void* instancePointer));
 
   Local<Object> newPrototype(const internal::ClassDefineState* define);
 

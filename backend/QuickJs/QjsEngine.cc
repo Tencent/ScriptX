@@ -290,16 +290,16 @@ ScriptLanguage QjsEngine::getLanguageType() { return ScriptLanguage::kJavaScript
 std::string QjsEngine::getEngineVersion() { return "QuickJS"; }
 
 bool QjsEngine::isDestroying() const { return isDestroying_; }
-
-void QjsEngine::performRegisterNativeClass(internal::TypeIndex typeIndex,
-                                           const internal::ClassDefineState* classDefine) {
+void QjsEngine::performRegisterNativeClass(
+    internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*)) {
   auto ns = internal::getNamespaceObject(this, classDefine->nameSpace, getGlobal()).asObject();
 
   auto hasInstance = classDefine->instanceDefine.constructor;
 
   // static only
-  auto module = hasInstance ? newConstructor(classDefine, [](const void* t) { return t; })
-                            : Object::newObject();
+  auto module =
+      hasInstance ? newConstructor(classDefine, instanceTypeToScriptClass) : Object::newObject();
   registerNativeStatic(module, classDefine->staticDefine);
 
   if (hasInstance) {
@@ -312,13 +312,15 @@ void QjsEngine::performRegisterNativeClass(internal::TypeIndex typeIndex,
   ns.set(classDefine->className, module);
 }
 
-Local<Object> QjsEngine::newConstructor(const internal::ClassDefineState* classDefine,
-                                        const void* (*typeCast)(const void*)) {
+Local<Object> QjsEngine::newConstructor(
+    const internal::ClassDefineState* classDefine,
+    ScriptClass* (*instanceTypeToScriptClass)(void* instancePointer)) {
   auto ret = newRawFunction(
-      this, const_cast<internal::ClassDefineState*>(classDefine), reinterpret_cast<void*>(typeCast),
+      this, const_cast<internal::ClassDefineState*>(classDefine),
+      reinterpret_cast<void*>(instanceTypeToScriptClass),
       [](const Arguments& args, void* data, void* caster, bool isConstructorCall) {
         auto classDefine = static_cast<const internal::ClassDefineState*>(data);
-        auto typeCast = reinterpret_cast<const void* (*)(const void*)>(caster);
+        auto instanceTypeToScriptClass = reinterpret_cast<ScriptClass* (*)(void*)>(caster);
         auto engine = args.template engineAs<QjsEngine>();
 
         Tracer trace(engine, classDefine->className);
@@ -360,9 +362,8 @@ Local<Object> QjsEngine::newConstructor(const internal::ClassDefineState* classD
 
         auto opaque = new InstanceClassOpaque();
         opaque->scriptClassPolymorphicPointer = instance;
-        // TODO: proper cast this
-        opaque->scriptClassPointer = static_cast<ScriptClass*>(instance);
-        opaque->classDefine = typeCast(classDefine);
+        opaque->scriptClassPointer = instanceTypeToScriptClass(instance);
+        opaque->classDefine = classDefine;
         JS_SetOpaque(obj, opaque);
 
         return qjs_interop::makeLocal<Value>(obj);

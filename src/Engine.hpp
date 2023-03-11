@@ -29,8 +29,11 @@ namespace script {
 
 template <typename T>
 void ScriptEngine::registerNativeClass(const ClassDefine<T>& classDefine) {
-  return registerNativeClassInternal(internal::typeIndexOf<T>(),
-                                     static_cast<const internal::ClassDefineState*>(&classDefine));
+  return registerNativeClassInternal(
+      internal::typeIndexOf<T>(), static_cast<const internal::ClassDefineState*>(&classDefine),
+      [](void* instancePointer) {
+        return static_cast<ScriptClass*>(static_cast<T*>(instancePointer));
+      });
 }
 
 template <typename T>
