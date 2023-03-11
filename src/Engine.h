@@ -148,7 +148,7 @@ class ScriptEngine {
 
   /**
    * create a script class instance of the given native classDefine.
-   * if the classDefine is not registered by registerNativeClass, it will be registered first.
+   * the classDefine must already be registered by registerNativeClass.
    * @tparam T a subclass of the NativeClass, which implements all the Script-Native method in cpp.
    * (can be void if no instance is required).
    * @param classDefine the pointer should be valid until the engine is destroyed.

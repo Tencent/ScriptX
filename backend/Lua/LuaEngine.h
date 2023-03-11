@@ -92,8 +92,9 @@ class LuaEngine : public ScriptEngine {
  protected:
   ~LuaEngine() override;
 
-  void performRegisterNativeClass(internal::TypeIndex typeIndex,
-                                  const internal::ClassDefineState* classDefine) override;
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override;
 
   Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
                                       const internal::ClassDefineState* classDefine, size_t size,

@@ -72,8 +72,9 @@ namespace script::lua_backend {
  * @tparam T
  * @param classDefine
  */
-void LuaEngine::performRegisterNativeClass(internal::TypeIndex typeIndex,
-                                           const internal::ClassDefineState* classDefine) {
+void LuaEngine::performRegisterNativeClass(
+    internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*)) {
   StackFrameScope stackFrameScope;
 
   auto ns = ::script::internal::getNamespaceObject(this, classDefine->nameSpace,
@@ -283,8 +284,7 @@ Local<Object> LuaEngine::performNewNativeClass(internal::TypeIndex typeIndex,
                                                size_t size, const Local<script::Value>* args) {
   auto it = nativeDefineRegistry_.find(classDefine);
   if (it == nativeDefineRegistry_.end()) {
-    performRegisterNativeClass(typeIndex, classDefine);
-    it = nativeDefineRegistry_.find(classDefine);
+    throw Exception("class define[" + classDefine->className + "] is not registered");
   }
 
   return luaNewObject(it->second.getValue(), size, args);

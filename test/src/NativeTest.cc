@@ -755,6 +755,11 @@ TEST_F(NativeTest, BindBaseClass) {
   }
 }
 
+TEST_F(NativeTest, NewNativeClassWhitoutRegister) {
+  EngineScope engineScope(engine);
+  EXPECT_THROW({ engine->newNativeClass<BaseClassScriptWrapper>(); }, Exception);
+}
+
 namespace {
 
 class InstanceOfTest : public script::ScriptClass {
