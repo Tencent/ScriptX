@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "../WasmEngine.hpp"
 #include "../WasmNative.hpp"
 #include "../WasmReference.hpp"
 #include "../WasmScope.hpp"

@@ -16,6 +16,7 @@
  */
 
 #include "../../src/Exception.h"
+#include "../../src/Native.hpp"
 #include "WasmEngine.h"
 #include "WasmReference.hpp"
 

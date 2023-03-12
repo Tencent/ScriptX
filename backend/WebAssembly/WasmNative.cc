@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-#include "../../src/Native.hpp"
-#include "WasmEngine.h"
-#include "WasmReference.hpp"
+#include <ScriptX/ScriptX.h>
 
 namespace script {
 
@@ -46,6 +44,29 @@ Local<Value> Arguments::operator[](size_t i) const {
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine_; }
+
+void ScriptClass::performConstructFromCpp(internal::TypeIndex typeIndex,
+                                          const internal::ClassDefineState* classDefine) {
+  auto engine = &wasm_backend::currentEngine();
+
+  // Because we only has Weak<Object> hold to obj
+  // to prevent obj from GCed, we relay on obj be the local ref.
+  Local<Value> out;
+
+  {
+    StackFrameScope scope;
+    auto mark =
+        wasm_backend::WasmEngine::make<Local<Value>>(wasm_backend::NativeHelper::pushCppNewMark());
+    Local<Number> ins = Number::newNumber(reinterpret_cast<int32_t>(this));
+
+    std::initializer_list<Local<Value>> args{mark, ins};
+    auto obj = engine->performNewNativeClass(typeIndex, classDefine, args.size(), args.begin());
+    out = scope.returnValue(obj);
+  }
+
+  internalState_.scriptEngine_ = engine;
+  internalState_.weakRef_ = out.asObject();
+}
 
 ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
   internalState_.scriptEngine_ = &wasm_backend::currentEngine();

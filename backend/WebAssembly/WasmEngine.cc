@@ -148,4 +148,145 @@ Local<Object> WasmEngine::getNamespaceForRegister(const std::string_view& nameSp
   return scope.returnValue(Local<Value>(ret).asObject());
 }
 
+// Native
+
+void WasmEngine::performRegisterNativeClass(
+    internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*)) {
+  if (classDefineRegistry_.find(classDefine) != classDefineRegistry_.end()) {
+    throw Exception("classDefine [" + classDefine->className + "] already registered");
+  }
+
+  StackFrameScope scope;
+
+  auto hasInstance = classDefine->hasInstanceDefine();
+  auto obj = hasInstance ? newConstructor(classDefine) : Object::newObject();
+
+  defineStatic(obj, classDefine->staticDefine);
+
+  if (hasInstance) {
+    defineInstance(classDefine, obj);
+  }
+
+  auto ns = getNamespaceForRegister(classDefine->nameSpace);
+  ns.set(classDefine->className, obj);
+
+  classDefineRegistry_.emplace(classDefine, obj);
+}
+
+Local<Object> WasmEngine::performNewNativeClass(internal::TypeIndex typeIndex,
+                                                const internal::ClassDefineState* classDefine,
+                                                size_t size, const Local<script::Value>* args) {
+  auto it = classDefineRegistry_.find(classDefine);
+  if (it == classDefineRegistry_.end()) {
+    throw Exception("classDefine [" + classDefine->className + "] is not registered");
+  }
+
+  StackFrameScope scope;
+  auto ctor = it->second.get();
+  auto ret = Object::newObjectImpl(ctor, size, args);
+  return scope.returnValue(ret);
+}
+
+bool WasmEngine::performIsInstanceOf(const Local<script::Value>& value,
+                                     const internal::ClassDefineState* classDefine) {
+  return NativeHelper::getInternalStateClassDefine(value.val_) == classDefine;
+}
+
+void* WasmEngine::performGetNativeInstance(const Local<script::Value>& value,
+                                           const internal::ClassDefineState* classDefine) {
+  if (performIsInstanceOf(value, classDefine)) {
+    return static_cast<void*>(NativeHelper::getInternalStateInstance(value.val_));
+  }
+  return nullptr;
+}
+
+Local<Object> WasmEngine::newConstructor(const internal::ClassDefineState* classDefine) {
+  auto ctor = Stack::newFunction(
+      [](const Arguments& args, void* data, void*) -> Local<Value> {
+        auto classDefine = static_cast<internal::ClassDefineState*>(data);
+
+        Tracer trace(args.engine(), classDefine->className);
+        void* instance;
+        if (args.size() == 2 && NativeHelper::isCppNewMark(args[0].val_)) {
+          // WASM is 32-bit, we could use int32_t to store a pointer.
+          // we have static assert in WasmEngine.h
+          instance = reinterpret_cast<void*>(args[1].asNumber().toInt32());
+        } else {
+          instance = classDefine->instanceDefine.constructor(args);
+          if (instance == nullptr) {
+            throw Exception("can't create class " + classDefine->className);
+          }
+        }
+
+        NativeHelper::setInternalState(args.thiz().val_, classDefine, instance);
+        return {};
+      },
+      classDefine, nullptr, true);
+  return Local<Object>(ctor);
+}
+
+void WasmEngine::defineInstance(const internal::ClassDefineState* classDefine,
+                                const Local<Object>& obj) {
+  auto&& instanceDefine = classDefine->instanceDefine;
+  auto prototype = Object::newObject();
+
+  for (auto&& func : instanceDefine.functions) {
+    StackFrameScope stack;
+    auto fi = Stack::newFunction(
+        [](const Arguments& args, void* data0, void* data1) -> Local<Value> {
+          auto classDefine = static_cast<const internal::ClassDefineState*>(data0);
+          auto& func = *static_cast<typename internal::InstanceDefine::FunctionDefine*>(data1);
+
+          auto ins = verifyAndGetInstance(classDefine, args.thiz().val_);
+
+          Tracer trace(args.engine(), func.traceName);
+          return func.callback(ins, args);
+        },
+        classDefine, &func);
+
+    prototype.set(func.name, Local<Value>(fi));
+  }
+
+  for (auto&& prop : instanceDefine.properties) {
+    StackFrameScope stackFrame;
+
+    int getter = -1;
+    int setter = -1;
+    auto name = String::newString(prop.name);
+
+    if (prop.getter) {
+      getter = Stack::newFunction(
+          [](const Arguments& args, void* data0, void* data1) -> Local<Value> {
+            auto& prop = *static_cast<typename internal::InstanceDefine::PropertyDefine*>(data0);
+            auto classDefine = static_cast<const internal::ClassDefineState*>(data1);
+
+            auto ins = verifyAndGetInstance(classDefine, args.thiz().val_);
+
+            Tracer trace(args.engine(), prop.traceName);
+            return prop.getter(ins);
+          },
+          &prop, classDefine);
+    }
+
+    if (prop.setter) {
+      setter = Stack::newFunction(
+          [](const Arguments& args, void* data0, void* data1) -> Local<Value> {
+            auto& prop = *static_cast<typename internal::InstanceDefine::PropertyDefine*>(data0);
+            auto classDefine = static_cast<const internal::ClassDefineState*>(data1);
+
+            auto ins = verifyAndGetInstance(classDefine, args.thiz().val_);
+            Tracer trace(args.engine(), prop.traceName);
+            prop.setter(ins, args[0]);
+            return {};
+          },
+          &prop, classDefine);
+    }
+    NativeHelper::defineProperty(prototype.val_, name.val_, getter, setter);
+  }
+
+  // set the `prototype` property of constructor
+  obj.set("prototype", prototype);
+}
+
 }  // namespace script::wasm_backend

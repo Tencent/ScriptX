@@ -18,7 +18,6 @@
 #include "WasmHelper.h"
 #include "../../src/Native.hpp"
 #include "../../src/Scope.h"
-#include "WasmEngine.hpp"
 #include "WasmScope.hpp"
 
 namespace script::wasm_backend {

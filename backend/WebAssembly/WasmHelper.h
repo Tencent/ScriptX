@@ -146,6 +146,7 @@ class NativeHelper {
   static int getNamespaceForRegister(int nameSpace);
 
   static void setInternalState(int obj, const void* classDefine, void* instance);
+  // get polymorphic pointer
   static void* getInternalStateInstance(int obj);
   static void* getInternalStateClassDefine(int obj);
 

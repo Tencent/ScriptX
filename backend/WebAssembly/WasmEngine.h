@@ -33,6 +33,8 @@ class ScriptXTestFixture;
 
 namespace script::wasm_backend {
 
+static_assert(sizeof(int32_t) == sizeof(void*), "ScriptX currently assume running 32-bit wasm");
+
 class WasmEngine : public ScriptEngine {
   // < classDefine, Class >
   std::unordered_map<const void*, Global<Object>> classDefineRegistry_{};
@@ -87,31 +89,28 @@ class WasmEngine : public ScriptEngine {
  protected:
   ~WasmEngine() override;
 
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override;
+
+  void* performGetNativeInstance(const Local<script::Value>& value,
+                                 const internal::ClassDefineState* classDefine) override;
+  Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
+                                      const internal::ClassDefineState* classDefine, size_t size,
+                                      const Local<script::Value>* args) override;
+  bool performIsInstanceOf(const Local<script::Value>& value,
+                           const internal::ClassDefineState* classDefine) override;
+
  private:
-  template <typename T>
-  void registerNativeClassImpl(const ClassDefine<T>* classDefine);
+  Local<Object> newConstructor(const internal::ClassDefineState* classDefine);
 
-  template <typename T>
-  Local<Object> newConstructor(const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  void defineInstance(const ClassDefine<T>* classDefine, const Local<Object>& obj);
+  void defineInstance(const internal::ClassDefineState* classDefine, const Local<Object>& obj);
 
   static Local<Object> getNamespaceForRegister(const std::string_view& nameSpace);
 
   void defineStatic(const Local<Object>& obj, const internal::StaticDefine& define);
 
   static void* verifyAndGetInstance(const void* classDefine, int thiz);
-
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                   const Local<Value>* args);
-
-  template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
 
  private:
   // helpers
