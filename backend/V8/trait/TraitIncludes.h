@@ -18,7 +18,7 @@
 #pragma once
 
 #include "../V8Engine.h"
-#include "../V8Engine.hpp"
+#include "../V8Helper.hpp"
 #include "../V8Native.hpp"
 #include "../V8Reference.hpp"
 #include "../V8Scope.h"

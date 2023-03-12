@@ -22,7 +22,6 @@ endif ()
 
 target_sources(ScriptX PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/V8Engine.h
-        ${CMAKE_CURRENT_LIST_DIR}/V8Engine.hpp
         ${CMAKE_CURRENT_LIST_DIR}/V8Helper.h
         ${CMAKE_CURRENT_LIST_DIR}/V8Helper.hpp
         ${CMAKE_CURRENT_LIST_DIR}/V8Platform.h

@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-#include "Scope.h"
+#include <ScriptX/ScriptX.h>
 #include "utils/ThreadLocal.h"
-#include SCRIPTX_BACKEND(Includes.h)
 
 namespace script {
 

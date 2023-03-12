@@ -1,6 +1,6 @@
 /*
  * Tencent is pleased to support the open source community by making ScriptX available.
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2023 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -136,33 +136,35 @@ class V8Engine : public ::script::ScriptEngine {
 
   std::string getEngineVersion() override;
 
+ protected:
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override;
+
+  void* performGetNativeInstance(const Local<script::Value>& value,
+                                 const internal::ClassDefineState* classDefine) override;
+
+  bool performIsInstanceOf(const Local<script::Value>& value,
+                           const internal::ClassDefineState* classDefine) override;
+
+  Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
+                                      const internal::ClassDefineState* classDefine, size_t size,
+                                      const Local<script::Value>* args) override;
+
  private:
   void initContext();
 
   Local<Value> eval(const Local<String>& script, const Local<Value>& sourceFile);
 
-  template <typename T>
-  void registerNativeClassImpl(const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t argc,
-                                   const Local<Value>* args);
-
-  template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  v8::Local<v8::FunctionTemplate> newConstructor(const ClassDefine<T>* classDefine);
+  v8::Local<v8::FunctionTemplate> newConstructor(
+      const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*));
 
   void registerNativeClassStatic(v8::Local<v8::FunctionTemplate> funcT,
                                  const internal::StaticDefine* staticDefine);
 
-  template <typename T>
   void registerNativeClassInstance(v8::Local<v8::FunctionTemplate> funcT,
-                                   const ClassDefine<T>* classDefine);
+                                   const internal::ClassDefineState* classDefine);
 
   // the following function are public only for you to interact with raw v8 APIs.
   template <typename T, typename... Args>
@@ -196,7 +198,7 @@ class V8Engine : public ::script::ScriptEngine {
   size_t keepReference(const Local<Value>& ref);
 
   /**
-   * can be called withoud EngineScope
+   * can be called without EngineScope
    */
   void removeKeptReference(size_t id);
 

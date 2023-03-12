@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "Native.hpp"
+#include <ScriptX/ScriptX.h>
 
 namespace script {
 
