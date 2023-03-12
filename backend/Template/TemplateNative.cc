@@ -1,6 +1,6 @@
 /*
  * Tencent is pleased to support the open source community by making ScriptX available.
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2023 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,11 @@ size_t Arguments::size() const { TEMPLATE_NOT_IMPLEMENTED(); }
 Local<Value> Arguments::operator[](size_t i) const { return {}; }
 
 ScriptEngine* Arguments::engine() const { return nullptr; }
+
+void ScriptClass::performConstructFromCpp(internal::TypeIndex typeIndex,
+                                          const internal::ClassDefineState* classDefine) {
+  TEMPLATE_NOT_IMPLEMENTED();
+}
 
 ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
   TEMPLATE_NOT_IMPLEMENTED();

@@ -1,6 +1,6 @@
 /*
  * Tencent is pleased to support the open source community by making ScriptX available.
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2023 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,30 +59,26 @@ class TemplateEngine : public ScriptEngine {
  protected:
   ~TemplateEngine() override;
 
- private:
-  template <typename T>
-  bool registerNativeClassImpl(const ClassDefine<T>* classDefine) {
-    return false;
-  }
-
-  Local<Object> getNamespaceForRegister(const std::string_view& nameSpace) {
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override {
     TEMPLATE_NOT_IMPLEMENTED();
   }
 
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                   const Local<Value>* args) {
+  Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
+                                      const internal::ClassDefineState* classDefine, size_t size,
+                                      const Local<script::Value>* args) override {
     TEMPLATE_NOT_IMPLEMENTED();
   }
 
-  template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return false;
+  void* performGetNativeInstance(const Local<script::Value>& value,
+                                 const internal::ClassDefineState* classDefine) override {
+    TEMPLATE_NOT_IMPLEMENTED();
   }
 
-  template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-    return nullptr;
+  bool performIsInstanceOf(const Local<script::Value>& value,
+                           const internal::ClassDefineState* classDefine) override {
+    TEMPLATE_NOT_IMPLEMENTED();
   }
 
  private:
