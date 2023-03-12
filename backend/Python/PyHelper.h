@@ -36,8 +36,11 @@ SCRIPTX_END_INCLUDE_LIBRARY
 
 namespace script {
 
-  class PyEngine;
+  namespace py_backend {
+    class PyEngine;
+  }
   class Arguments;
+
   struct py_interop {
     // @return new reference
     template <typename T>
