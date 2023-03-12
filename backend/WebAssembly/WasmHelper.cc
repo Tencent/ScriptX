@@ -100,6 +100,11 @@ intptr_t ScriptX_NativeBuffer_newSharedPtr(intptr_t ptr) {
 }
 
 EMSCRIPTEN_KEEPALIVE
+intptr_t ScriptX_NativeBuffer_memMalloc(size_t count) {
+  return reinterpret_cast<intptr_t>(std::malloc(count));
+}
+
+EMSCRIPTEN_KEEPALIVE
 void ScriptX_NativeBuffer_deleteSharedPtr(intptr_t sharedPtr) {
   delete reinterpret_cast<std::shared_ptr<void> *>(sharedPtr);
 }
@@ -202,6 +207,8 @@ EM_JS(void, _ScriptX_initJavaScriptLibrary, (), {
   Module._ScriptX_rethrowException = function(e) {
     Module.SCRIPTX_HAS_PENDING_JS_EXCEPTION = true;
     Module.SCRIPTX_STACK.push(e);
+    // debug exception
+    console.log(e);
     return -1;
   };
 
@@ -236,7 +243,7 @@ EM_JS(void, _ScriptX_initJavaScriptLibrary, (), {
     if (arguments.length == 1 && typeof arguments[0] === 'number') {
       // ctor 1
       byteLength = arguments[0];
-      byteOffset = Module._malloc(byteLength);
+      byteOffset = Module._ScriptX_NativeBuffer_memMalloc(byteLength);
       sharedPtr = Module._ScriptX_NativeBuffer_newSharedPtr(byteOffset);
     }
 
