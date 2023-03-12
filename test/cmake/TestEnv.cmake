@@ -139,19 +139,32 @@ elseif (${SCRIPTX_BACKEND} STREQUAL JavaScriptCore)
 elseif (${SCRIPTX_BACKEND} STREQUAL Lua)
     include("${SCRIPTX_TEST_LIBS}/lua/CMakeLists.txt")
     set(DEVOPS_LIBS_LIBPATH Lua CACHE STRING "" FORCE)
+
 elseif (${SCRIPTX_BACKEND} STREQUAL WebAssembly)
     if ("${CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
         message(FATAL_ERROR "CMAKE_TOOLCHAIN_FILE must be passed for emscripten")
     endif ()
+
 elseif (${SCRIPTX_BACKEND} STREQUAL QuickJs)
     include("${SCRIPTX_TEST_LIBS}/quickjs/CMakeLists.txt")
     set(DEVOPS_LIBS_LIBPATH QuickJs CACHE STRING "" FORCE)
+
 elseif (${SCRIPTX_BACKEND} STREQUAL Python)
-    if (WIN32)
+    if (SCRIPTX_TEST_BUILD_ONLY)
+        set(DEVOPS_LIBS_INCLUDE
+                "${SCRIPTX_TEST_LIBS}/python/win64/include"
+                CACHE STRING "" FORCE)
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(DEVOPS_LIBS_INCLUDE
+            "${SCRIPTX_TEST_LIBS}/python/linux64/include"
+            CACHE STRING "" FORCE)
+        set(DEVOPS_LIBS_LIBPATH
+            "${SCRIPTX_TEST_LIBS}/python/linux64/lib/libpython3.10.a"
+            CACHE STRING "" FORCE)
+    elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
             "${SCRIPTX_TEST_LIBS}/python/win64/include"
             CACHE STRING "" FORCE)
-
         set(DEVOPS_LIBS_LIBPATH
             "${SCRIPTX_TEST_LIBS}/python/win64/python310_d.lib"
             CACHE STRING "" FORCE)
@@ -160,6 +173,12 @@ elseif (${SCRIPTX_BACKEND} STREQUAL Python)
             COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${SCRIPTX_TEST_LIBS}/python/win64/dll" $<TARGET_FILE_DIR:UnitTests>
             )
+    elseif (APPLE)
+        # Need adaptation here
+        set(DEVOPS_LIBS_INCLUDE
+                "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Headers/"
+                    CACHE STRING "" FORCE)
+        set(DEVOPS_LIBS_LIBPATH "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Versions/Current/lib/libpython3.10.dylib" CACHE STRING "" FORCE)
     else ()
         set(DEVOPS_LIBS_INCLUDE
                 "/usr/local/Cellar/python@3.10/3.10.0_2/Frameworks/Python.framework/Headers/"
