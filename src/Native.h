@@ -390,7 +390,6 @@ class InstanceDefineBuilderState;
   friend class ::script::ScriptEngine;                                        \
   friend class ::script::ScriptClass;                                         \
   friend typename ::script::internal::ImplType<::script::ScriptEngine>::type; \
-  friend class ::script::internal::ClassDefineState;                          \
   template <typename TT>                                                      \
   friend class ::script::internal::InstanceDefineBuilder;                     \
   friend class ::script::internal::InstanceDefineBuilderState;
@@ -410,6 +409,7 @@ class StaticDefine {
           traceName(std::move(traceName)) {}
 
     SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   struct FunctionDefine {
@@ -421,6 +421,7 @@ class StaticDefine {
         : name(std::move(name)), callback(std::move(callback)), traceName(std::move(traceName)) {}
 
     SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   const std::vector<FunctionDefine> functions{};
@@ -430,6 +431,7 @@ class StaticDefine {
       : functions(std::move(functions)), properties(std::move(properties)) {}
 
   SCRIPTX_CLASS_DEFINE_FRIENDS
+  friend class ClassDefineState;
 };
 
 template <typename T>
@@ -456,6 +458,7 @@ class InstanceDefine {
           traceName(std::move(traceName)) {}
 
     SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   class FunctionDefine {
@@ -469,6 +472,7 @@ class InstanceDefine {
         : name(std::move(name)), callback(std::move(callback)), traceName(std::move(traceName)) {}
 
     SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   /**
@@ -489,6 +493,7 @@ class InstanceDefine {
         instanceSize(instanceSize) {}
 
   SCRIPTX_CLASS_DEFINE_FRIENDS
+  friend class ClassDefineState;
 };
 
 }  // namespace internal
