@@ -34,7 +34,39 @@ SCRIPTX_END_INCLUDE_LIBRARY
 #error "python version must be greater than 3.10.0"
 #endif
 
-namespace script::py_backend {
+namespace script {
+
+  class PyEngine;
+  class Arguments;
+  struct py_interop {
+    // @return new reference
+    template <typename T>
+    static Local<T> toLocal(PyObject* ref) {
+      return Local<T>(Py_NewRef(ref));
+    }
+
+    // @return borrowed reference
+    template <typename T>
+    static Local<T> asLocal(PyObject* ref) {
+      return Local<T>(ref);
+    }
+
+    // @return new reference
+    template <typename T>
+    static PyObject* getPy(const Local<T>& ref) {
+      return Py_NewRef(ref.val_);
+    }
+
+    // @return borrowed reference
+    template <typename T>
+    static PyObject* peekPy(const Local<T>& ref) {
+      return ref.val_;
+    }
+
+    static Arguments makeArguments(py_backend::PyEngine* engine, PyObject* self, PyObject* args);
+  };
+
+namespace py_backend {
 
 struct GeneralObject : PyObject {
   void* instance;
@@ -84,3 +116,4 @@ PyObject* getGlobalDict();
 
 void extendLifeTimeToNextLoop(PyEngine* engine, PyObject* obj);
 }  // namespace script::py_backend
+}  // namespace script

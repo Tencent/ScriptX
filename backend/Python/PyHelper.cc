@@ -18,7 +18,13 @@
 #include "PyHelper.hpp"
 #include "PyEngine.h"
 
-namespace script::py_backend {
+namespace script {
+  
+  Arguments py_interop::makeArguments(py_backend::PyEngine* engine, PyObject* self, PyObject* args) {
+    return Arguments(py_backend::ArgumentsData{engine, self, args});
+  }
+  
+namespace py_backend {
 
 void setAttr(PyObject* obj, PyObject* key, PyObject* value) {
   if (PyObject_SetAttr(obj, key, value) != 0) {
@@ -404,3 +410,4 @@ void extendLifeTimeToNextLoop(PyEngine* engine, PyObject* obj)
 }
 
 }  // namespace script::py_backend
+}  // namespace script
