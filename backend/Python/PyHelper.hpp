@@ -23,15 +23,56 @@
 
 namespace script {
 
+// pre declare
+namespace py_backend {
+  class PyEngine;
+}
+class Arguments;
+
+struct py_interop {
+  // @return new reference
+  template <typename T>
+  static Local<T> toLocal(PyObject* ref) {
+    return Local<T>(Py_NewRef(ref));
+  }
+
+  // @return borrowed reference
+  template <typename T>
+  static Local<T> asLocal(PyObject* ref) {
+    return Local<T>(ref);
+  }
+
+  // @return new reference
+  template <typename T>
+  static PyObject* getPy(const Local<T>& ref) {
+    return Py_NewRef(ref.val_);
+  }
+
+  // @return borrowed reference
+  template <typename T>
+  static PyObject* peekPy(const Local<T>& ref) {
+    return ref.val_;
+  }
+
+  // @return new reference
+  template <typename T>
+  static Local<T> dupLocal(const Local<T>& ref) {
+    return toLocal<T>(peekPy(ref));
+  }
+
+  static Arguments makeArguments(py_backend::PyEngine* engine, PyObject* self, PyObject* args);
+};
+
 namespace py_backend {
 
 template <typename T>
 class TssStorage {
  private:
-  Py_tss_t key = Py_tss_NEEDS_INIT;
+  Py_tss_t key;   // = Py_tss_NEEDS_INIT will cause warning in GCC, change to memset 
 
  public:
   TssStorage() {
+    memset(&key, 0, sizeof(key));
     int result = PyThread_tss_create(&key);  // TODO: Output or throw exception if failed
     SCRIPTX_UNUSED(result);
   }

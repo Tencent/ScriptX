@@ -110,14 +110,14 @@ void PyEngine::destroy() noexcept {
   PyThreadState* oldThreadState = PyThreadState_Swap(tstate);
 
   // Set finalizing sign
-  interp->finalizing = 1;
+  SetPyInterpreterStateFinalizing(interp);
 
   /* Destroy the state of all threads of the interpreter, except of the
     current thread. In practice, only daemon threads should still be alive,
     except if wait_for_thread_shutdown() has been cancelled by CTRL+C.
     Clear frames of other threads to call objects destructors. Destructors
     will be called in the current Python thread. */
-  _PyThreadState_DeleteExcept(tstate->interp->runtime, tstate);
+  _PyThreadState_DeleteExcept(tstate);
 
   PyGC_Collect();
 
@@ -185,11 +185,11 @@ Local<Value> PyEngine::loadFile(const Local<String>& scriptFile) {
   }
 
   std::size_t pathSymbol = sourceFilePath.rfind("/");
-  if (pathSymbol != -1) {
+  if (pathSymbol != std::string::npos) {
     sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
   } else {
     pathSymbol = sourceFilePath.rfind("\\");
-    if (pathSymbol != -1) sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
+    if (pathSymbol != std::string::npos) sourceFilePath = sourceFilePath.substr(pathSymbol + 1);
   }
   Local<String> sourceFileName = String::newString(sourceFilePath);
   return eval(content.asString(), sourceFileName);

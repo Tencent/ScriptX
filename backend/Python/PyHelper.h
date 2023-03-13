@@ -18,6 +18,7 @@
 #pragma once
 
 #include "../../src/foundation.h"
+#include <string>
 
 // docs:
 // https://docs.python.org/3/c-api/index.html
@@ -35,39 +36,6 @@ SCRIPTX_END_INCLUDE_LIBRARY
 #endif
 
 namespace script {
-
-  namespace py_backend {
-    class PyEngine;
-  }
-  class Arguments;
-
-  struct py_interop {
-    // @return new reference
-    template <typename T>
-    static Local<T> toLocal(PyObject* ref) {
-      return Local<T>(Py_NewRef(ref));
-    }
-
-    // @return borrowed reference
-    template <typename T>
-    static Local<T> asLocal(PyObject* ref) {
-      return Local<T>(ref);
-    }
-
-    // @return new reference
-    template <typename T>
-    static PyObject* getPy(const Local<T>& ref) {
-      return Py_NewRef(ref.val_);
-    }
-
-    // @return borrowed reference
-    template <typename T>
-    static PyObject* peekPy(const Local<T>& ref) {
-      return ref.val_;
-    }
-
-    static Arguments makeArguments(py_backend::PyEngine* engine, PyObject* self, PyObject* args);
-  };
 
 namespace py_backend {
 

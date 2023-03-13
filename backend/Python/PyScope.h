@@ -50,7 +50,7 @@ class StackFrameScopeImpl {
   template <typename T>
   Local<T> returnValue(const Local<T> &localRef) {
     // create a new ref for localRef
-    return script::py_interop::toLocal<T>(script::py_interop::peekPy(localRef));
+    return py_interop::dupLocal(localRef);
   }
 };
 }  // namespace script::py_backend

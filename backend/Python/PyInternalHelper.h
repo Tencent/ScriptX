@@ -15,68 +15,21 @@
  * limitations under the License.
  */
 
+#pragma once
 #include "PyHelper.h"
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
-SCRIPTX_BEGIN_IGNORE_DEPRECARED
 #include <pystate.h>
-#define Py_BUILD_CORE       // trick here, as we must need some structures' members
-#include <internal/pycore_interp.h>
-#include <internal/pycore_runtime.h>
-#undef Py_BUILD_CORE
-SCRIPTX_END_IGNORE_DEPRECARED
 SCRIPTX_END_INCLUDE_LIBRARY
 
 // =========================================
 // - Attention! Functions and definitions below is copied from CPython source code so they 
 //  may need to be re-adapted as the CPython backend's version is updated.
 // - These function and definitions are not exported. We can only copy the implementation.
+
+struct _PyRuntimeState;
+
+void _PyThreadState_DeleteExcept(/*_PyRuntimeState *runtime, */ PyThreadState *tstate);
+
 // =========================================
 
-
-// =========== From Source Code <pystate.c> ===========
-#define HEAD_LOCK(runtime) \
-    PyThread_acquire_lock((runtime)->interpreters.mutex, WAIT_LOCK)
-#define HEAD_UNLOCK(runtime) \
-    PyThread_release_lock((runtime)->interpreters.mutex)
-
-
-// =========== From Source Code <pystate.c> ===========
-/*
- * Delete all thread states except the one passed as argument.
- * Note that, if there is a current thread state, it *must* be the one
- * passed as argument.  Also, this won't touch any other interpreters
- * than the current one, since we don't know which thread state should
- * be kept in those other interpreters.
- */
-inline void _PyThreadState_DeleteExcept(_PyRuntimeState *runtime, PyThreadState *tstate)
-{
-    PyInterpreterState *interp = tstate->interp;
-
-    HEAD_LOCK(runtime);
-    /* Remove all thread states, except tstate, from the linked list of
-       thread states.  This will allow calling PyThreadState_Clear()
-       without holding the lock. */
-    PyThreadState *list = interp->tstate_head;
-    if (list == tstate) {
-        list = tstate->next;
-    }
-    if (tstate->prev) {
-        tstate->prev->next = tstate->next;
-    }
-    if (tstate->next) {
-        tstate->next->prev = tstate->prev;
-    }
-    tstate->prev = tstate->next = NULL;
-    interp->tstate_head = tstate;
-    HEAD_UNLOCK(runtime);
-
-    /* Clear and deallocate all stale thread states.  Even if this
-       executes Python code, we should be safe since it executes
-       in the current thread, not one of the stale threads. */
-    PyThreadState *p, *next;
-    for (p = list; p; p = next) {
-        next = p->next;
-        PyThreadState_Clear(p);
-        PyMem_RawFree(p);
-    }
-}
+void SetPyInterpreterStateFinalizing(PyInterpreterState *is);
