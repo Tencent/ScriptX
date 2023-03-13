@@ -26,13 +26,19 @@ SCRIPTX_BEGIN_IGNORE_DEPRECARED
 
 namespace script::py_backend {
 
+// path of python standard libraries
+std::wstring SCRIPTX_PYTHON_HOME = L".\\lib\\python3";
+
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
   if (Py_IsInitialized() == 0)
   {
     // Not initialized. So no thread state at this time
 
+    // Set interpreter configs
     Py_SetStandardStreamEncoding("utf-8", nullptr);
+    Py_SetPythonHome(SCRIPTX_PYTHON_HOME.c_str());
+
     // Init main interpreter
     Py_InitializeEx(0);
     // Init threading environment
@@ -211,6 +217,11 @@ ScriptLanguage PyEngine::getLanguageType() { return ScriptLanguage::kPython; }
 std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
 bool PyEngine::isDestroying() const { return destroying; }
+
+void PyEngine::setPythonHomePath(const std::wstring path) {
+  SCRIPTX_PYTHON_HOME = path;
+  Py_SetPythonHome(SCRIPTX_PYTHON_HOME.c_str());
+}
 
 }  // namespace script::py_backend
 

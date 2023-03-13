@@ -18,6 +18,7 @@
 #pragma once
 
 #include <stack>
+#include <string>
 #include "../../src/Engine.h"
 #include "../../src/Exception.h"
 #include "../../src/utils/Helper.hpp"
@@ -91,6 +92,8 @@ private:
   ScriptLanguage getLanguageType() override;
 
   std::string getEngineVersion() override;
+
+  static void setPythonHomePath(const std::wstring path);
 
  protected:
   ~PyEngine() override;
