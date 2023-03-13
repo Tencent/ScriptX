@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-#include "PyHelper.h"
-#include "PyInternalHelper.h"
-#include "../../src/foundation.h"
 
-SCRIPTX_BEGIN_INCLUDE_LIBRARY
+
+// Attention! This file is compiled as C code
+// Because below two internal source header files cannot pass compile in CPP
+
+#include <Python.h>
+#include <pystate.h>
 #define Py_BUILD_CORE       // trick here, as we must need some structures' members
 #include <internal/pycore_interp.h>
 #include <internal/pycore_runtime.h>
 #undef Py_BUILD_CORE
-SCRIPTX_END_INCLUDE_LIBRARY
 
 // =========================================
 // - Attention! Functions and definitions below is copied from CPython source code so they 

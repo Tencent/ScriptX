@@ -27,8 +27,8 @@ SCRIPTX_END_INCLUDE_LIBRARY
 //  may need to be re-adapted as the CPython backend's version is updated.
 // - These function and definitions are not exported. We can only copy the implementation.
 
-void _PyThreadState_DeleteExcept(/*_PyRuntimeState *runtime, */ PyThreadState *tstate);
+extern "C" void _PyThreadState_DeleteExcept(/*_PyRuntimeState *runtime, */ PyThreadState *tstate);
 
 // =========================================
 
-void SetPyInterpreterStateFinalizing(PyInterpreterState *is);
+extern "C" void SetPyInterpreterStateFinalizing(PyInterpreterState *is);
