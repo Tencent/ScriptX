@@ -56,7 +56,8 @@
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <Python.h>
 #include <pystate.h>
-#define Py_BUILD_CORE       // trick here, as we must need some structures' members
+#define Py_BUILD_CORE       // trick, as we must need some structures' members
+#undef _PyGC_FINALIZED      // trick, to avoid marco re-define error in <internal/pycore_interp.h>
 #include <internal/pycore_interp.h>
 #include <internal/pycore_runtime.h>
 #undef Py_BUILD_CORE

@@ -556,10 +556,10 @@ private:
     type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
 
     // enable object dict
-    type->tp_dictoffset = offsetof(GeneralObject, instanceDict);
+    type->tp_dictoffset = SCRIPTX_OFFSET_OF(GeneralObject, instanceDict);
 
     /* Support weak references (needed for the keep_alive feature) */
-    type->tp_weaklistoffset = offsetof(GeneralObject, weakrefs);
+    type->tp_weaklistoffset = SCRIPTX_OFFSET_OF(GeneralObject, weakrefs);
 
     type->tp_new = [](PyTypeObject* type, PyObject* args, PyObject* kwds) -> PyObject* {
       PyObject* self = type->tp_alloc(type, 0);

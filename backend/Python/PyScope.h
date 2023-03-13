@@ -17,7 +17,6 @@
 
 #pragma once
 #include "../../src/Reference.h"
-//#include "PyHelper.h"
 
 namespace script::py_backend {
 
@@ -50,7 +49,7 @@ class StackFrameScopeImpl {
   template <typename T>
   Local<T> returnValue(const Local<T> &localRef) {
     // create a new ref for localRef
-    return py_interop::dupLocal(localRef);
+    return Local<T>(localRef);
   }
 };
 }  // namespace script::py_backend

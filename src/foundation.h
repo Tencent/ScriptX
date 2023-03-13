@@ -56,6 +56,9 @@ struct ImplType {
 #define SCRIPTX_BACKEND(FILE) \
   SCRIPTX_MARCO_TO_STRING(SCRIPTX_MARCO_JOIN(SCRIPTX_BACKEND_TRAIT_PREFIX, FILE))
 
+// Re-write offsetof because the original one will cause warning of non-standard-layout in GCC
+#define SCRIPTX_OFFSET_OF(TYPE,MEMBER)   ((size_t) &((TYPE *)0)->MEMBER)
+
 #ifdef _MSC_VER
 
 // MSVC only support the standart _Pragma on recent version, use the extension key word here
