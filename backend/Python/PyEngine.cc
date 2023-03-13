@@ -21,6 +21,8 @@
 #include "../../src/utils/Helper.hpp"
 #include "PyInternalHelper.h"
 
+SCRIPTX_BEGIN_IGNORE_DEPRECARED
+
 namespace script::py_backend {
 
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
@@ -210,3 +212,5 @@ std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 bool PyEngine::isDestroying() const { return destroying; }
 
 }  // namespace script::py_backend
+
+SCRIPTX_END_IGNORE_DEPRECARED

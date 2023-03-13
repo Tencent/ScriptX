@@ -16,11 +16,15 @@
  */
 
 #include "PyHelper.h"
+SCRIPTX_BEGIN_INCLUDE_LIBRARY
+SCRIPTX_BEGIN_IGNORE_DEPRECARED
 #include <pystate.h>
 #define Py_BUILD_CORE       // trick here, as we must need some structures' members
 #include <internal/pycore_interp.h>
 #include <internal/pycore_runtime.h>
 #undef Py_BUILD_CORE
+SCRIPTX_END_IGNORE_DEPRECARED
+SCRIPTX_END_INCLUDE_LIBRARY
 
 // =========================================
 // - Attention! Functions and definitions below is copied from CPython source code so they 

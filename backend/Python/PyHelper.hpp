@@ -33,6 +33,7 @@ class TssStorage {
  public:
   TssStorage() {
     int result = PyThread_tss_create(&key);  // TODO: Output or throw exception if failed
+    SCRIPTX_UNUSED(result);
   }
   ~TssStorage() {
     if (isValid()) PyThread_tss_delete(&key);

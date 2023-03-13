@@ -80,6 +80,13 @@ struct ImplType {
 
 #define SCRIPTX_END_INCLUDE_LIBRARY _Pragma("GCC diagnostic pop")
 
+// 2. ignore -Wdeprecated-declarations for Python
+#define SCRIPTX_BEGIN_IGNORE_DEPRECARED   \
+  _Pragma("GCC diagnostic push")          \
+  _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+
+#define SCRIPTX_END_IGNORE_DEPRECARED _Pragma("GCC diagnostic pop")
+
 #else
 
 // disable warnings from library header

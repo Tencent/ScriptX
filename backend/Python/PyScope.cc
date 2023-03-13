@@ -19,6 +19,8 @@
 #include "PyEngine.h"
 #include <iostream>
 
+SCRIPTX_BEGIN_IGNORE_DEPRECARED
+
 // Reference
 // https://docs.python.org/3.8/c-api/init.html#thread-state-and-the-global-interpreter-lock
 // https://stackoverflow.com/questions/26061298/python-multi-thread-multi-interpreter-c-api
@@ -137,3 +139,5 @@ ExitEngineScopeImpl::~ExitEngineScopeImpl() {
 }
 
 }  // namespace script::py_backend
+
+SCRIPTX_END_IGNORE_DEPRECARED
