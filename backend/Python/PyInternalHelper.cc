@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 
+#include "PyHelper.h"
 #include "PyInternalHelper.h"
+#include "../../src/foundation.h"
+
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #define Py_BUILD_CORE       // trick here, as we must need some structures' members
 #include <internal/pycore_interp.h>

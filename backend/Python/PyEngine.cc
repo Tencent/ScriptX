@@ -20,6 +20,7 @@
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
 #include "PyInternalHelper.h"
+#include "../../src/foundation.h"
 
 SCRIPTX_BEGIN_IGNORE_DEPRECARED
 

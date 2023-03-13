@@ -62,12 +62,18 @@ struct ImplType {
 #define SCRIPTX_BEGIN_INCLUDE_LIBRARY __pragma(warning(push, 0))
 #define SCRIPTX_END_INCLUDE_LIBRARY __pragma(pop)
 
+#define SCRIPTX_BEGIN_IGNORE_DEPRECARED
+#define SCRIPTX_END_IGNORE_DEPRECARED
+
 #elif defined(__clang__)
 
 #define SCRIPTX_BEGIN_INCLUDE_LIBRARY \
   _Pragma("clang diagnostic push") _Pragma("clang diagnostic ignored \"-Wall\"")
 
 #define SCRIPTX_END_INCLUDE_LIBRARY _Pragma("clang diagnostic pop")
+
+#define SCRIPTX_BEGIN_IGNORE_DEPRECARED
+#define SCRIPTX_END_IGNORE_DEPRECARED
 
 #elif defined(__GNUC__)
 // GCC can't suppress all warnings by -Wall

@@ -16,7 +16,8 @@
  */
 
 #pragma once
-#include "PyHelper.h"
+#include "../../src/foundation.h"
+
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <pystate.h>
 SCRIPTX_END_INCLUDE_LIBRARY
@@ -25,8 +26,6 @@ SCRIPTX_END_INCLUDE_LIBRARY
 // - Attention! Functions and definitions below is copied from CPython source code so they 
 //  may need to be re-adapted as the CPython backend's version is updated.
 // - These function and definitions are not exported. We can only copy the implementation.
-
-struct _PyRuntimeState;
 
 void _PyThreadState_DeleteExcept(/*_PyRuntimeState *runtime, */ PyThreadState *tstate);
 
