@@ -20,12 +20,47 @@
 // Attention! This file is compiled as C code
 // Because below two internal source header files cannot pass compile in CPP
 
+
+#ifdef _MSC_VER
+
+// MSVC only support the standart _Pragma on recent version, use the extension key word here
+#define SCRIPTX_BEGIN_INCLUDE_LIBRARY __pragma(warning(push, 0))
+#define SCRIPTX_END_INCLUDE_LIBRARY __pragma(pop)
+
+#elif defined(__clang__)
+
+#define SCRIPTX_BEGIN_INCLUDE_LIBRARY \
+  _Pragma("clang diagnostic push") _Pragma("clang diagnostic ignored \"-Wall\"")
+
+#define SCRIPTX_END_INCLUDE_LIBRARY _Pragma("clang diagnostic pop")
+
+#elif defined(__GNUC__)
+// GCC can't suppress all warnings by -Wall
+// suppress anything encountered explicitly
+// 1. -Wcast-function-type for QuickJs
+
+#define SCRIPTX_BEGIN_INCLUDE_LIBRARY                                        \
+  _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wall\"") \
+      _Pragma("GCC diagnostic ignored \"-Wcast-function-type\"")
+
+#define SCRIPTX_END_INCLUDE_LIBRARY _Pragma("GCC diagnostic pop")
+
+#else
+
+// disable warnings from library header
+#define SCRIPTX_BEGIN_INCLUDE_LIBRARY
+#define SCRIPTX_END_INCLUDE_LIBRARY
+
+#endif
+
+SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <Python.h>
 #include <pystate.h>
 #define Py_BUILD_CORE       // trick here, as we must need some structures' members
 #include <internal/pycore_interp.h>
 #include <internal/pycore_runtime.h>
 #undef Py_BUILD_CORE
+SCRIPTX_END_INCLUDE_LIBRARY
 
 // =========================================
 // - Attention! Functions and definitions below is copied from CPython source code so they 
