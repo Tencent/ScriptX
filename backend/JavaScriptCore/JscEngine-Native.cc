@@ -15,10 +15,8 @@
  * limitations under the License.
  */
 
-#pragma once
-
 #include <type_traits>
-#include "../../src/Native.h"
+#include "../../src/Native.hpp"
 #include "../../src/Scope.h"
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
@@ -28,41 +26,32 @@
 
 namespace script::jsc_backend {
 
-template <typename T>
-bool JscEngine::registerNativeClassImpl(const ClassDefine<T>* classDefine) {
+void JscEngine::performRegisterNativeClass(
+    internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*)) {
   Tracer traceRegister(this, classDefine->className);
-
-  internal::validateClassDefine(classDefine);
 
   Local<Value> object;
   ClassRegistryData registry{};
+  registry.instanceTypeToScriptClass = instanceTypeToScriptClass;
 
-  if (classDefine->instanceDefine.constructor) {
-    // make it constexpr if, save some binary size
-    if constexpr (!std::is_same_v<T, void>) {
-      defineInstance(classDefine, object, registry);
-    } else {
-      // validateClassDefine will make sure this won't happen
-      std::terminate();
-    }
+  if (classDefine->hasInstanceDefine()) {
+    defineInstance(classDefine, object, registry);
   } else {
     object = Object::newObject();
   }
 
   registerStaticDefine(classDefine->staticDefine, object.asObject());
 
-  auto ns = ::script::internal::getNamespaceObject(this, classDefine->getNameSpace(), getGlobal())
-                .asObject();
+  auto ns =
+      ::script::internal::getNamespaceObject(this, classDefine->nameSpace, getGlobal()).asObject();
   ns.set(classDefine->className, object);
 
-  classRegistry_.emplace(const_cast<ClassDefine<T>*>(classDefine), registry);
-
-  return true;
+  classRegistry_.emplace(classDefine, registry);
 }
 
-template <typename T>
-void JscEngine::defineInstance(const ClassDefine<T>* classDefine, Local<Value>& object,
-                               JscEngine::ClassRegistryData& registry) {
+void JscEngine::defineInstance(const internal::ClassDefineState* classDefine, Local<Value>& object,
+                               ClassRegistryData& registry) {
   JSClassDefinition instanceDefine = kJSClassDefinitionEmpty;
   instanceDefine.attributes = kJSClassAttributeNone;
   instanceDefine.className = classDefine->className.c_str();
@@ -85,17 +74,17 @@ void JscEngine::defineInstance(const ClassDefine<T>* classDefine, Local<Value>& 
 
   JSClassDefinition staticDefine = kJSClassDefinitionEmpty;
 
-  staticDefine.callAsConstructor = createConstructor<T>();
+  staticDefine.callAsConstructor = createConstructor();
   staticDefine.hasInstance = [](JSContextRef ctx, JSObjectRef constructor,
-                                JSValueRef possibleInstance, JSValueRef* exception) -> bool {
+                                JSValueRef possibleInstance, JSValueRef*) -> bool {
     auto engine = static_cast<JscEngine*>(JSObjectGetPrivate(JSContextGetGlobalObject(ctx)));
-    auto def = static_cast<ClassDefine<T>*>(JSObjectGetPrivate(constructor));
-    return engine->isInstanceOfImpl(make<Local<Value>>(possibleInstance), def);
+    auto def = static_cast<internal::ClassDefineState*>(JSObjectGetPrivate(constructor));
+    return engine->performIsInstanceOf(make<Local<Value>>(possibleInstance), def);
   };
 
   auto staticClass = JSClassCreate(&staticDefine);
-  object =
-      Local<Object>(JSObjectMake(context_, staticClass, const_cast<ClassDefine<T>*>(classDefine)));
+  object = Local<Object>(
+      JSObjectMake(context_, staticClass, const_cast<internal::ClassDefineState*>(classDefine)));
   // not used anymore
   JSClassRelease(staticClass);
   registry.constructor = object.asObject();
@@ -106,12 +95,11 @@ void JscEngine::defineInstance(const ClassDefine<T>* classDefine, Local<Value>& 
   registry.prototype = prototype;
 }
 
-template <typename T>
 JSObjectCallAsConstructorCallback JscEngine::createConstructor() {
   return [](JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
             const JSValueRef arguments[], JSValueRef* exception) {
     auto engine = static_cast<JscEngine*>(JSObjectGetPrivate(JSContextGetGlobalObject(ctx)));
-    auto def = static_cast<ClassDefine<T>*>(JSObjectGetPrivate(constructor));
+    auto def = static_cast<const internal::ClassDefineState*>(JSObjectGetPrivate(constructor));
 
     Tracer trace(engine, def->className);
 
@@ -125,22 +113,24 @@ JSObjectCallAsConstructorCallback JscEngine::createConstructor() {
 
     try {
       StackFrameScope stack;
-      T* thiz;
+      void* thiz;
       if (argumentCount == 2 && engine->isConstructorMarkSymbol(arguments[0]) &&
           JSValueIsObjectOfClass(engine->context_, arguments[1], externalClass_)) {
         // this logic is for
         // ScriptClass::ScriptClass(const ClassDefine<T> &define)
         auto obj = JSValueToObject(engine->context_, arguments[1], exception);
         checkException(*exception);
-        thiz = static_cast<T*>(JSObjectGetPrivate(obj));
+        thiz = JSObjectGetPrivate(obj);
       } else {
         // this logic is for
         // ScriptClass::ScriptClass(const Local<Object>& thiz)
         thiz = def->instanceDefine.constructor(callbackInfo);
       }
       if (thiz) {
-        thiz->internalState_.classDefine = def;
-        JSObjectSetPrivate(object, thiz);
+        auto scriptClass = registry.instanceTypeToScriptClass(thiz);
+        scriptClass->internalState_.classDefine = def;
+        scriptClass->internalState_.polymorphicPointer = thiz;
+        JSObjectSetPrivate(object, scriptClass);
         JSObjectSetPrototype(ctx, object,
                              toJsc(engine->context_, registry.prototype.get().asValue()));
         return object;
@@ -155,8 +145,7 @@ JSObjectCallAsConstructorCallback JscEngine::createConstructor() {
   };
 }
 
-template <typename T>
-Local<Object> JscEngine::defineInstancePrototype(const ClassDefine<T>* classDefine) {
+Local<Object> JscEngine::defineInstancePrototype(const internal::ClassDefineState* classDefine) {
   Local<Object> proto = Object::newObject();
 
   defineInstanceFunction(classDefine, proto);
@@ -167,27 +156,17 @@ Local<Object> JscEngine::defineInstancePrototype(const ClassDefine<T>* classDefi
     auto get = String::newString("get");
     auto set = String::newString("set");
 
-    defineInstanceProperties(classDefine, [&get, &set, &jsObject, &jsObject_def, &proto](
-                                              const Local<String>& name, const Local<Value>& getter,
-                                              const Local<Value>& setter) {
-      auto desc = Object::newObject();
-      if (!getter.isNull()) desc.set(get, getter);
-      if (!setter.isNull()) desc.set(set, setter);
-
-      // set prop to prototype
-      jsObject_def.call(jsObject, {proto, name, desc});
-    });
+    defineInstanceProperties(classDefine, get, set, jsObject, jsObject_def, proto);
   }
   return proto;
 }
 
-template <typename T>
-void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
+void JscEngine::defineInstanceFunction(const internal::ClassDefineState* classDefine,
                                        Local<Object>& prototypeObject) {
   struct ContextData {
-    typename internal::InstanceDefine<T>::FunctionDefine* functionDefine;
+    typename internal::InstanceDefine::FunctionDefine* functionDefine;
     JscEngine* engine;
-    const ClassDefine<T>* classDefine;
+    const internal::ClassDefineState* classDefine;
   };
 
   for (auto& f : classDefine->instanceDefine.functions) {
@@ -208,11 +187,11 @@ void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
       auto args = newArguments(engine, thisObject, arguments, argumentCount);
 
       try {
-        auto* t = static_cast<T*>(JSObjectGetPrivate(thisObject));
+        auto* t = static_cast<ScriptClass*>(JSObjectGetPrivate(thisObject));
         if (!t || t->internalState_.classDefine != def) {
           throw Exception(u8"call function on wrong receiver");
         }
-        auto returnVal = callback(t, args);
+        auto returnVal = callback(t->internalState_.polymorphicPointer, args);
         return toJsc(engine->context_, returnVal);
       } catch (Exception& e) {
         *exception = jsc_backend::JscEngine::toJsc(engine->context_, e.exception());
@@ -226,7 +205,7 @@ void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
     auto funcClazz = JSClassCreate(&jsFunc);
     Local<Function> funcObj(JSObjectMake(
         currentEngineContextChecked(), funcClazz,
-        new ContextData{const_cast<typename internal::InstanceDefine<T>::FunctionDefine*>(&f), this,
+        new ContextData{const_cast<typename internal::InstanceDefine::FunctionDefine*>(&f), this,
                         classDefine}));
 
     // not used anymore
@@ -237,13 +216,16 @@ void JscEngine::defineInstanceFunction(const ClassDefine<T>* classDefine,
   }
 }
 
-template <typename T, typename ConsumeLambda>
-void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
-                                         ConsumeLambda consumerLambda) {
+void JscEngine::defineInstanceProperties(const internal::ClassDefineState* classDefine,
+                                         const Local<String>& getString,
+                                         const Local<String>& setString,
+                                         const Local<Object>& jsObject,
+                                         const Local<Function>& jsObject_defineProperty,
+                                         const Local<Object>& prototype) {
   struct ContextData {
-    typename internal::InstanceDefine<T>::PropertyDefine* propertyDefine;
+    typename internal::InstanceDefine::PropertyDefine* propertyDefine;
     JscEngine* engine;
-    const ClassDefine<T>* classDefine;
+    const internal::ClassDefineState* classDefine;
   };
 
   for (auto& p : classDefine->instanceDefine.properties) {
@@ -265,11 +247,11 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
         Tracer trace(engine, pp->traceName);
 
         try {
-          auto* t = static_cast<T*>(JSObjectGetPrivate(thisObject));
+          auto* t = static_cast<ScriptClass*>(JSObjectGetPrivate(thisObject));
           if (!t || t->internalState_.classDefine != def) {
             throw Exception(u8"call function on wrong receiver");
           }
-          auto value = (pp->getter)(t);
+          auto value = (pp->getter)(t->internalState_.polymorphicPointer);
 
           return toJsc(engine->context_, value);
         } catch (Exception& e) {
@@ -282,10 +264,10 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
       };
       auto funcClazz = JSClassCreate(&jsFunc);
 
-      getter = Local<Function>(JSObjectMake(
-          currentEngineContextChecked(), funcClazz,
-          new ContextData{const_cast<typename internal::InstanceDefine<T>::PropertyDefine*>(&p),
-                          this, classDefine}));
+      getter = Local<Function>(
+          JSObjectMake(currentEngineContextChecked(), funcClazz,
+                       new ContextData{const_cast<internal::InstanceDefine::PropertyDefine*>(&p),
+                                       this, classDefine}));
 
       JSClassRelease(funcClazz);
     }
@@ -306,11 +288,11 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
         auto args = newArguments(engine, thisObject, arguments, argumentCount);
         if (args.size() > 0) {
           try {
-            auto* t = static_cast<T*>(JSObjectGetPrivate(thisObject));
+            auto* t = static_cast<ScriptClass*>(JSObjectGetPrivate(thisObject));
             if (!t || t->internalState_.classDefine != def) {
               throw Exception(u8"call function on wrong receiver");
             }
-            (pp->setter)(t, args[0]);
+            (pp->setter)(t->internalState_.polymorphicPointer, args[0]);
           } catch (Exception& e) {
             *exception = jsc_backend::JscEngine::toJsc(engine->context_, e.exception());
           }
@@ -324,23 +306,28 @@ void JscEngine::defineInstanceProperties(const ClassDefine<T>* classDefine,
 
       setter = Local<Function>(JSObjectMake(
           context_, funcClazz,
-          new ContextData{const_cast<typename internal::InstanceDefine<T>::PropertyDefine*>(&p),
-                          this, classDefine}));
+          new ContextData{const_cast<typename internal::InstanceDefine::PropertyDefine*>(&p), this,
+                          classDefine}));
 
       JSClassRelease(funcClazz);
     }
 
-    consumerLambda(String::newString(p.name), getter, setter);
+    auto desc = Object::newObject();
+    if (!getter.isNull()) desc.set(getString, getter);
+    if (!setter.isNull()) desc.set(setString, setter);
+
+    // set prop to prototype
+    jsObject_defineProperty.call(
+        jsObject, std::initializer_list<Local<Value>>{prototype, String::newString(p.name), desc});
   }
 }
 
-template <typename T>
-Local<Object> JscEngine::newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                            const Local<Value>* args) {
-  auto it = classRegistry_.find(const_cast<ClassDefine<T>*>(classDefine));
+Local<Object> JscEngine::performNewNativeClass(internal::TypeIndex typeIndex,
+                                               const internal::ClassDefineState* classDefine,
+                                               size_t size, const Local<script::Value>* args) {
+  auto it = classRegistry_.find(const_cast<internal::ClassDefineState*>(classDefine));
   if (it == classRegistry_.end()) {
-    registerNativeClassImpl(classDefine);
-    it = classRegistry_.find(const_cast<ClassDefine<T>*>(classDefine));
+    throw Exception("class define[" + classDefine->className + "] is not registered");
   }
 
   if (it != classRegistry_.end() && !it->second.constructor.isEmpty()) {
@@ -357,10 +344,10 @@ Local<Object> JscEngine::newNativeClassImpl(const ClassDefine<T>* classDefine, s
   throw Exception("can't create native class");
 }
 
-template <typename T>
-bool JscEngine::isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
+bool JscEngine::performIsInstanceOf(const Local<script::Value>& value,
+                                    const internal::ClassDefineState* classDefine) {
   if (!value.isObject()) return false;
-  auto it = classRegistry_.find(const_cast<ClassDefine<T>*>(classDefine));
+  auto it = classRegistry_.find(const_cast<internal::ClassDefineState*>(classDefine));
 
   if (it != classRegistry_.end() && !it->second.constructor.isEmpty()) {
     return JSValueIsObjectOfClass(context_, toJsc(context_, value), it->second.instanceClass);
@@ -369,22 +356,13 @@ bool JscEngine::isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>
   return false;
 }
 
-template <typename T>
-T* JscEngine::getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine) {
-  if (value.isObject() && isInstanceOfImpl(value, classDefine)) {
-    return reinterpret_cast<T*>(JSObjectGetPrivate(value.asObject().val_));
+void* JscEngine::performGetNativeInstance(const Local<script::Value>& value,
+                                          const internal::ClassDefineState* classDefine) {
+  if (value.isObject() && performIsInstanceOf(value, classDefine)) {
+    return static_cast<ScriptClass*>(JSObjectGetPrivate(value.asObject().val_))
+        ->internalState_.polymorphicPointer;
   }
   return nullptr;
-}
-
-inline typename RefTypeMap<Value>::jscType JscEngine::toJsc(JSGlobalContextRef context,
-                                                            const Local<Value>& ref) {
-  if (ref.isNull()) {
-    return Local<Value>(
-               const_cast<typename Local<Value>::InternalLocalRef>(JSValueMakeUndefined(context)))
-        .val_;
-  }
-  return ref.val_;
 }
 
 }  // namespace script::jsc_backend

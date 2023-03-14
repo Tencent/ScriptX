@@ -702,14 +702,18 @@ class BaseClass {
   int age = 0;
   int num = 1;
   const int length = 180;
+  int veryLongArray[1024];
 
-  std::string name() { return "Base"; }
+  // Intentionally virtual to make BaseClassScriptWrapper's memory layout special
+  virtual std::string name() { return "Base"; }
 
   int getNum() { return num; }
 
   void setNum(int n) { num = n; }
 };
 
+// Intentionally make this not a standard-layout class and let ScriptClass be the latter one
+// actually  BaseClassScriptWrapper* and ScriptClass* will be different memory address
 class BaseClassScriptWrapper : public BaseClass, public ScriptClass {
  public:
   explicit BaseClassScriptWrapper(const Local<Object>& thiz) : BaseClass(), ScriptClass(thiz) {}
@@ -749,6 +753,11 @@ TEST_F(NativeTest, BindBaseClass) {
   } catch (const Exception& e) {
     FAIL() << e;
   }
+}
+
+TEST_F(NativeTest, NewNativeClassWhitoutRegister) {
+  EngineScope engineScope(engine);
+  EXPECT_THROW({ engine->newNativeClass<BaseClassScriptWrapper>(); }, Exception);
 }
 
 namespace {

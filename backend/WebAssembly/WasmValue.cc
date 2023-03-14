@@ -19,7 +19,7 @@
 #include "../../src/Reference.h"
 #include "../../src/Scope.h"
 #include "../../src/Value.h"
-#include "WasmEngine.hpp"
+#include "WasmEngine.h"
 
 namespace script {
 

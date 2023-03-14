@@ -64,6 +64,37 @@ ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : in
   internalState_.weakRef_ = scriptObject;
 }
 
+void ScriptClass::performConstructFromCpp(internal::TypeIndex typeIndex,
+                                          const internal::ClassDefineState* classDefine) {
+  auto engine = lua_backend::currentEngine();
+
+  // Out must be outside of StackFrameScope.
+  // Because we only has Weak<Object> hold to obj
+  // to prevent obj from GCed, we relay on obj be the local ref.
+  Local<Value> out;
+
+  {
+    StackFrameScope scope;
+    auto lua = engine->lua_;
+
+    lua_pushlightuserdata(lua,
+                          const_cast<void*>(lua_backend::LuaEngine::kLuaNativeConstructorMarker_));
+    auto mark = lua_gettop(lua);
+
+    lua_pushlightuserdata(lua, this);
+    auto thiz = lua_gettop(lua);
+
+    std::initializer_list<Local<Value>> args{lua_backend::LuaEngine::make<Local<Value>>(mark),
+                                             lua_backend::LuaEngine::make<Local<Value>>(thiz)};
+    auto obj = engine->performNewNativeClass(typeIndex, classDefine, args.size(), args.begin());
+
+    out = scope.returnValue(obj);
+  }
+
+  internalState_.scriptEngine_ = engine;
+  internalState_.weakRef_ = out.asObject();
+}
+
 Local<Object> ScriptClass::getScriptObject() const { return internalState_.weakRef_.get(); }
 
 Local<Array> ScriptClass::getInternalStore() const {

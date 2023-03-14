@@ -102,7 +102,8 @@ jobs:
 
   ubuntu-gcc-run:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # JavaScriptCore requires libicu66 which is only avaliable on ubuntu-20.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -203,6 +204,10 @@ jobs:
   webassembly-emscripten-run:
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        emscripten-version: [ '3.0.0', '3.1.33' ]
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -214,12 +219,12 @@ jobs:
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v11
         with:
-          version: '3.0.0'
-          actions-cache-folder: 'emsdk-cache-3.0.0'
+          version: ${{ matrix.emscripten-version }}
+          actions-cache-folder: emsdk-cache-${{ matrix.emscripten-version }}
       - name: Setup Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: '>= 14'
+          node-version: '19.3.0' # insteadof '>= 14', use fixed version
       - name: Configure Webassembly backend
         env:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
@@ -236,4 +241,5 @@ jobs:
         run: |
           cd build
           # exclude failed tests
-          node UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All:EngineTest.JsPromiseTest:ShowCaseTest.SetTimeout'
+          # --no-experimental-fetch config from https://github.com/emscripten-core/emscripten/issues/16915
+          node --no-experimental-fetch UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All:EngineTest.JsPromiseTest:ShowCaseTest.SetTimeout'

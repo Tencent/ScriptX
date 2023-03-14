@@ -79,17 +79,17 @@ using FunctionCallback = std::function<Local<Value>(const Arguments& args)>;
 using GetterCallback = std::function<Local<Value>()>;
 using SetterCallback = std::function<void(const Local<Value>& value)>;
 
-template <typename T>
-using InstanceFunctionCallback = std::function<Local<Value>(T*, const Arguments& args)>;
+// template <typename T>
+using InstanceFunctionCallback = std::function<Local<Value>(void*, const Arguments& args)>;
 
-template <typename T>
-using InstanceSetterCallback = std::function<void(T*, const Local<Value>& value)>;
+// template <typename T>
+using InstanceSetterCallback = std::function<void(void*, const Local<Value>& value)>;
 
-template <typename T>
-using InstanceGetterCallback = std::function<Local<Value>(T*)>;
+// template <typename T>
+using InstanceGetterCallback = std::function<Local<Value>(void*)>;
 
-template <typename T>
-using InstanceConstructor = std::function<T*(const Arguments& args)>;
+// template <typename T>
+using InstanceConstructor = std::function<void*(const Arguments& args)>;
 
 class ScriptClass;
 
@@ -165,6 +165,8 @@ class Tracer;
 namespace internal {
 
 class StaticDefine;
+
+class ClassDefineState;
 
 template <typename T, typename>
 struct TypeHolder;

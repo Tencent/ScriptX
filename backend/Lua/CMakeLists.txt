@@ -3,7 +3,7 @@ target_sources(ScriptX PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/LuaByteBufferImpl.cc
         ${CMAKE_CURRENT_LIST_DIR}/LuaEngine.cc
         ${CMAKE_CURRENT_LIST_DIR}/LuaEngine.h
-        ${CMAKE_CURRENT_LIST_DIR}/LuaEngine.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/LuaEngine-Native.cc
         ${CMAKE_CURRENT_LIST_DIR}/LuaException.cc
         ${CMAKE_CURRENT_LIST_DIR}/LuaHelper.cc
         ${CMAKE_CURRENT_LIST_DIR}/LuaHelper.h

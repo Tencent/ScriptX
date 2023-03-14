@@ -31,8 +31,8 @@ namespace script {
 
 class ScriptEngine {
  protected:
-  std::unordered_map<internal::TypeIndex, const void*> classDefineRegistry_{};
-  std::unordered_set<const void*> staticClassDefineRegistry_{};
+  std::unordered_map<internal::TypeIndex, const internal::ClassDefineState*> classDefineRegistry_{};
+  std::unordered_set<const internal::ClassDefineState*> staticClassDefineRegistry_{};
   std::shared_ptr<void> userData_{};
 
  public:
@@ -144,13 +144,11 @@ class ScriptEngine {
   const ClassDefine<T>& getClassDefine() const;
 
   template <typename T>
-  Local<Object> newNativeClass(const std::initializer_list<Local<Value>>& args) {
-    return newNativeClassImpl<T>(getClassDefine<T>(), args.size(), args.begin());
-  }
+  Local<Object> newNativeClass(const std::initializer_list<Local<Value>>& args);
 
   /**
    * create a script class instance of the given native classDefine.
-   * if the classDefine is not registered by registerNativeClass, it will be registered first.
+   * the classDefine must already be registered by registerNativeClass.
    * @tparam T a subclass of the NativeClass, which implements all the Script-Native method in cpp.
    * (can be void if no instance is required).
    * @param classDefine the pointer should be valid until the engine is destroyed.
@@ -158,9 +156,7 @@ class ScriptEngine {
    * @throw Exception if ClassDefine<T> is not already registered.
    */
   template <typename T>
-  Local<Object> newNativeClass(const std::vector<Local<Value>>& args) {
-    return newNativeClassImpl<T>(getClassDefine<T>(), args.size(), args.data());
-  }
+  Local<Object> newNativeClass(const std::vector<Local<Value>>& args);
 
   /**
    * typesafe variadic template helper method
@@ -177,9 +173,7 @@ class ScriptEngine {
    * @throw Exception if ClassDefine<T> is not already registered.
    */
   template <typename T>
-  bool isInstanceOf(const Local<Value>& value) {
-    return isInstanceOfImpl(value, getClassDefine<T>());
-  }
+  bool isInstanceOf(const Local<Value>& value);
 
   /**
    * if value is instance of a registered native class, return the native instance,
@@ -187,9 +181,7 @@ class ScriptEngine {
    * @throw Exception if ClassDefine<T> is not already registered.
    */
   template <typename T>
-  T* getNativeInstance(const Local<Value>& value) {
-    return getNativeInstanceImpl(value, getClassDefine<T>());
-  }
+  T* getNativeInstance(const Local<Value>& value);
 
   /**
    * @return a MessageQueue to provide event-loop/run-loop facility
@@ -247,23 +239,34 @@ class ScriptEngine {
 
   void destroyUserData();
 
+  // non-template version of ClassDefine related api
  private:
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>& classDefine, size_t size,
-                                   const Local<Value>* args);
+  void registerNativeClassInternal(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      ScriptClass* (*instanceTypeToScriptClass)(void* instancePointer));
+
+  const internal::ClassDefineState* getClassDefineInternal(internal::TypeIndex typeIndex) const;
+
+  // implemented by backend
+ protected:
+  virtual void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      ScriptClass* (*instanceTypeToScriptClass)(void* instancePointer)) = 0;
+
+  virtual Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
+                                              const internal::ClassDefineState* classDefine,
+                                              size_t size, const Local<Value>* args) = 0;
+
+  virtual bool performIsInstanceOf(const Local<Value>& value,
+                                   const internal::ClassDefineState* classDefine) = 0;
 
   /**
-   * check whether value is instance of a registered native class
+   * @param value
+   * @param classDefine
+   * @return pointer of the instance
    */
-  template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>& classDefine);
-
-  /**
-   * if value is instance of a registered native class, return the native instance,
-   * else return nullptr.
-   */
-  template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>& classDefine);
+  virtual void* performGetNativeInstance(const Local<Value>& value,
+                                         const internal::ClassDefineState* classDefine) = 0;
 };
 
 /**

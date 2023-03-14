@@ -29,54 +29,42 @@ namespace script {
 
 template <typename T>
 void ScriptEngine::registerNativeClass(const ClassDefine<T>& classDefine) {
-  if ((std::is_same_v<void, T> &&
-       staticClassDefineRegistry_.find(&classDefine) != staticClassDefineRegistry_.end()) ||
-      classDefineRegistry_.find(internal::typeIndexOf<T>()) != classDefineRegistry_.end()) {
-    throw Exception(std::string("already registered for " + classDefine.getClassName()));
-  }
-  using RealEngine = typename internal::ImplType<ScriptEngine>::type;
-
-  internal::scriptDynamicCast<RealEngine*>(this)->registerNativeClassImpl<T>(&classDefine);
-
-  if (std::is_same_v<void, T>) {
-    staticClassDefineRegistry_.emplace(&classDefine);
-  } else {
-    classDefineRegistry_.emplace(internal::typeIndexOf<T>(), &classDefine);
-  }
+  return registerNativeClassInternal(
+      internal::typeIndexOf<T>(), static_cast<const internal::ClassDefineState*>(&classDefine),
+      [](void* instancePointer) {
+        return static_cast<ScriptClass*>(static_cast<T*>(instancePointer));
+      });
 }
 
 template <typename T>
 const ClassDefine<T>& ScriptEngine::getClassDefine() const {
   static_assert(!std::is_same_v<void, T>);
-  auto it = classDefineRegistry_.find(internal::typeIndexOf<T>());
-  if (it == classDefineRegistry_.end()) {
-    throw Exception(std::string("ClassDefine is not registered"));
-  }
-  return *static_cast<const ClassDefine<T>*>(it->second);
+  auto state = getClassDefineInternal(internal::typeIndexOf<T>());
+  return *static_cast<const ClassDefine<T>*>(state);
 }
 
 template <typename T>
-Local<Object> ScriptEngine::newNativeClassImpl(const ClassDefine<T>& classDefine, size_t size,
-                                               const Local<Value>* args) {
+Local<Object> ScriptEngine::newNativeClass(const std::vector<Local<Value>>& args) {
   static_assert(!std::is_same_v<void, T>);
-  using RealEngine = typename internal::ImplType<ScriptEngine>::type;
-  return internal::scriptDynamicCast<RealEngine*>(this)->newNativeClassImpl<T>(&classDefine, size,
-                                                                               args);
+  return performNewNativeClass(internal::typeIndexOf<T>(), &getClassDefine<T>(), args.size(),
+                               args.data());
 }
 
 template <typename T>
-bool ScriptEngine::isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>& classDefine) {
+Local<Object> ScriptEngine::newNativeClass(const std::initializer_list<Local<Value>>& args) {
   static_assert(!std::is_same_v<void, T>);
-  using RealEngine = typename internal::ImplType<ScriptEngine>::type;
-  return internal::scriptDynamicCast<RealEngine*>(this)->isInstanceOfImpl(value, &classDefine);
+  return performNewNativeClass(internal::typeIndexOf<T>(), &getClassDefine<T>(), args.size(),
+                               args.begin());
 }
 
 template <typename T>
-T* ScriptEngine::getNativeInstanceImpl(const Local<Value>& value,
-                                       const ClassDefine<T>& classDefine) {
-  static_assert(!std::is_same_v<void, T>);
-  using RealEngine = typename internal::ImplType<ScriptEngine>::type;
-  return internal::scriptDynamicCast<RealEngine*>(this)->getNativeInstanceImpl(value, &classDefine);
+bool ScriptEngine::isInstanceOf(const Local<script::Value>& value) {
+  return performIsInstanceOf(value, &getClassDefine<T>());
+}
+
+template <typename T>
+T* ScriptEngine::getNativeInstance(const Local<script::Value>& value) {
+  return static_cast<T*>(performGetNativeInstance(value, &getClassDefine<T>()));
 }
 
 template <typename T>

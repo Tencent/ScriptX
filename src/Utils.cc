@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "Utils.h"
+#include <ScriptX/ScriptX.h>
 #include <atomic>
 
 namespace script {

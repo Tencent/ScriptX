@@ -109,30 +109,31 @@ class QjsEngine : public ScriptEngine {
  protected:
   ~QjsEngine() override;
 
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override;
+
+  void* performGetNativeInstance(const Local<script::Value>& value,
+                                 const internal::ClassDefineState* classDefine) override;
+
+  bool performIsInstanceOf(const Local<script::Value>& value,
+                           const internal::ClassDefineState* classDefine) override;
+
+  Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
+                                      const internal::ClassDefineState* classDefine, size_t size,
+                                      const Local<script::Value>* args) override;
+
  private:
   struct BookKeepFetcher;
   friend struct QjsBookKeepFetcher;
 
-  template <typename T>
-  void registerNativeClassImpl(const ClassDefine<T>* classDefine);
+  void registerNativeStatic(const Local<Object>& module,
+                            const internal::StaticDefine& staticDefine);
 
-  void registerNativeStatic(const Local<Object>& module, const internal::StaticDefine& data1);
+  Local<Object> newConstructor(const internal::ClassDefineState* define,
+                               ScriptClass* (*instanceTypeToScriptClass)(void* instancePointer));
 
-  template <typename T>
-  Local<Object> newConstructor(const ClassDefine<T>& define);
-
-  template <typename T>
-  Local<Object> newPrototype(const ClassDefine<T>& define);
-
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                   const Local<Value>* args);
-
-  template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
+  Local<Object> newPrototype(const internal::ClassDefineState* define);
 
   void initEngineResource();
 

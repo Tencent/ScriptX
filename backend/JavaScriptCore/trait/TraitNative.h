@@ -38,6 +38,7 @@ struct ArgumentsData {
 struct JscScriptClassState {
   JscEngine* scriptEngine_ = nullptr;
   const void* classDefine = nullptr;
+  void* polymorphicPointer = nullptr;
   JscWeakRef weakRef_;
 };
 

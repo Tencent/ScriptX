@@ -1,6 +1,6 @@
 /*
  * Tencent is pleased to support the open source community by making ScriptX available.
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2023 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-#include "Engine.h"
-#include "Native.hpp"
+#include <ScriptX/ScriptX.h>
 
 namespace script {
 
@@ -24,10 +23,36 @@ void ScriptEngine::setData(std::shared_ptr<void> arbitraryData) {
   userData_ = std::move(arbitraryData);
 }
 
-void ScriptEngine::registerNativeClass(const NativeRegister& nativeRegister) {
+void ScriptEngine::destroyUserData() { userData_.reset(); }
+
+void ScriptEngine::registerNativeClass(const script::NativeRegister& nativeRegister) {
   nativeRegister.registerNativeClass(this);
 }
 
-void ScriptEngine::destroyUserData() { userData_.reset(); }
+void ScriptEngine::registerNativeClassInternal(
+    internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*)) {
+  if ((!classDefine->hasInstanceDefine() &&
+       staticClassDefineRegistry_.find(classDefine) != staticClassDefineRegistry_.end()) ||
+      classDefineRegistry_.find(typeIndex) != classDefineRegistry_.end()) {
+    throw Exception(std::string("already registered for " + classDefine->className));
+  }
+  performRegisterNativeClass(typeIndex, classDefine, instanceTypeToScriptClass);
+
+  if (!classDefine->hasInstanceDefine()) {
+    staticClassDefineRegistry_.emplace(classDefine);
+  } else {
+    classDefineRegistry_.emplace(typeIndex, classDefine);
+  }
+}
+
+const internal::ClassDefineState* ScriptEngine::getClassDefineInternal(
+    internal::TypeIndex typeIndex) const {
+  auto it = classDefineRegistry_.find(typeIndex);
+  if (it == classDefineRegistry_.end()) {
+    throw Exception(std::string("ClassDefine is not registered"));
+  }
+  return it->second;
+}
 
 }  // namespace script

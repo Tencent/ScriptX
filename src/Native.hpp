@@ -154,6 +154,41 @@ class OverloadInvalidArguments : public std::exception {};
 template <typename>
 struct ConvertingFuncCallHelper {};
 
+// extract common code to utils, in order to reduce code size in terms of template specialization
+struct ConvertCallHelperUtils {
+  /**
+   * @param args
+   * @param argsCount
+   * @param nothrow
+   * @return true for failure, abort immediately
+   */
+  static bool checkArgs(const Arguments& args, size_t argsCount, bool nothrow) {
+    if (args.size() != argsCount) {
+      // fail fast
+      if (nothrow) return true;
+      std::ostringstream msg;
+      msg << "Argument count mismatch, expect:" << argsCount << " got:" << args.size();
+      throw Exception(msg.str());
+    }
+    return false;
+  }
+
+  static Local<Value> handleParamConvertFailure(const Exception& e, bool nothrow,
+                                                bool throwForOverload) {
+    if (!nothrow && throwForOverload) throw OverloadInvalidArguments();
+    return handleException(e, nothrow);
+  }
+
+  template <typename RetType>
+  static Local<Value> convertAndReturn(RetType&& ret, bool nothrow) {
+    try {
+      return TypeConverter<RetType>::toScript(std::forward<RetType>(ret));
+    } catch (const Exception& e) {
+      return handleException(e, nothrow);
+    }
+  }
+};
+
 template <typename Ret, typename... Args>
 struct ConvertingFuncCallHelper<std::pair<Ret, std::tuple<Args...>>> {
  private:
@@ -173,30 +208,21 @@ struct ConvertingFuncCallHelper<std::pair<Ret, std::tuple<Args...>>> {
     // using std::optional::operator* instead
 
     try {
-      if (args.size() != sizeof...(Args)) {
-        // fail fast
-        if (nothrow) return {};
-        std::ostringstream msg;
-        msg << "Argument count mismatch, expect:" << (sizeof...(Args)) << " got:" << args.size();
-        throw Exception(msg.str());
+      if (ConvertCallHelperUtils::checkArgs(args, ArgsLength, nothrow)) {
+        return {};
       }
       typeHolders.emplace(args[index]...);
       cppArgs.emplace(std::get<index>(*typeHolders).template toCpp<Args>()...);
     } catch (const Exception& e) {
-      if (!nothrow && throwForOverload) throw OverloadInvalidArguments();
-      return handleException(e, nothrow);
+      return ConvertCallHelperUtils::handleParamConvertFailure(e, nothrow, throwForOverload);
     }
 
     if constexpr (std::is_same_v<Ret, void>) {
       std::apply(func, *std::move(cppArgs));
       return {};
     } else {
-      auto ret = std::apply(func, *std::move(cppArgs));
-      try {
-        return TypeConverter<Ret>::toScript(std::forward<Ret>(ret));
-      } catch (const Exception& e) {
-        return handleException(e, nothrow);
-      }
+      return ConvertCallHelperUtils::convertAndReturn<Ret>(std::apply(func, *std::move(cppArgs)),
+                                                           nothrow);
     }
   }
 
@@ -208,30 +234,21 @@ struct ConvertingFuncCallHelper<std::pair<Ret, std::tuple<Args...>>> {
     std::optional<std::tuple<Ins*, typename ConverterDecay<Args>::type...>> cppArgs;
 
     try {
-      if (args.size() != sizeof...(Args)) {
-        // fail fast
-        if (nothrow) return {};
-        std::ostringstream msg;
-        msg << "Argument count mismatch, expect:" << (sizeof...(Args)) << " got:" << args.size();
-        throw Exception(msg.str());
+      if (ConvertCallHelperUtils::checkArgs(args, ArgsLength, nothrow)) {
+        return {};
       }
       typeHolders.emplace(args[index]...);
       cppArgs.emplace(ins, std::get<index>(*typeHolders).template toCpp<Args>()...);
     } catch (const Exception& e) {
-      if (!nothrow && throwForOverload) throw OverloadInvalidArguments();
-      return handleException(e, nothrow);
+      return ConvertCallHelperUtils::handleParamConvertFailure(e, nothrow, throwForOverload);
     }
 
     if constexpr (std::is_same_v<Ret, void>) {
       std::apply(func, *std::move(cppArgs));
       return {};
     } else {
-      auto ret = std::apply(func, *std::move(cppArgs));
-      try {
-        return TypeConverter<Ret>::toScript(std::forward<Ret>(ret));
-      } catch (const Exception& e) {
-        return handleException(e, nothrow);
-      }
+      return ConvertCallHelperUtils::convertAndReturn(std::apply(func, *std::move(cppArgs)),
+                                                      nothrow);
     }
   }
 
@@ -266,7 +283,7 @@ template <typename T>
 struct ClassConstructorHelper<T,
                               std::enable_if_t<IsScriptClassConstructible<T, Local<Object>>::value>>
     : std::true_type {
-  static InstanceConstructor<T> ctor() {
+  static InstanceConstructor ctor() {
     return [](const Arguments& args) -> T* { return new T(args.thiz()); };
   }
 };
@@ -276,7 +293,7 @@ struct ClassConstructorHelper<
     T, std::enable_if_t<IsScriptClassConstructible<T, Arguments>::value
                         // add inverse check, to avoid both two specialize can fit
                         && !IsScriptClassConstructible<T, Local<Object>>::value>> : std::true_type {
-  static InstanceConstructor<T> ctor() {
+  static InstanceConstructor ctor() {
     return [](const Arguments& args) -> T* { return new T(args); };
   }
 };
@@ -381,37 +398,57 @@ std::enable_if_t<::script::converter::isConvertible<typename FuncTrait<Func>::Re
                      // if Arg<0> is base class of Class
                      std::is_convertible_v<Class*, typename ArgsTrait<Func>::template Arg<0>> &&
                      isArgsConvertible<typename ArgsTrait<Func>::Tail>,
-                 InstanceFunctionCallback<Class>>
+                 InstanceFunctionCallback>
 bindInstanceFunc(Func&& func, bool nothrow, bool throwForOverload = false) {
-  return
-      [f = std::forward<Func>(func), nothrow, throwForOverload](Class* ins, const Arguments& args) {
-        using Helper = ConvertingFuncCallHelper<
-            std::pair<typename ConverterDecay<typename FuncTrait<Func>::ReturnType>::type,
-                      typename ArgsTrait<Func>::Tail>>;
+  if (!func) return {};
 
-        return Helper::callInstanceFunc(f, ins, args, nothrow, throwForOverload);
-      };
+  return [f = std::forward<Func>(func), nothrow, throwForOverload](/* Class* */ void* ins,
+                                                                   const Arguments& args) {
+    using Helper = ConvertingFuncCallHelper<
+        std::pair<typename ConverterDecay<typename FuncTrait<Func>::ReturnType>::type,
+                  typename ArgsTrait<Func>::Tail>>;
+
+    return Helper::callInstanceFunc(f, static_cast<Class*>(ins), args, nothrow, throwForOverload);
+  };
 }
 
 template <typename Class>
-InstanceFunctionCallback<Class> bindInstanceFunc(InstanceFunctionCallback<Class>&& func, bool,
-                                                 bool = false) {
+InstanceFunctionCallback bindInstanceFunc(
+    std::function<Local<Value>(Class*, const Arguments& args)>&& func, bool, bool = false) {
+  if (!func) return {};
+
+  return [f = std::forward<std::function<Local<Value>(Class*, const Arguments& args)>>(func)](
+             /* Class* */ void* thiz, const Arguments& args) {
+    return f(static_cast<Class*>(thiz), args);
+  };
+}
+
+template <typename Class>
+InstanceFunctionCallback bindInstanceFunc(
+    const std::function<Local<Value>(Class*, const Arguments& args)>& func, bool, bool = false) {
+  return bindInstanceFunc(std::function<Local<Value>(Class*, const Arguments& args)>(func), false,
+                          false);
+}
+
+template <typename Class>
+InstanceFunctionCallback bindInstanceFunc(InstanceFunctionCallback&& func, bool, bool = false) {
   return std::move(func);
 }
 
 template <typename Class>
-InstanceFunctionCallback<Class> bindInstanceFunc(const InstanceFunctionCallback<Class>& func, bool,
-                                                 bool = false) {
+InstanceFunctionCallback bindInstanceFunc(const InstanceFunctionCallback& func, bool,
+                                          bool = false) {
   return func;
 }
 
 template <typename Class, typename... Func>
-InstanceFunctionCallback<Class> adaptOverloadedInstanceFunction(Func&&... functions) {
+InstanceFunctionCallback adaptOverloadedInstanceFunction(Func&&... functions) {
   std::vector funcs{bindInstanceFunc<Class>(std::forward<Func>(functions), false, true)...};
-  return [overload = std::move(funcs)](Class* thiz, const Arguments& args) -> Local<Value> {
+  return [overload = std::move(funcs)](/* Class* */ void* thiz,
+                                       const Arguments& args) -> Local<Value> {
     for (size_t i = 0; i < sizeof...(Func); ++i) {
       try {
-        return std::invoke(overload[i], thiz, args);
+        return std::invoke(overload[i], static_cast<Class*>(thiz), args);
       } catch (const OverloadInvalidArguments&) {
         if (i == sizeof...(Func) - 1) {
           throw Exception("no valid overloaded function chosen");
@@ -427,12 +464,12 @@ std::enable_if_t<::script::converter::isConvertible<typename FuncTrait<Func>::Re
                      ArgsTrait<Func>::count == 1 &&
                      // if Arg<0> is base class of C
                      std::is_convertible_v<Class*, typename ArgsTrait<Func>::template Arg<0>>,
-                 InstanceGetterCallback<Class>>
+                 InstanceGetterCallback>
 bindInstanceGet(Func&& get, bool nothrow) {
-  return [g = std::forward<Func>(get), nothrow](Class* thiz) -> Local<Value> {
+  return [g = std::forward<Func>(get), nothrow](/* Class* */ void* thiz) -> Local<Value> {
     using Type = typename FuncTrait<Func>::ReturnType;
     try {
-      return TypeConverter<Type>::toScript(std::invoke(g, thiz));
+      return TypeConverter<Type>::toScript(std::invoke(g, static_cast<Class*>(thiz)));
     } catch (Exception& e) {
       return handleException(e, nothrow);
     }
@@ -440,13 +477,26 @@ bindInstanceGet(Func&& get, bool nothrow) {
 }
 
 template <typename C>
-InstanceGetterCallback<C> bindInstanceGet(InstanceGetterCallback<C>&& g, bool) {
+InstanceGetterCallback bindInstanceGet(std::function<Local<Value>(C*)>&& get, bool) {
+  if (!get) return {};
+
+  return [g = std::forward<std::function<Local<Value>(C*)>>(get)](
+             /* C* */ void* thiz) { return g(static_cast<C*>(thiz)); };
+}
+
+template <typename C>
+InstanceGetterCallback bindInstanceGet(InstanceGetterCallback&& g, bool) {
   return std::move(g);
 }
 
 template <typename C>
-InstanceGetterCallback<C> bindInstanceGet(const InstanceGetterCallback<C>& g, bool) {
+InstanceGetterCallback bindInstanceGet(const InstanceGetterCallback& g, bool) {
   return g;
+}
+
+template <typename C>
+InstanceGetterCallback bindInstanceGet(const std::function<Local<Value>(C*)>& g, bool) {
+  return bindInstanceGet(std::function<Local<Value>(void*)>(g), false);
 }
 
 template <typename Class, typename Func>
@@ -455,9 +505,10 @@ std::enable_if_t<std::is_same_v<typename FuncTrait<Func>::ReturnType, void> &&
                      // if Arg<0> is base class of C
                      std::is_convertible_v<Class*, typename ArgsTrait<Func>::template Arg<0>> &&
                      isArgsConvertible<typename ArgsTrait<Func>::Tail>,
-                 InstanceSetterCallback<Class>>
+                 InstanceSetterCallback>
 bindInstanceSet(Func&& get, bool nothrow) {
-  return [g = std::forward<Func>(get), nothrow](Class* thiz, const Local<Value>& value) -> void {
+  return [g = std::forward<Func>(get), nothrow](/* Class* */ void* thiz,
+                                                const Local<Value>& value) -> void {
     using SecondArg = typename ConverterDecay<typename ArgsTrait<Func>::template Arg<1>>::type;
 
     std::optional<TypeHolder<SecondArg>> typeHolder;
@@ -468,24 +519,41 @@ bindInstanceSet(Func&& get, bool nothrow) {
     } catch (Exception& e) {
       handleException(e, nothrow);
     }
-    std::invoke(g, thiz, *std::move(arg));
+    std::invoke(g, static_cast<Class*>(thiz), *std::move(arg));
   };
 }
 
+template <typename Class>
+InstanceSetterCallback bindInstanceSet(std::function<void(Class*, const Local<Value>& value)>&& set,
+                                       bool) {
+  if (!set) return {};
+
+  return [s = std::forward<std::function<void(Class*, const Local<Value>& value)>>(set)](
+             /* Class* */ void* thiz, const Local<Value>& value) {
+    s(static_cast<Class*>(thiz), value);
+  };
+}
+
+template <typename Class>
+InstanceSetterCallback bindInstanceSet(
+    const std::function<void(Class*, const Local<Value>& value)>& s, bool) {
+  return bindInstanceSet(std::function<void(Class*, const Local<Value>& value)>(s), false);
+}
+
 template <typename C>
-InstanceSetterCallback<C> bindInstanceSet(InstanceSetterCallback<C>&& s, bool) {
+InstanceSetterCallback bindInstanceSet(InstanceSetterCallback&& s, bool) {
   return std::move(s);
 }
 
 template <typename C>
-InstanceSetterCallback<C> bindInstanceSet(const InstanceSetterCallback<C>&& s, bool) {
+InstanceSetterCallback bindInstanceSet(const InstanceSetterCallback&& s, bool) {
   return s;
 }
 
 // BaseClass maybe super type of Class or same as Class.
 template <typename Class, typename BaseClass, typename T>
 std::enable_if_t<std::is_convertible_v<Class*, BaseClass*>&& ::script::converter::isConvertible<T>,
-                 std::pair<InstanceGetterCallback<Class>, InstanceSetterCallback<Class>>>
+                 std::pair<InstanceGetterCallback, InstanceSetterCallback>>
 bindInstanceProp(T BaseClass::*prop, bool nothrow) {
   if constexpr (!std::is_const_v<T>) {
     return {
@@ -498,7 +566,7 @@ bindInstanceProp(T BaseClass::*prop, bool nothrow) {
 }
 
 template <typename T, typename = std::void_t<decltype(&ClassConstructorHelper<T>::ctor)>>
-InstanceConstructor<T> bindConstructor() {
+InstanceConstructor bindConstructor() {
   return ClassConstructorHelper<T>::ctor();
 }
 
@@ -552,7 +620,7 @@ inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::
 Local<Object>::set(const Local<String>& key, T&& value) const {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   // static_cast is crucial!!!
-  // force the compiler to chose the non-template version
+  // force the compiler to choose the non-template version
   // to avoid a recursive call
   set(key, static_cast<const Local<Value>&>(val));
 }
@@ -676,107 +744,34 @@ ScriptEngine::newNativeClass(T&&... args) {
 
 namespace internal {
 
-template <typename T>
-void validateClassDefine(const ClassDefine<T>* classDefine) {
-  auto throwException = [classDefine](const char* msg) {
-    std::string info = msg;
-    if (classDefine) {
-      info = "failed to valid class define [" + classDefine->className + "] " + msg;
-    }
-    if (EngineScope::currentEngine()) {
-      throw Exception(info);
-    } else {
-      throw std::runtime_error(info);
-    }
-  };
+class InstanceDefineBuilderState {
+ public:
+  void* thiz = nullptr;
 
-  if (classDefine == nullptr) {
-    throwException("null class define");
-  }
-
-  if (classDefine->className.empty()) {
-    throwException("empty class name");
-  }
-
-  bool hasStatic =
-      !classDefine->staticDefine.functions.empty() || !classDefine->staticDefine.properties.empty();
-
-  bool hasInstance = static_cast<bool>(classDefine->instanceDefine.constructor) ||
-                     !classDefine->instanceDefine.functions.empty() ||
-                     !classDefine->instanceDefine.properties.empty();
-
-  if (!hasStatic && !hasInstance) {
-    throwException("both static and instance define are empty");
-  }
-
-  if (hasStatic) {
-    for (auto funcDef : classDefine->staticDefine.functions) {
-      if (funcDef.name.empty()) {
-        throwException("staticDefine.functions has no name");
-      }
-      if (funcDef.callback == nullptr) {
-        throwException("staticDefine.functions has no callback");
-      }
-    }
-
-    for (auto propDef : classDefine->staticDefine.properties) {
-      if (propDef.name.empty()) {
-        throwException("staticDefine.properties has no name");
-      }
-      if (propDef.getter == nullptr && propDef.setter == nullptr) {
-        throwException("staticDefine.functions has no getter&setter");
-      }
-    }
-  }
-
-  if (classDefine->instanceDefine.constructor) {
-    if (!std::is_base_of_v<ScriptClass, T>) {
-      throwException("ClassDefine with instance must have a valid type parameter");
-    }
-    for (auto funcDef : classDefine->instanceDefine.functions) {
-      if (funcDef.name.empty()) {
-        throwException("instanceDefine.functions has no name");
-      }
-      if (funcDef.callback == nullptr) {
-        throwException("instanceDefine.functions has no callback");
-      }
-    }
-
-    for (auto propDef : classDefine->instanceDefine.properties) {
-      if (propDef.name.empty()) {
-        throwException("instanceDefine.functions has no name");
-      }
-      if (propDef.getter == nullptr && propDef.setter == nullptr) {
-        throwException("instanceDefine.functions has no getter&setter");
-      }
-    }
-  } else {
-    if (!classDefine->instanceDefine.properties.empty() ||
-        !classDefine->instanceDefine.functions.empty()) {
-      throwException("instance has no constructor");
-    }
-  }
-}
+  // instance
+  InstanceConstructor constructor_{};
+  std::vector<InstanceDefine::FunctionDefine> insFunctions_{};
+  std::vector<InstanceDefine::PropertyDefine> insProperties_{};
+};
 
 template <typename T>
-class InstanceDefineBuilder {
+class InstanceDefineBuilder : public InstanceDefineBuilderState {
   template <typename...>
   using sfina = ClassDefineBuilder<T>&;
 
-  ClassDefineBuilder<T>& thiz;
+  ClassDefineBuilder<T>& thiz() {
+    return *static_cast<ClassDefineBuilder<T>*>(InstanceDefineBuilderState::thiz);
+  };
 
  protected:
-  // instance
-  typename InstanceDefine<T>::Constructor constructor_{};
-  std::vector<typename InstanceDefine<T>::FunctionDefine> insFunctions_{};
-  std::vector<typename InstanceDefine<T>::PropertyDefine> insProperties_{};
-
-  explicit InstanceDefineBuilder(ClassDefineBuilder<T>& thiz) : thiz(thiz) {}
+  explicit InstanceDefineBuilder(ClassDefineBuilder<T>& thiz) {
+    InstanceDefineBuilderState::thiz = &thiz;
+  }
 
  public:
-  ClassDefineBuilder<T>& constructor(InstanceConstructor<T> constructor) {
+  ClassDefineBuilder<T>& constructor(InstanceConstructor constructor) {
     constructor_ = std::move(constructor);
-    return thiz;
+    return thiz();
   }
 
   /**
@@ -788,7 +783,7 @@ class InstanceDefineBuilder {
   ClassDefineBuilder<T>& constructor() {
     static_assert(ClassConstructorHelper<T>::value);
     constructor_ = internal::bindConstructor<T>();
-    return thiz;
+    return thiz();
   }
 
   /**
@@ -796,45 +791,45 @@ class InstanceDefineBuilder {
    */
   ClassDefineBuilder<T>& constructor(std::nullptr_t) {
     constructor_ = [](const Arguments&) -> T* { return nullptr; };
-    return thiz;
+    return thiz();
   }
 
-  ClassDefineBuilder<T>& instanceFunction(std::string name, InstanceFunctionCallback<T> func) {
+  ClassDefineBuilder<T>& instanceFunction(std::string name, InstanceFunctionCallback func) {
     insFunctions_.push_back(
-        typename InstanceDefine<T>::FunctionDefine{std::move(name), std::move(func), {}});
-    return thiz;
+        typename InstanceDefine::FunctionDefine{std::move(name), std::move(func), {}});
+    return thiz();
   }
 
   template <typename Func>
   sfina<decltype(internal::bindInstanceFunc<T>(std::declval<Func>(), false))> instanceFunction(
       std::string name, Func func, bool nothrow = kBindingNoThrowDefaultValue) {
-    insFunctions_.push_back(typename InstanceDefine<T>::FunctionDefine{
+    insFunctions_.push_back(typename InstanceDefine::FunctionDefine{
         std::move(name), internal::bindInstanceFunc<T>(std::move(func), nothrow), {}});
-    return thiz;
+    return thiz();
   }
 
-  template <typename G, typename S = InstanceSetterCallback<T>>
+  template <typename G, typename S = InstanceSetterCallback>
   sfina<decltype(internal::bindInstanceGet<T>(std::declval<G>(), false)),
         decltype(internal::bindInstanceSet<T>(std::declval<S>(), false))>
   instanceProperty(std::string name, G&& getter, S&& setterCallback = nullptr,
                    bool nothrow = kBindingNoThrowDefaultValue) {
-    insProperties_.push_back(typename InstanceDefine<T>::PropertyDefine{
+    insProperties_.push_back(typename InstanceDefine::PropertyDefine{
         std::move(name),
         internal::bindInstanceGet<T>(std::forward<G>(getter), nothrow),
         internal::bindInstanceSet<T>(std::forward<S>(setterCallback), nothrow),
         {}});
-    return thiz;
+    return thiz();
   }
 
   template <typename S>
   sfina<decltype(internal::bindInstanceSet<T>(std::declval<S>(), false))> instanceProperty(
       std::string name, S&& setterCallback, bool nothrow = kBindingNoThrowDefaultValue) {
-    insProperties_.push_back(typename InstanceDefine<T>::PropertyDefine{
+    insProperties_.push_back(typename InstanceDefine::PropertyDefine{
         std::move(name),
         nullptr,
         internal::bindInstanceSet<T>(std::forward<S>(setterCallback), nothrow),
         {}});
-    return thiz;
+    return thiz();
   }
 
   template <typename P, typename BaseClass>
@@ -843,20 +838,16 @@ class InstanceDefineBuilder {
   instanceProperty(std::string name, P BaseClass::*ptr,
                    bool nothrow = kBindingNoThrowDefaultValue) {
     auto prop = internal::bindInstanceProp<T, BaseClass, P>(ptr, nothrow);
-    insProperties_.push_back(typename InstanceDefine<T>::PropertyDefine{
+    insProperties_.push_back(typename InstanceDefine::PropertyDefine{
         std::move(name), std::move(prop.first), std::move(prop.second), {}});
-    return thiz;
+    return thiz();
   }
 };
 
 // specialize for void
 template <>
-class InstanceDefineBuilder<void> {
+class InstanceDefineBuilder<void> : public InstanceDefineBuilderState {
  protected:
-  typename InstanceDefine<void>::Constructor constructor_{};
-  std::vector<typename InstanceDefine<void>::FunctionDefine> insFunctions_{};
-  std::vector<typename InstanceDefine<void>::PropertyDefine> insProperties_{};
-
   explicit InstanceDefineBuilder(ClassDefineBuilder<void>&) {}
 
  public:
@@ -950,10 +941,9 @@ class ClassDefineBuilder : public internal::InstanceDefineBuilder<T> {
     }
     ClassDefine<T> define(std::move(className_), std::move(nameSpace_),
                           internal::StaticDefine{std::move(functions_), std::move(properties)},
-                          internal::InstanceDefine<T>{std::move(Instance::constructor_),
-                                                      std::move(Instance::insFunctions_),
-                                                      std::move(Instance::insProperties_)});
-    ::script::internal::validateClassDefine(&define);
+                          internal::InstanceDefine{
+                              std::move(Instance::constructor_), std::move(Instance::insFunctions_),
+                              std::move(Instance::insProperties_), internal::sizeof_helper_v<T>});
     return define;
   }
 };
@@ -1015,27 +1005,7 @@ inline NativeRegister ClassDefine<T>::getNativeRegister() const {
 
 template <typename T>
 void script::ClassDefine<T>::visit(script::ClassDefineVisitor& visitor) const {
-  visitor.beginClassDefine(className, nameSpace);
-
-  for (auto&& prop : staticDefine.properties) {
-    visitor.visitStaticProperty(prop.name, prop.getter.target_type(), prop.setter.target_type());
-  }
-  for (auto&& function : staticDefine.functions) {
-    visitor.visitStaticFunction(function.name, function.callback.target_type());
-  }
-
-  if (instanceDefine.constructor) {
-    visitor.visitConstructor(instanceDefine.constructor.target_type());
-  }
-
-  for (auto&& prop : instanceDefine.properties) {
-    visitor.visitInstanceProperty(prop.name, prop.getter.target_type(), prop.setter.target_type());
-  }
-  for (auto&& function : instanceDefine.functions) {
-    visitor.visitInstanceFunction(function.name, function.callback.target_type());
-  }
-
-  visitor.endClassDefine();
+  internal::ClassDefineState::visit(visitor);
 }
 
 #else
@@ -1053,7 +1023,7 @@ inline FunctionCallback adaptOverLoadedFunction(T&&... functions) {
 }
 
 template <typename C, typename... T>
-inline InstanceFunctionCallback<C> adaptOverloadedInstanceFunction(T&&... functions) {
+inline InstanceFunctionCallback adaptOverloadedInstanceFunction(T&&... functions) {
   return internal::adaptOverloadedInstanceFunction<C>(std::forward<T>(functions)...);
 }
 

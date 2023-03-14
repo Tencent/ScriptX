@@ -17,7 +17,8 @@
 
 #include "JscNative.hpp"
 #include "../../src/Native.hpp"
-#include "JscEngine.hpp"
+#include "JscEngine.h"
+#include "JscHelper.hpp"
 #include "JscReference.hpp"
 
 namespace script {
@@ -60,6 +61,21 @@ Local<Array> ScriptClass::getInternalStore() const {
   return engine->getInternalStorageBySymbolFunction_.get()
       .call({}, getScriptObject(), engine->internalStorageSymbol_.get())
       .asArray();
+}
+
+void ScriptClass::performConstructFromCpp(internal::TypeIndex typeIndex,
+                                          const internal::ClassDefineState* classDefine) {
+  auto jscEngine = jsc_backend::currentEngine();
+  auto symbol = jscEngine->constructorMarkSymbol_.get();
+  auto thiz = jsc_backend::JscEngine::make<Local<Value>>(
+      JSObjectMake(jscEngine->context_, jsc_backend::JscEngine::externalClass_, this));
+
+  const std::initializer_list<Local<Value>> args{symbol, thiz};
+  auto obj = jscEngine->performNewNativeClass(typeIndex, classDefine, args.size(), args.begin());
+
+  internalState_.scriptEngine_ = jscEngine;
+  jsc_backend::JscWeakRef(jsc_interop::toJsc(jscEngine->context_, obj))
+      .swap(internalState_.weakRef_);
 }
 
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.scriptEngine_; }

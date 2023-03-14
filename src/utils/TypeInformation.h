@@ -32,7 +32,7 @@ using TypeIndex = std::type_index;
 
 template <typename T>
 TypeIndex typeIndexOf() {
-  return std::type_index(typeid(T));
+  return std::type_index{typeid(T)};
 }
 
 template <typename R, typename T>

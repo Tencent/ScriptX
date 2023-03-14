@@ -52,7 +52,8 @@ void testByteBufferReadWrite(ScriptEngine* engine, const Local<Value>& buf) {
 
   ASSERT_EQ(ptr, buffer.getRawBytesShared().get());
   ASSERT_TRUE(ptr != nullptr);
-#if defined(SCRIPTX_BACKEND_V8) || defined(SCRIPTX_BACKEND_JAVASCRIPTCORE) || defined(SCRIPTX_BACKEND_LUA)
+#if defined(SCRIPTX_BACKEND_V8) || defined(SCRIPTX_BACKEND_JAVASCRIPTCORE) || \
+    defined(SCRIPTX_BACKEND_LUA)
   ASSERT_EQ(buffer.isShared(), true);
 #endif
 
@@ -175,12 +176,13 @@ TEST_F(ByteBufferTest, CreateShared) {
   ptr[6] = 4;
   ptr[7] = 8;
 
-  engine->set("buffer", buffer);
+  engine->set("testBuffer", buffer);
   engine->eval(TS().js(
 #ifdef SCRIPTX_BACKEND_WEBASSEMBLY
-                       "view = new Int8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);"
+                       "view = new Int8Array(testBuffer.buffer, testBuffer.byteOffset, "
+                       "testBuffer.byteLength);"
 #else
-                       "view = new Int8Array(buffer);"
+                       "view = new Int8Array(testBuffer);"
 #endif
                        R"(
 view[0] = 1;
@@ -189,7 +191,7 @@ view[2] = 2;
 view[3] = 4;
 )")
                    .lua(R"(
-local view = buffer;
+local view = testBuffer;
 view:writeInt8(1, 1)
 view:writeInt8(2, 0)
 view:writeInt8(3, 2)
@@ -205,7 +207,7 @@ return view
   auto success =
       engine->eval(TS().js("view[4] == 2 && view[5] == 0 && view[6] == 4 && view[7] == 8;")
                        .lua(R"(
-return buffer:readInt8(5) == 2 and buffer:readInt8(6) == 0 and buffer:readInt8(7) == 4 and buffer:readInt8(8) == 8
+return testBuffer:readInt8(5) == 2 and testBuffer:readInt8(6) == 0 and testBuffer:readInt8(7) == 4 and testBuffer:readInt8(8) == 8
 )")
                        .select());
   ASSERT_TRUE(success.isBoolean()) << success.describeUtf8();
@@ -220,10 +222,10 @@ TEST_F(ByteBufferTest, IsInstance) {
   EngineScope engineScope(engine);
   auto buffer = ByteBuffer::newByteBuffer(8);
 
-  engine->set("buffer", buffer);
+  engine->set("testBuffer", buffer);
 
-  auto ret = engine->eval(TS().js("buffer instanceof ArrayBuffer")
-                              .lua("return ScriptX.isInstanceOf(buffer, ByteBuffer)")
+  auto ret = engine->eval(TS().js("testBuffer instanceof ArrayBuffer")
+                              .lua("return ScriptX.isInstanceOf(testBuffer, ByteBuffer)")
                               .select());
 
   ASSERT_TRUE(ret.isBoolean());
@@ -239,8 +241,8 @@ TEST_F(ByteBufferTest, wasm_interop_newSharedByteBuffer) {
     auto sharedBuffer = wasm_interop::newSharedByteBuffer(1);
     weak = sharedBuffer.getRawBytesShared();
 
-    engine->set("buffer", sharedBuffer);
-    EXPECT_TRUE(engine->eval("buffer instanceof ScriptX.SharedByteBuffer").asBoolean().value());
+    engine->set("testBuffer", sharedBuffer);
+    EXPECT_TRUE(engine->eval("testBuffer instanceof ScriptX.SharedByteBuffer").asBoolean().value());
     wasm_interop::destroySharedByteBuffer(sharedBuffer);
   }
   EXPECT_TRUE(weak.lock() == nullptr);
@@ -254,8 +256,8 @@ TEST_F(ByteBufferTest, SharedByteBufferType) {
     auto buffer = ByteBuffer::newByteBuffer(shared, 8);
 
     weak = buffer.getRawBytesShared();
-    engine->set("buffer", buffer);
-    EXPECT_TRUE(engine->eval("buffer instanceof ScriptX.SharedByteBuffer").asBoolean().value());
+    engine->set("testBuffer", buffer);
+    EXPECT_TRUE(engine->eval("testBuffer instanceof ScriptX.SharedByteBuffer").asBoolean().value());
     wasm_interop::destroySharedByteBuffer(buffer);
   }
 
@@ -265,12 +267,11 @@ TEST_F(ByteBufferTest, SharedByteBufferType) {
 TEST_F(ByteBufferTest, SharedByteBufferTypeJS) {
   EngineScope engineScope(engine);
   auto buffer = engine->eval(R"(
-buffer = new ScriptX.SharedByteBuffer(16);
-if (buffer.byteOffset == 0 || buffer.byteLength != 16 || !(buffer.buffer instanceof ArrayBuffer)) {
+testBuffer = new ScriptX.SharedByteBuffer(16);
+if (testBuffer.byteOffset == 0 || testBuffer.byteLength != 16 || !(testBuffer.buffer instanceof ArrayBuffer)) {
   throw Error("new ScriptX.SharedByteBuffer(16); test failed");
 }
-buffer;
-
+testBuffer;
 )");
 
   std::weak_ptr<void> weak;
@@ -285,11 +286,11 @@ buffer;
     auto ptr = static_cast<int8_t*>(b.getRawBytes());
     ptr[0] = 42;
     engine->eval(R"(
-      if (new Int8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)[0] != 42) {
+      if (new Int8Array(testBuffer.buffer, testBuffer.byteOffset, testBuffer.byteLength)[0] != 42) {
         throw Error("SharedByteBufferTypeJS write test fail");
       }
 
-      buffer.destroy();
+      testBuffer.destroy();
     )");
   }
 

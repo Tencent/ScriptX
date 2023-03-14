@@ -32,6 +32,7 @@ class LuaEngine : public ScriptEngine {
  private:
   // any pointer is fine, just need to be unique
   static const void* const kLuaTableNativeThisPtrToken_;
+  static const void* const kLuaTableNativeScriptClassPtrToken_;
   static const void* const kLuaTableNativeClassDefinePtrToken_;
   static const void* const kLuaNativeConstructorMarker_;
   static const void* const kLuaNativeInternalStorageToken_;
@@ -46,7 +47,7 @@ class LuaEngine : public ScriptEngine {
   std::mutex lock_;
   std::shared_ptr<::script::utils::MessageQueue> messageQueue_;
   size_t globalIdCounter_ = 1;
-  std::unordered_map<const void*, Global<Object>> nativeDefineRegistry_;
+  std::unordered_map<const internal::ClassDefineState*, Global<Object>> nativeDefineRegistry_;
   ::script::internal::GlobalWeakBookkeeping globalWeakBookkeeping_;
   std::unique_ptr<LuaByteBufferDelegate> byteBufferDelegate_;
 
@@ -92,6 +93,20 @@ class LuaEngine : public ScriptEngine {
  protected:
   ~LuaEngine() override;
 
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override;
+
+  Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
+                                      const internal::ClassDefineState* classDefine, size_t size,
+                                      const Local<Value>* args) override;
+
+  bool performIsInstanceOf(const Local<Value>& value,
+                           const internal::ClassDefineState* classDefine) override;
+
+  void* performGetNativeInstance(const Local<Value>& value,
+                                 const internal::ClassDefineState* classDefine) override;
+
  private:
   void initGlobalRegistry();
 
@@ -107,9 +122,6 @@ class LuaEngine : public ScriptEngine {
 
   Local<Value> getGlobalOrWeakTable(size_t index, const void* registryToken) const;
 
-  template <typename T>
-  void registerNativeClassImpl(const ClassDefine<T>* classDefine);
-
   static const ClassDefine<void>& builtInFunctions();
 
   void registerStaticDefine(const internal::StaticDefine& staticDefine, int table, int metaTable);
@@ -119,19 +131,19 @@ class LuaEngine : public ScriptEngine {
   void defineStaticProperties(const internal::StaticDefine& staticDefine, int tableIndex, int i);
 
   // [0, 0, -]
-  template <typename T>
-  void registerInstanceDefine(const ClassDefine<T>& classDefine, int table, int staticMeta);
+  void registerInstanceDefine(const internal::ClassDefineState* classDefine, int table,
+                              int staticMeta,
+                              script::ScriptClass* (*instanceTypeToScriptClass)(void*));
 
   // [0, 0, -]
-  template <typename T>
-  void defineInstanceConstructor(const ClassDefine<T>& classDefine, int instanceMeta,
-                                 int staticMeta) const;
+  void defineInstanceConstructor(const internal::ClassDefineState* classDefine, int instanceMeta,
+                                 int staticMeta,
+                                 script::ScriptClass* (*instanceTypeToScriptClass)(void*)) const;
 
-  template <typename T>
-  void defineInstanceFunctions(const ClassDefine<T>& classDefine, int instanceFunctionTable) const;
+  void defineInstanceFunctions(const internal::ClassDefineState* classDefine,
+                               int instanceFunctionTable) const;
 
-  template <typename T>
-  void defineInstanceProperties(const ClassDefine<T>& classDefine, int instanceMeta,
+  void defineInstanceProperties(const internal::ClassDefineState* classDefine, int instanceMeta,
                                 int instanceFunction) const;
 
   // [0, 0, -]
@@ -145,41 +157,21 @@ class LuaEngine : public ScriptEngine {
    */
   void pushFunction(const void* data, PushFunctionCallback callable);
 
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine,
-                                   const std::initializer_list<Local<Value>>& args) {
-    return newNativeClassImpl(classDefine, args.size(), args.begin());
-  }
-
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine,
-                                   const std::vector<Local<Value>>& args) {
-    return newNativeClassImpl(classDefine, args.size(), args.data());
-  }
-
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                   const Local<Value>* ptr);
-
-  template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
-
   static Local<Value> getClassMetaTable(lua_State* lua, int classIndex);
 
   static bool isInstanceOf(lua_State* lua, int classIndex, int selfIndex);
 
-  static bool isInstanceOf(lua_State* lua, const void* classDefine, int selfIndex);
+  static bool isInstanceOf(lua_State* lua, const internal::ClassDefineState* classDefine,
+                           int selfIndex);
 
-  static void* getNativeThis(lua_State* lua, const void* classDefine, int selfIndex);
+  static void* getNativeThis(lua_State* lua, const internal::ClassDefineState* classDefine,
+                             int selfIndex);
 
   using PushInstanceFunctionCallback = Local<Value> (*)(lua_State*, void*, void*, const Arguments&);
   /**
    * [0, +1, -]
    */
-  void pushInstanceFunction(const void* data, const void* classDefine,
+  void pushInstanceFunction(const void* data, const internal::ClassDefineState* classDefine,
                             PushInstanceFunctionCallback callable) const;
 
  public:

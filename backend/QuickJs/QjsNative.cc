@@ -79,6 +79,25 @@ Local<Array> ScriptClass::getInternalStore() const {
   throw Exception("can't getScriptObject in finalizer");
 }
 
+void ScriptClass::performConstructFromCpp(internal::TypeIndex typeIndex,
+                                          const internal::ClassDefineState* classDefine) {
+  auto& engine = qjs_backend::currentEngine();
+  internalState_.engine = &engine;
+
+  auto pointer = JS_NewObjectClass(engine.context_, qjs_backend::QjsEngine::kPointerClassId);
+  qjs_backend::checkException(pointer);
+  JS_SetOpaque(pointer, this);
+
+  std::initializer_list<Local<Value>> args{qjs_interop::makeLocal<Value>(pointer)};
+  auto ret = engine.performNewNativeClass(typeIndex, classDefine, args.size(), args.begin());
+  auto ref = qjs_interop::getLocal(ret);
+
+  internalState_.weakRef_ = ref;
+
+  // schedule -> JS_Free(ref)
+  engine.extendLifeTimeToNextLoop(ref);
+}
+
 ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.engine; }
 
 ScriptClass::~ScriptClass() = default;

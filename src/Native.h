@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <typeinfo>
 #include <vector>
 #include "Engine.h"
 #include "Exception.h"
 #include "Reference.h"
+#include "Scope.h"
 #include SCRIPTX_BACKEND(Native.h)
 #include SCRIPTX_BACKEND(Engine.h)
 #include SCRIPTX_BACKEND(Utils.h)
@@ -169,7 +171,10 @@ class ScriptClass {
    * policy.
    */
   template <typename T>
-  explicit ScriptClass(ConstructFromCpp<T> policy);
+  explicit ScriptClass(ConstructFromCpp<T> policy) {
+    performConstructFromCpp(internal::typeIndexOf<T>(),
+                            &EngineScope::currentEngineChecked().getClassDefine<T>());
+  }
 
   /**
    * get the script instance representing the native instance.
@@ -219,6 +224,15 @@ class ScriptClass {
    * is destroying
    */
   virtual ~ScriptClass();
+
+ private:
+  /**
+   * non-template version of `explicit ScriptClass(ConstructFromCpp<T> policy)`
+   * @param typeIndex
+   * @param classDefine
+   */
+  void performConstructFromCpp(internal::TypeIndex typeIndex,
+                               const internal::ClassDefineState* classDefine);
 
  private:
   using InternalScriptClass = typename ::script::internal::ImplType<ScriptClass>::type;
@@ -325,7 +339,7 @@ FunctionCallback adaptOverLoadedFunction(T&&... functions);
  * @tparam T InstanceFunctionCallback like
  */
 template <typename C, typename... T>
-InstanceFunctionCallback<C> adaptOverloadedInstanceFunction(T&&... functions);
+InstanceFunctionCallback adaptOverloadedInstanceFunction(T&&... functions);
 
 /**
  * utils function to select one function with given signature from C++ overloaded functions
@@ -360,12 +374,13 @@ auto selectOverloadedFunc(std::decay_t<Signature> func) {
 
 namespace internal {
 
-template <typename T>
-void validateClassDefine(const ClassDefine<T>* classDefine);
+class ClassDefineState;
 
 // forward declare
 template <typename T>
 class InstanceDefineBuilder;
+
+class InstanceDefineBuilderState;
 
 #define SCRIPTX_CLASS_DEFINE_FRIENDS                                          \
   template <typename TT>                                                      \
@@ -373,12 +388,11 @@ class InstanceDefineBuilder;
   template <typename TT>                                                      \
   friend class ::script::ClassDefineBuilder;                                  \
   friend class ::script::ScriptEngine;                                        \
+  friend class ::script::ScriptClass;                                         \
   friend typename ::script::internal::ImplType<::script::ScriptEngine>::type; \
   template <typename TT>                                                      \
-  friend void ::script::internal::validateClassDefine(                        \
-      const ::script::ClassDefine<TT>* classDefine);                          \
-  template <typename TT>                                                      \
-  friend class ::script::internal::InstanceDefineBuilder
+  friend class ::script::internal::InstanceDefineBuilder;                     \
+  friend class ::script::internal::InstanceDefineBuilderState;
 
 class StaticDefine {
   class PropertyDefine {
@@ -394,7 +408,8 @@ class StaticDefine {
           setter(std::move(setter)),
           traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   struct FunctionDefine {
@@ -405,7 +420,8 @@ class StaticDefine {
     FunctionDefine(std::string name, FunctionCallback callback, std::string traceName)
         : name(std::move(name)), callback(std::move(callback)), traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   const std::vector<FunctionDefine> functions{};
@@ -414,7 +430,8 @@ class StaticDefine {
   StaticDefine(std::vector<FunctionDefine> functions, std::vector<PropertyDefine> properties)
       : functions(std::move(functions)), properties(std::move(properties)) {}
 
-  SCRIPTX_CLASS_DEFINE_FRIENDS;
+  SCRIPTX_CLASS_DEFINE_FRIENDS
+  friend class ClassDefineState;
 };
 
 template <typename T>
@@ -423,17 +440,10 @@ constexpr inline size_t sizeof_helper_v = sizeof(T);
 template <>
 constexpr inline size_t sizeof_helper_v<void> = 0;
 
-template <typename T>
 class InstanceDefine {
-  static_assert(std::is_void_v<T> || std::is_base_of_v<ScriptClass, T>,
-                "T must be subclass of ScriptClass, "
-                "and can be void if no instance is required.");
-
-  using Constructor = InstanceConstructor<T>;
-
   class PropertyDefine {
-    using SetterCallback = InstanceSetterCallback<T>;
-    using GetterCallback = InstanceGetterCallback<T>;
+    using SetterCallback = InstanceSetterCallback;
+    using GetterCallback = InstanceGetterCallback;
 
     std::string name;
     GetterCallback getter;
@@ -447,11 +457,12 @@ class InstanceDefine {
           setter(std::move(setter)),
           traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   class FunctionDefine {
-    using FunctionCallback = InstanceFunctionCallback<T>;
+    using FunctionCallback = InstanceFunctionCallback;
 
     std::string name;
     FunctionCallback callback;
@@ -460,7 +471,8 @@ class InstanceDefine {
     FunctionDefine(std::string name, FunctionCallback callback, std::string traceName)
         : name(std::move(name)), callback(std::move(callback)), traceName(std::move(traceName)) {}
 
-    SCRIPTX_CLASS_DEFINE_FRIENDS;
+    SCRIPTX_CLASS_DEFINE_FRIENDS
+    friend class ClassDefineState;
   };
 
   /**
@@ -468,24 +480,62 @@ class InstanceDefine {
    * when null is returned, an exception is thrown.
    * (Either inside the constructor, or if not, by the ScriptEngine).
    */
-  const Constructor constructor{};
+  const InstanceConstructor constructor{};
   const std::vector<FunctionDefine> functions{};
   const std::vector<PropertyDefine> properties{};
-  const size_t instanceSize = internal::sizeof_helper_v<T>;
+  const size_t instanceSize;  // = internal::sizeof_helper_v<T>;
 
-  InstanceDefine(Constructor constructor, std::vector<FunctionDefine> functions,
-                 std::vector<PropertyDefine> properties)
+  InstanceDefine(InstanceConstructor constructor, std::vector<FunctionDefine> functions,
+                 std::vector<PropertyDefine> properties, size_t instanceSize)
       : constructor(std::move(constructor)),
         functions(std::move(functions)),
-        properties(std::move(properties)) {}
+        properties(std::move(properties)),
+        instanceSize(instanceSize) {}
 
-  SCRIPTX_CLASS_DEFINE_FRIENDS;
+  SCRIPTX_CLASS_DEFINE_FRIENDS
+  friend class ClassDefineState;
+};
+
+}  // namespace internal
+
+namespace internal {
+
+class ClassDefineState {
+  const std::string className;
+  const std::string nameSpace;
+
+  /**
+   * static methods & properties
+   */
+  const internal::StaticDefine staticDefine;
+
+  /**
+   * instance methods & properties
+   */
+  const internal::InstanceDefine instanceDefine;
+
+  ClassDefineState(std::string&& className, std::string&& nameSpace,
+                   internal::StaticDefine&& staticDefine, internal::InstanceDefine&& instanceDefine)
+      : className(std::move(className)),
+        nameSpace(std::move(nameSpace)),
+        staticDefine(std::move(staticDefine)),
+        instanceDefine(std::move(instanceDefine)) {}
+
+  void validateClassDefine(bool isBaseOfScriptClass) const;
+
+  bool hasInstanceDefine() const { return static_cast<bool>(instanceDefine.constructor); }
+
+#ifdef __cpp_rtti
+  void visit(script::ClassDefineVisitor& visitor) const;
+#endif
+
+  SCRIPTX_CLASS_DEFINE_FRIENDS
 };
 
 }  // namespace internal
 
 template <typename T /* = void */>
-class ClassDefine {
+class ClassDefine : private internal::ClassDefineState {
   static_assert(std::is_same_v<T, std::remove_pointer_t<std::decay_t<T>>>,
                 "T must be decayed value type, ie. no reference, pointer, cv qualifier.");
 
@@ -503,27 +553,14 @@ class ClassDefine {
   const std::string& getNameSpace() const { return nameSpace; }
 
  private:
-  const std::string className;
-  const std::string nameSpace;
+  ClassDefine(std::string&& className, std::string&& nameSpace,
+              internal::StaticDefine&& staticDefine, internal::InstanceDefine&& instanceDefine)
+      : internal::ClassDefineState(std::move(className), std::move(nameSpace),
+                                   std::move(staticDefine), std::move(instanceDefine)) {
+    validateClassDefine(std::is_base_of_v<ScriptClass, T>);
+  }
 
-  /**
-   * static methods & properties
-   */
-  const internal::StaticDefine staticDefine;
-
-  /**
-   * instance methods & properties
-   */
-  const internal::InstanceDefine<T> instanceDefine;
-
-  ClassDefine(std::string className, std::string nameSpace, internal::StaticDefine staticDefine,
-              internal::InstanceDefine<T> instanceDefine)
-      : className(std::move(className)),
-        nameSpace(std::move(nameSpace)),
-        staticDefine(std::move(staticDefine)),
-        instanceDefine(std::move(instanceDefine)) {}
-
-  SCRIPTX_CLASS_DEFINE_FRIENDS;
+  SCRIPTX_CLASS_DEFINE_FRIENDS
 };
 
 class ClassDefineVisitor {

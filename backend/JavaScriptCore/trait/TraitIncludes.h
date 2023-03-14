@@ -18,7 +18,7 @@
 #pragma once
 
 #include "../JscEngine.h"
-#include "../JscEngine.hpp"
+#include "../JscHelper.hpp"
 #include "../JscNative.hpp"
 #include "../JscReference.hpp"
 

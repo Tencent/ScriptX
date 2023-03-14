@@ -41,10 +41,11 @@ class JscEngine : public ::script::ScriptEngine {
     JSClassRef instanceClass{};
     Global<Object> constructor{};
     Global<Object> prototype{};
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*) = nullptr;
   };
 
   std::shared_ptr<utils::MessageQueue> messageQueue_;
-  std::unordered_map<const void*, ClassRegistryData> classRegistry_;
+  std::unordered_map<const internal::ClassDefineState*, ClassRegistryData> classRegistry_;
   std::unordered_map<size_t, Global<Value>> keptReference_;
   internal::GlobalWeakBookkeeping globalWeakBookkeeping_;
   size_t keepId_ = 0;
@@ -99,21 +100,22 @@ class JscEngine : public ::script::ScriptEngine {
  protected:
   ~JscEngine() override;
 
+  void performRegisterNativeClass(
+      internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
+      script::ScriptClass* (*instanceTypeToScriptClass)(void*)) override;
+
+  Local<Object> performNewNativeClass(internal::TypeIndex typeIndex,
+                                      const internal::ClassDefineState* classDefine, size_t size,
+                                      const Local<script::Value>* args) override;
+
+  bool performIsInstanceOf(const Local<script::Value>& value,
+                           const internal::ClassDefineState* classDefine) override;
+
+  void* performGetNativeInstance(const Local<script::Value>& value,
+                                 const internal::ClassDefineState* classDefine) override;
+
  private:
   Local<Value> eval(const Local<String>& script, const Local<Value>& sourceFile);
-
-  template <typename T>
-  bool registerNativeClassImpl(const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  Local<Object> newNativeClassImpl(const ClassDefine<T>* classDefine, size_t size,
-                                   const Local<Value>* args);
-
-  template <typename T>
-  bool isInstanceOfImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
-
-  template <typename T>
-  T* getNativeInstanceImpl(const Local<Value>& value, const ClassDefine<T>* classDefine);
 
  private:
   template <typename T>
@@ -128,7 +130,14 @@ class JscEngine : public ::script::ScriptEngine {
   }
 
   static typename RefTypeMap<Value>::jscType toJsc(JSGlobalContextRef context,
-                                                   const Local<Value>& ref);
+                                                   const Local<Value>& ref) {
+    if (ref.isNull()) {
+      return Local<Value>(
+                 const_cast<typename Local<Value>::InternalLocalRef>(JSValueMakeUndefined(context)))
+          .val_;
+    }
+    return ref.val_;
+  }
 
   static Arguments newArguments(JscEngine* engine, JSObjectRef thisObject,
                                 const JSValueRef* arguments, size_t size);
@@ -147,21 +156,21 @@ class JscEngine : public ::script::ScriptEngine {
   void registerStaticDefine(const internal::StaticDefine& staticDefine,
                             const Local<Object>& object);
 
-  template <typename T>
-  void defineInstance(const ClassDefine<T>* classDefine, Local<Value>& object,
+  void defineInstance(const internal::ClassDefineState* classDefine, Local<Value>& object,
                       ClassRegistryData& registry);
 
-  template <typename T>
   JSObjectCallAsConstructorCallback createConstructor();
 
-  template <typename T>
-  Local<Object> defineInstancePrototype(const ClassDefine<T>* classDefine);
+  Local<Object> defineInstancePrototype(const internal::ClassDefineState* classDefine);
 
-  template <typename T>
-  void defineInstanceFunction(const ClassDefine<T>* classDefine, Local<Object>& prototypeObject);
+  void defineInstanceFunction(const internal::ClassDefineState* classDefine,
+                              Local<Object>& prototypeObject);
 
-  template <typename T, typename ConsumeLambda>
-  void defineInstanceProperties(const ClassDefine<T>* classDefine, ConsumeLambda consumerLambda);
+  void defineInstanceProperties(const internal::ClassDefineState* classDefine,
+                                const Local<String>& getString, const Local<String>& setString,
+                                const Local<Object>& jsObject,
+                                const Local<Function>& jsObject_defineProperty,
+                                const Local<Object>& prototype);
 
   size_t keepReference(const Local<Value>& ref);
 
