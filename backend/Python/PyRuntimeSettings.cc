@@ -29,28 +29,53 @@ namespace py_runtime_settings {
   #define SCRIPTX_PATH_SEPERATOR L"\\"
   #define SCRIPTX_ENVIRONMENT_VARS_SEPERATOR L";"
 
+  // Python runtime config default values
+  // .\\lib\\python3
+  #define SCRIPTX_DEFAULT_PYTHON_HOME \
+    L"." SCRIPTX_PATH_SEPERATOR L"lib" SCRIPTX_PATH_SEPERATOR L"python3" SCRIPTX_PATH_SEPERATOR
+  // (.\\lib\\python3\\)Lib
+  #define SCRIPTX_DEFAULT_PYTHON_LIBS_SUFFIX \
+    L"Lib" SCRIPTX_PATH_SEPERATOR
+
 #elif defined(__linux__) || defined(__unix__)
   #define SCRIPTX_PATH_SEPERATOR L"/"
   #define SCRIPTX_ENVIRONMENT_VARS_SEPERATOR L":"
+
+  // Python runtime config default values
+  // ./lib/python3/
+  #define SCRIPTX_DEFAULT_PYTHON_HOME \
+    L"." SCRIPTX_PATH_SEPERATOR L"lib" SCRIPTX_PATH_SEPERATOR L"python3" SCRIPTX_PATH_SEPERATOR
+  // (./lib/python3/)lib/python3.10/
+  #define SCRIPTX_DEFAULT_PYTHON_LIBS_SUFFIX \
+    L"lib" SCRIPTX_PATH_SEPERATOR L"python3.10" SCRIPTX_PATH_SEPERATOR
 
 #elif defined(__APPLE__)
   #define SCRIPTX_PATH_SEPERATOR L"/"
   #define SCRIPTX_ENVIRONMENT_VARS_SEPERATOR L":"
 
+  // TODO: Is this correct? Asuming that same as Linux
+  // Python runtime config default values
+  // ./lib/python3/
+  #define SCRIPTX_DEFAULT_PYTHON_HOME \
+    L"." SCRIPTX_PATH_SEPERATOR L"lib" SCRIPTX_PATH_SEPERATOR L"python3" SCRIPTX_PATH_SEPERATOR
+  // (./lib/python3/)lib/python3.10/
+  #define SCRIPTX_DEFAULT_PYTHON_LIBS_SUFFIX \
+    L"lib" SCRIPTX_PATH_SEPERATOR L"python3.10" SCRIPTX_PATH_SEPERATOR
+
 #else
   #define SCRIPTX_PATH_SEPERATOR L"/"
   #define SCRIPTX_ENVIRONMENT_VARS_SEPERATOR L":"
 
+  // TODO: Is this correct? Asuming that same as Linux
+  // Python runtime config default values
+  // ./lib/python3/
+  #define SCRIPTX_DEFAULT_PYTHON_HOME \
+    L"." SCRIPTX_PATH_SEPERATOR L"lib" SCRIPTX_PATH_SEPERATOR L"python3" SCRIPTX_PATH_SEPERATOR
+  // (./lib/python3/)lib/python3.10/
+  #define SCRIPTX_DEFAULT_PYTHON_LIBS_SUFFIX \
+    L"lib" SCRIPTX_PATH_SEPERATOR L"python3.10" SCRIPTX_PATH_SEPERATOR
+
 #endif
-
-
-// Python runtime config default values
-// ./lib/python3/
-std::wstring SCRIPTX_DEFAULT_PYTHON_HOME 
-  = L"." SCRIPTX_PATH_SEPERATOR L"lib" SCRIPTX_PATH_SEPERATOR L"python3" SCRIPTX_PATH_SEPERATOR;
-// lib/python3.10/
-std::wstring SCRIPTX_DEFAULT_PYTHON_LIBS_SUFFIX 
-  = L"lib" SCRIPTX_PATH_SEPERATOR L"python3.10" SCRIPTX_PATH_SEPERATOR;
 
 
 // global vars to store path of python runtime-env
@@ -62,7 +87,7 @@ std::wstring _SCRIPTX_PYTHON_MODULE_SEARCH_PATHS{};
 void initDefaultPythonRuntimeSettings() {
   // python home
   if(_SCRIPTX_PYTHON_HOME.empty()) {
-    setPythonHomePath(_SCRIPTX_PYTHON_HOME);
+    setPythonHomePath(std::wstring(SCRIPTX_DEFAULT_PYTHON_HOME));
   }
 
   // TODO: Py_SetProgramName
@@ -70,7 +95,7 @@ void initDefaultPythonRuntimeSettings() {
   // module search paths
   if(_SCRIPTX_PYTHON_MODULE_SEARCH_PATHS.empty()) {
     setModuleSearchPaths(
-      {SCRIPTX_DEFAULT_PYTHON_HOME + SCRIPTX_DEFAULT_PYTHON_LIBS_SUFFIX}
+      {std::wstring(SCRIPTX_DEFAULT_PYTHON_HOME) + std::wstring(SCRIPTX_DEFAULT_PYTHON_LIBS_SUFFIX)}
     );
   }
 }

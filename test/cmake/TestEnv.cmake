@@ -152,8 +152,9 @@ elseif (${SCRIPTX_BACKEND} STREQUAL QuickJs)
 elseif (${SCRIPTX_BACKEND} STREQUAL Python)
     if (SCRIPTX_TEST_BUILD_ONLY)
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/python/win64/include"
+                "${SCRIPTX_TEST_LIBS}/python/linux64/include"
                 CACHE STRING "" FORCE)
+
     elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(DEVOPS_LIBS_INCLUDE
             "${SCRIPTX_TEST_LIBS}/python/linux64/include"
@@ -179,12 +180,12 @@ elseif (${SCRIPTX_BACKEND} STREQUAL Python)
             "${SCRIPTX_TEST_LIBS}/python/win64/include"
             CACHE STRING "" FORCE)
         set(DEVOPS_LIBS_LIBPATH
-            "${SCRIPTX_TEST_LIBS}/python/win64/python310_d.lib"
+            "${SCRIPTX_TEST_LIBS}/python/win64/lib/python310.lib"
             CACHE STRING "" FORCE)
 
         add_custom_command(TARGET UnitTests POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${SCRIPTX_TEST_LIBS}/python/win64/dll" $<TARGET_FILE_DIR:UnitTests>
+            "${SCRIPTX_TEST_LIBS}/python/win64/embed-env" $<TARGET_FILE_DIR:UnitTests>/lib/python3
             )
     elseif (APPLE)
         # Need adaptation here
