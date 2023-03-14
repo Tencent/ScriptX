@@ -29,6 +29,7 @@ void setPythonHomePath(const std::wstring &path);
 std::wstring getPythonHomePath();
 
 void setModuleSearchPaths(const std::vector<std::wstring> &paths);
+void addModuleSearchPath(const std::wstring &path);
 std::vector<std::wstring> getModuleSearchPaths();
 
 std::wstring getPlatformPathSeparator();

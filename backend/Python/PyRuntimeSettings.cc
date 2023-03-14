@@ -126,6 +126,13 @@ void setModuleSearchPaths(const std::vector<std::wstring> &paths) {
   Py_SetPath(_SCRIPTX_PYTHON_MODULE_SEARCH_PATHS.c_str());
 }
 
+void addModuleSearchPath(const std::wstring &path) {
+  if(path.empty())
+    return;
+  _SCRIPTX_PYTHON_MODULE_SEARCH_PATHS += SCRIPTX_ENVIRONMENT_VARS_SEPERATOR + path;
+  Py_SetPath(_SCRIPTX_PYTHON_MODULE_SEARCH_PATHS.c_str());
+}
+
 static std::vector<std::wstring> SplitStrWithPattern(const std::wstring& str, const std::wstring& pattern) 
 {
     std::vector<std::wstring> resVec;

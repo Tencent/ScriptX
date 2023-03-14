@@ -228,6 +228,10 @@ void PyEngine::setModuleSearchPaths(const std::vector<std::wstring> &paths) {
   return py_runtime_settings::setModuleSearchPaths(paths);
 }
 
+void PyEngine::addModuleSearchPath(const std::wstring &path) {
+  return py_runtime_settings::addModuleSearchPath(path);
+}
+
 std::vector<std::wstring> PyEngine::getModuleSearchPaths() {
   return py_runtime_settings::getModuleSearchPaths();
 }
