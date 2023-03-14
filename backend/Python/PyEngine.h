@@ -93,7 +93,12 @@ private:
 
   std::string getEngineVersion() override;
 
-  static void setPythonHomePath(const std::wstring path);
+  // Python runtime config APIs
+  static void setPythonHomePath(const std::wstring &path);
+  static std::wstring getPythonHomePath();
+  static void setModuleSearchPaths(const std::vector<std::wstring> &paths);
+  static std::vector<std::wstring> getModuleSearchPaths();
+  static std::wstring getPlatformPathSeparator();
 
  protected:
   ~PyEngine() override;

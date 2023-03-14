@@ -16,18 +16,16 @@
  */
 
 #include "PyEngine.h"
+#include "PyInternalHelper.h"
+#include "PyRuntimeSettings.h"
 #include <cstring>
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
-#include "PyInternalHelper.h"
 #include "../../src/foundation.h"
 
 SCRIPTX_BEGIN_IGNORE_DEPRECARED
 
 namespace script::py_backend {
-
-// path of python standard libraries
-std::wstring SCRIPTX_PYTHON_HOME = L".\\lib\\python3";
 
 PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
     : queue_(queue ? std::move(queue) : std::make_shared<utils::MessageQueue>()) {
@@ -37,7 +35,7 @@ PyEngine::PyEngine(std::shared_ptr<utils::MessageQueue> queue)
 
     // Set interpreter configs
     Py_SetStandardStreamEncoding("utf-8", nullptr);
-    Py_SetPythonHome(SCRIPTX_PYTHON_HOME.c_str());
+    py_runtime_settings::initDefaultPythonRuntimeSettings();
 
     // Init main interpreter
     Py_InitializeEx(0);
@@ -218,9 +216,24 @@ std::string PyEngine::getEngineVersion() { return Py_GetVersion(); }
 
 bool PyEngine::isDestroying() const { return destroying; }
 
-void PyEngine::setPythonHomePath(const std::wstring path) {
-  SCRIPTX_PYTHON_HOME = path;
-  Py_SetPythonHome(SCRIPTX_PYTHON_HOME.c_str());
+void PyEngine::setPythonHomePath(const std::wstring &path) {
+  return py_runtime_settings::setPythonHomePath(path);
+}
+
+std::wstring PyEngine::getPythonHomePath() {
+  return py_runtime_settings::getPythonHomePath();
+}
+
+void PyEngine::setModuleSearchPaths(const std::vector<std::wstring> &paths) {
+  return py_runtime_settings::setModuleSearchPaths(paths);
+}
+
+std::vector<std::wstring> PyEngine::getModuleSearchPaths() {
+  return py_runtime_settings::getModuleSearchPaths();
+}
+
+std::wstring PyEngine::getPlatformPathSeparator() {
+  return py_runtime_settings::getPlatformPathSeparator();
 }
 
 }  // namespace script::py_backend

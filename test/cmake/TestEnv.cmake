@@ -159,8 +159,21 @@ elseif (${SCRIPTX_BACKEND} STREQUAL Python)
             "${SCRIPTX_TEST_LIBS}/python/linux64/include"
             CACHE STRING "" FORCE)
         set(DEVOPS_LIBS_LIBPATH
-            "${SCRIPTX_TEST_LIBS}/python/linux64/lib/libpython3.10.a"
+            "${SCRIPTX_TEST_LIBS}/python/linux64/lib/libpython3.10.so"
             CACHE STRING "" FORCE)
+
+        add_custom_command(TARGET UnitTests POST_BUILD
+            COMMAND tar -zxvf cpython-3.10.9.tar.gz > /dev/null
+            WORKING_DIRECTORY "${SCRIPTX_TEST_LIBS}/python/linux64/embed-env"
+            )
+        add_custom_command(TARGET UnitTests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${SCRIPTX_TEST_LIBS}/python/linux64/embed-env/python" $<TARGET_FILE_DIR:UnitTests>/lib/python3
+            )
+        add_custom_command(TARGET UnitTests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E remove_directory
+            "${SCRIPTX_TEST_LIBS}/python/linux64/embed-env/python")
+            
     elseif (WIN32)
         set(DEVOPS_LIBS_INCLUDE
             "${SCRIPTX_TEST_LIBS}/python/win64/include"
