@@ -42,3 +42,60 @@ In addition, in the actual implementation, CPython's some bad design also brings
 In order to satisfy the multi-engine work mechanism required by ScriptX without breaking the Python runtime environment, the state of the GIL is managed manually in implementation. When entering any `EngineScope`, GIL enters a locked state; after all EngineScopes exit, GIL is unlocked.
 
 This shows that performance in a multi-threaded environment is still limited by the GIL, and only one thread can enter the `EngineScope` and enter the working state. the GIL problem has been the most serious problem limiting the performance of Python, and we hope that it can be gradually solved in future updates and improvements of CPython.
+
+## Standard Libraries and Runtime Environment
+
+Different from other types of engines, CPython uses an external stand-alone standard library. Therefore, when you use ScriptX to embed the Python interpreter into your application, you need to carry an additional copy of the Python runtime environment to ensure that Python will run properly.
+
+Here is instructions of how to configure this runtime environment and set the parameters related to the runtime environment for the CPython engine.
+
+### Download the CPython embedded runtime environment
+
+1. Go to https://github.com/indygreg/python-build-standalone/releases and download the runtime environment from Release page, for the platform and architecture you intend to run on 
+   - Windows x64 environment download: [cpython-3.10.9+20230116-x86_64-pc-windows-msvc-shared-install_only.tar.gz](https://github.com/indygreg/python- build-standalone/releases/download/20230116/cpython-3.10.9+20230116-x86_64-pc-windows-msvc-shared-install_only.tar.gz)
+   - MacOS Arm64 environment download: [cpython-3.10.9+20230116-aarch64-apple-darwin-install_only.tar.gz](https://github.com/indygreg/python-build- standalone/releases/download/20230116/cpython-3.10.9+20230116-aarch64-apple-darwin-install_only.tar.gz)
+   - Linux x64 environment download: [cpython-3.10.9+20230116-x86_64-unknown-linux-gnu-install_only.tar.gz](https://github.com/indygreg/python-build- standalone/releases/download/20230116/cpython-3.10.9+20230116-x86_64-unknown-linux-gnu-install_only.tar.gz)
+   - For other platforms, find and download the runtime environment package for the corresponding platform
+2. **If the above project fails**, you can also go and download the cpython-3.10.9.tar.gz stored in the ScriptX unit test project. This package is automatically pulled by ScriptX when running unit tests, and is exactly the same as the package downloaded in the above project.
+   - Windows x64 environment download: https://github.com/LiteLDev/ScriptXTestLibs/tree/main/python/win64/embed-env
+   - Linux x64 environment download: https://github.com/LiteLDev/ScriptXTestLibs/tree/main/python/linux64/embed-env
+3. After downloading the package, extract the package and get a directory named `Python`
+4. Rename this directory to `Python3` and move it into `your application directory/lib` directory.
+
+When your application starts, it will automatically look for Python's standard libraries in this directory and load them. 
+
+By the way, the embedded runtime environment has additional benefits: you can run `. /bin/python3 -m pip install xxx` to install custom pip packages in this embedded runtime environment. Installed packages can be imported and used directly in the ScriptX engine.
+
+### Customizing CPython runtime settings
+
+It's certainly not a good idea to fix the directory to `application directory/lib`. So a number of static methods are provided in PyEngine to read and modify some runtime settings, including the standard library search directory.
+
+```c++
+class PyEngine
+{
+	//...
+    
+	// Used to set the PythonHome path, i.e. the location of the CPython interpreter
+    // On Linux platform, the default value is "./lib/python3/" 
+    // On Windows platform, the default value is ".\\lib\\\python3\\"
+    // You can change it as needed
+    static void setPythonHomePath(const std::wstring &path);
+    // Used to read the PythonHome path
+    static std::wstring getPythonHomePath();
+    // Used to set the module search paths, i.e. sys.path in Python, from which the target module will be searched when "import" is executed; Python standard libraries are also searched via these search paths
+    // On Linux, the default value is {"./lib/Python3/lib/python3.10/"}
+    // On Windows, the default value is {".\\lib\\\Python3\\\Lib\"}
+    // You can modify it as needed, or add new search paths. Note that the standard library path must be included, otherwise ScriptX's Python interpreter will not start
+    static void setModuleSearchPaths(const std::vector<std::wstring> &paths);
+    // Used to add a new module search path to CPython runtime
+    static void addModuleSearchPath(const std::wstring &path);
+    // Used to read all module search paths
+    static std::vector<std::wstring> getModuleSearchPaths();
+    // Used to get the path separator symbol for the current platform; Linux is "/", Windows is "\"
+    static std::wstring getPlatformPathSeparator();
+    
+    //...
+}
+```
+
+These static functions can be called at any time to customize the settings of the Python runtime environment.
