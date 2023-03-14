@@ -89,7 +89,7 @@ void LuaEngine::performRegisterNativeClass(
   registerStaticDefine(classDefine->staticDefine, table, staticMeta);
 
   if (classDefine->instanceDefine.constructor) {
-    registerInstanceDefine(classDefine, table, staticMeta);
+    registerInstanceDefine(classDefine, table, staticMeta, instanceTypeToScriptClass);
   }
 
   lua_pushvalue(lua_, staticMeta);
@@ -102,7 +102,8 @@ void LuaEngine::performRegisterNativeClass(
 }
 
 void LuaEngine::registerInstanceDefine(const internal::ClassDefineState* classDefine, int table,
-                                       int staticMeta) {
+                                       int staticMeta,
+                                       script::ScriptClass* (*instanceTypeToScriptClass)(void*)) {
   StackFrameScope stack;
 
   lua_newtable(lua_);
@@ -113,7 +114,7 @@ void LuaEngine::registerInstanceDefine(const internal::ClassDefineState* classDe
 
   defineInstanceProperties(classDefine, instanceMeta, instanceFunction);
   defineInstanceFunctions(classDefine, instanceFunction);
-  defineInstanceConstructor(classDefine, instanceMeta, staticMeta);
+  defineInstanceConstructor(classDefine, instanceMeta, staticMeta, instanceTypeToScriptClass);
 
   make<Local<Object>>(instanceMeta)
       .set(kMetaTableBuiltInInstanceFunctions, make<Local<Object>>(instanceFunction));
@@ -126,8 +127,9 @@ void LuaEngine::registerInstanceDefine(const internal::ClassDefineState* classDe
   lua_rawsetp(lua_, table, kLuaTableNativeClassDefinePtrToken_);
 }
 
-void LuaEngine::defineInstanceConstructor(const internal::ClassDefineState* classDefine,
-                                          int instanceMeta, int staticMeta) const {
+void LuaEngine::defineInstanceConstructor(
+    const internal::ClassDefineState* classDefine, int instanceMeta, int staticMeta,
+    script::ScriptClass* (*instanceTypeToScriptClass)(void*)) const {
   luaEnsureStack(lua_, 4);
 
   {
@@ -138,6 +140,7 @@ void LuaEngine::defineInstanceConstructor(const internal::ClassDefineState* clas
     lua_pushvalue(lua_, instanceMeta);
     lua_pushlightuserdata(lua_, const_cast<void*>(static_cast<const void*>(classDefine)));
     lua_pushlightuserdata(lua_, const_cast<LuaEngine*>(this));
+    lua_pushlightuserdata(lua_, reinterpret_cast<void*>(instanceTypeToScriptClass));
 
     lua_pushcclosure(
         lua_,
@@ -185,11 +188,19 @@ void LuaEngine::defineInstanceConstructor(const internal::ClassDefineState* clas
               thiz = define->instanceDefine.constructor(
                   makeArguments(engine, argsBase, argsCount, true));
             }
+            auto instanceTypeToScriptClass = reinterpret_cast<script::ScriptClass* (*)(void*)>(
+                lua_touserdata(lua, lua_upvalueindex(4)));
+            ScriptClass* scriptClass = instanceTypeToScriptClass(thiz);
 
             lua_settop(lua, 1);
             // set ptr as this
             lua_pushlightuserdata(lua, thiz);
             lua_rawsetp(lua, 1, kLuaTableNativeThisPtrToken_);
+
+            // set ScriptClass*
+            lua_pushlightuserdata(lua, scriptClass);
+            lua_rawsetp(lua, 1, kLuaTableNativeScriptClassPtrToken_);
+
             lua_pushlightuserdata(lua, define);
             lua_rawsetp(lua, 1, kLuaTableNativeClassDefinePtrToken_);
             return 1;
@@ -200,7 +211,7 @@ void LuaEngine::defineInstanceConstructor(const internal::ClassDefineState* clas
           luaThrow(lua, exception);
           return 0;
         },
-        3);
+        4);
 
     lua_rawset(lua_, staticMeta);
   }
@@ -209,7 +220,7 @@ void LuaEngine::defineInstanceConstructor(const internal::ClassDefineState* clas
     lua_pushstring(lua_, kLuaMetaMethodNewGc);
 
     lua_pushcfunction(lua_, [](lua_State* lua) {
-      lua_rawgetp(lua, 1, kLuaTableNativeThisPtrToken_);
+      lua_rawgetp(lua, 1, kLuaTableNativeScriptClassPtrToken_);
       ExitEngineScope exit;
       delete static_cast<ScriptClass*>(lua_touserdata(lua, -1));
       return 0;

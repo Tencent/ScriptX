@@ -46,6 +46,9 @@ lua_State* newCommonLua() {
 const void* const LuaEngine::kLuaTableNativeThisPtrToken_ =
     reinterpret_cast<const void*>(&kLuaTableNativeThisPtrToken_);
 
+const void* const LuaEngine::kLuaTableNativeScriptClassPtrToken_ =
+    reinterpret_cast<const void*>(&kLuaTableNativeScriptClassPtrToken_);
+
 const void* const LuaEngine::kLuaTableNativeClassDefinePtrToken_ =
     reinterpret_cast<const void*>(&kLuaTableNativeClassDefinePtrToken_);
 

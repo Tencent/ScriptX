@@ -32,6 +32,7 @@ class LuaEngine : public ScriptEngine {
  private:
   // any pointer is fine, just need to be unique
   static const void* const kLuaTableNativeThisPtrToken_;
+  static const void* const kLuaTableNativeScriptClassPtrToken_;
   static const void* const kLuaTableNativeClassDefinePtrToken_;
   static const void* const kLuaNativeConstructorMarker_;
   static const void* const kLuaNativeInternalStorageToken_;
@@ -131,11 +132,13 @@ class LuaEngine : public ScriptEngine {
 
   // [0, 0, -]
   void registerInstanceDefine(const internal::ClassDefineState* classDefine, int table,
-                              int staticMeta);
+                              int staticMeta,
+                              script::ScriptClass* (*instanceTypeToScriptClass)(void*));
 
   // [0, 0, -]
   void defineInstanceConstructor(const internal::ClassDefineState* classDefine, int instanceMeta,
-                                 int staticMeta) const;
+                                 int staticMeta,
+                                 script::ScriptClass* (*instanceTypeToScriptClass)(void*)) const;
 
   void defineInstanceFunctions(const internal::ClassDefineState* classDefine,
                                int instanceFunctionTable) const;
