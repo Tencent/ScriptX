@@ -72,7 +72,7 @@ class PyEngine;
 class EngineLockerHelper {
 private:
   PyEngine* engine;
-  std::mutex engineLocker;
+  std::recursive_mutex engineLocker;
   static std::mutex engineSwitchSharedLocker;
   static int allPyEnginesEnterCount;
 
