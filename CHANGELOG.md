@@ -1,3 +1,7 @@
+---
+Version 3.3.0 (2023-03):
+[V8] add support for V8 version 10.8
+[V8] add support for node.js version 19.8.1
 
 ---
 Version 3.3.0 (2023-03):

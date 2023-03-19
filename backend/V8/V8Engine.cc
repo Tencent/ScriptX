@@ -16,9 +16,11 @@
  */
 
 #include "V8Engine.h"
-#include <ScriptX/ScriptX.h>
 #include <cassert>
 #include <memory>
+#include "V8Helper.hpp"
+#include "V8Native.hpp"
+#include "V8Reference.hpp"
 
 namespace script::v8_backend {
 
@@ -158,9 +160,13 @@ Local<Value> V8Engine::eval(const Local<String>& script, const Local<Value>& sou
   if (scriptString.IsEmpty() || scriptString->IsNullOrUndefined()) {
     throw Exception("can't eval script");
   }
-  v8::ScriptOrigin origin(sourceFile.isNull() || !sourceFile.isString()
-                              ? v8::Local<v8::String>()
-                              : toV8(isolate_, sourceFile.asString()));
+  v8::ScriptOrigin origin(
+#if SCRIPTX_V8_VERSION_AT_LEAST(9, 0)
+      // V8 9.0 add isolate param for external API
+      isolate_,
+#endif
+      sourceFile.isNull() || !sourceFile.isString() ? v8::Local<v8::String>()
+                                                    : toV8(isolate_, sourceFile.asString()));
   v8::MaybeLocal<v8::Script> maybeScript = v8::Script::Compile(context, scriptString, &origin);
   v8_backend::checkException(tryCatch);
   auto maybeResult = maybeScript.ToLocalChecked()->Run(context);
@@ -449,7 +455,6 @@ void V8Engine::registerNativeClassInstance(v8::Local<v8::FunctionTemplate> funcT
 
   // instance
   auto instanceT = funcT->PrototypeTemplate();
-  auto accessSignature = v8::AccessorSignature::New(isolate_, funcT);
   auto signature = v8::Signature::New(isolate_, funcT);
   for (auto& prop : classDefine->instanceDefine.properties) {
     StackFrameScope stack;
@@ -500,11 +505,18 @@ void V8Engine::registerNativeClassInstance(v8::Local<v8::FunctionTemplate> funcT
       };
     }
 
-    instanceT->SetAccessor(
-        toV8(isolate_, name), getter, setter,
-        v8::External::New(isolate_,
-                          const_cast<typename internal::InstanceDefine::PropertyDefine*>(&prop)),
-        v8::AccessControl::DEFAULT, v8::PropertyAttribute::DontDelete, accessSignature);
+    auto v8Name = toV8(isolate_, name);
+    auto data = v8::External::New(
+        isolate_, const_cast<typename internal::InstanceDefine::PropertyDefine*>(&prop));
+
+#if SCRIPTX_V8_VERSION_AT_MOST(10, 1)  // SetAccessor AccessorSignature deprecated in 10.2 a8beac
+    auto accessSignature = v8::AccessorSignature::New(isolate_, funcT);
+    instanceT->SetAccessor(v8Name, getter, setter, data, v8::AccessControl::DEFAULT,
+                           v8::PropertyAttribute::DontDelete, accessSignature);
+#else
+    instanceT->SetAccessor(v8Name, getter, setter, data, v8::AccessControl::DEFAULT,
+                           v8::PropertyAttribute::DontDelete);
+#endif
   }
 
   for (auto& func : classDefine->instanceDefine.functions) {

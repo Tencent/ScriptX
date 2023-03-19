@@ -141,7 +141,12 @@ V8Platform::V8Platform() : defaultPlatform_(v8::platform::NewDefaultPlatform()) 
 
 V8Platform::~V8Platform() {
   std::lock_guard<std::mutex> lock(lock_);
+#if SCRIPTX_V8_VERSION_AT_LEAST(10, 0)
+  v8::V8::DisposePlatform();
+#else
+  // DEPRECATED in 10.0 36707481ffa
   v8::V8::ShutdownPlatform();
+#endif
 }
 
 std::shared_ptr<v8::TaskRunner> V8Platform::GetForegroundTaskRunner(v8::Isolate* isolate) {
@@ -166,9 +171,11 @@ void V8Platform::OnCriticalMemoryPressure() {
   return defaultPlatform_->OnCriticalMemoryPressure();
 }
 
+#if SCRIPTX_V8_VERSION_AT_MOST(10, 6)
 bool V8Platform::OnCriticalMemoryPressure(size_t length) {
   Logger() << "V8Platform::OnCriticalMemoryPressure(" << length << ")";
   return defaultPlatform_->OnCriticalMemoryPressure(length);
 }
+#endif
 
 }  // namespace script::v8_backend
