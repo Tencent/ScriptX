@@ -1,5 +1,16 @@
 
 ---
+Version 3.3.0 (2023-03):
+Optimized template to reduce code bloat
+
+size change of UnitTest for release build
+
+Lua: 3097576 - 2758032 = 339,544
+JavaScriptCore: 3670032 - 3380048 = 289,984
+V8: 22610696 - 22240400 = 370,296
+WebAssembly: 1640551 - 1444942 = 195,60
+
+---
 Version 3.2.0 (2021-12):
 1. fix QuickJs memory leak, engine instance not deleted on destroy
 2. fix QuickJs missing EngineScope when run micro task (Promise)
