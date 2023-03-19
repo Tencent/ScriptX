@@ -36,7 +36,7 @@ namespace script {
     if(Py_IsNone(exceptionObj))
     {
       Py_XDECREF(exceptionObj);
-      throw std::exception("There is no Python exception currently");
+      throw std::runtime_error("There is no Python exception currently");
     }
     else
       return Exception(py_interop::asLocal<Value>(exceptionObj));
