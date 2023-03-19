@@ -51,7 +51,11 @@ class V8Platform : public v8::Platform {
 
   void OnCriticalMemoryPressure() override;
 
+#if SCRIPTX_V8_VERSION_AT_MOST(10, 6)
+  // DEPRECATED in 10.7 - 24cf9b
+  // REMOVED in 10.8 - 8b8703
   bool OnCriticalMemoryPressure(size_t length) override;
+#endif
 
  public:
   // directly delegate to default platform
@@ -81,22 +85,29 @@ class V8Platform : public v8::Platform {
     return nullptr;
   }
 
-#define V8_VERSION_AT_LEAST(major, minor) \
-  (V8_MAJOR_VERSION > (major) || (V8_MAJOR_VERSION == (major) && V8_MINOR_VERSION >= (minor)))
-
   // v8::Platform::PostJob, introduced since 8.4
   // https://chromium.googlesource.com/v8/v8/+/05b6268126c1435d1c964ef81799728088b72c76
   // NOTE: not available in node 14.x (node.js modified v8 code...)
   // https://nodejs.org/en/download/releases/
   // and node 15.x uses v8 8.6+
-#if defined(BUILDING_NODE_EXTENSION) ? V8_VERSION_AT_LEAST(8, 6) : V8_VERSION_AT_LEAST(8, 4)
+#if defined(BUILDING_NODE_EXTENSION) ? SCRIPTX_V8_VERSION_AT_LEAST(8, 6) \
+                                     : SCRIPTX_V8_VERSION_AT_LEAST(8, 4)
+
   virtual std::unique_ptr<v8::JobHandle> PostJob(v8::TaskPriority priority,
                                                  std::unique_ptr<v8::JobTask> job_task) override {
     return defaultPlatform_->PostJob(priority, std::move(job_task));
   }
+
 #endif
 
-#if !V8_VERSION_AT_LEAST(8, 0)
+#if SCRIPTX_V8_VERSION_AT_LEAST(10, 5)  // added in 10.5 1e0d18
+  std::unique_ptr<v8::JobHandle> CreateJob(v8::TaskPriority priority,
+                                           std::unique_ptr<v8::JobTask> job_task) override {
+    return defaultPlatform_->CreateJob(priority, std::move(job_task));
+  }
+#endif
+
+#if !SCRIPTX_V8_VERSION_AT_LEAST(8, 0)
   // v8 8.0 added default impl
   // v8 8.1 removed those function
   // so we won't override them since v8 8.0
@@ -112,8 +123,6 @@ class V8Platform : public v8::Platform {
                                                              delay_in_seconds);
   }
 #endif
-
-#undef V8_VERSION_AT_LEAST
 
  public:
   ~V8Platform() override;

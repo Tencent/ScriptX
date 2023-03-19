@@ -6,6 +6,7 @@ project(scriptx-node-addon)
 # important for node.js
 # https://github.com/cmake-js/cmake-js/issues/37
 add_definitions(-DBUILDING_NODE_EXTENSION)
+# CMAKE_JS_INC & CMAKE_JS_LIB comes from cmake-js by npm
 
 # config ScriptX
 set(SCRIPTX_BACKEND V8 CACHE STRING "" FORCE)
@@ -21,6 +22,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ScriptX)
+
+message(STATUS "Configuring ScriptX node.js addon. -- -DCMAKE_JS_INC=${CMAKE_JS_INC}")
 
 # Include N-API wrappers
 #execute_process(COMMAND node -p "require('node-addon-api').include"

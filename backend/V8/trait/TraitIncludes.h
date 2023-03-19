@@ -24,6 +24,11 @@
 #include "../V8Scope.h"
 #include "../V8Scope.hpp"
 
+// intenal used marcos
+#undef SCRIPTX_V8_VERSION_AT_LEAST
+#undef SCRIPTX_V8_VERSION_AT_MOST
+#undef SCRIPTX_V8_VERSION_BETWEEN
+
 // global marco
 #define SCRIPTX_BACKEND_V8
 #define SCRIPTX_LANG_JAVASCRIPT

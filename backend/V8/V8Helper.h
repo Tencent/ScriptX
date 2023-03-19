@@ -23,6 +23,32 @@ SCRIPTX_BEGIN_INCLUDE_LIBRARY
 #include <v8.h>
 SCRIPTX_END_INCLUDE_LIBRARY
 
+// V8 public API changes
+// https://v8.dev/docs/api
+// https://docs.google.com/document/d/1g8JFi8T_oAE_7uAri7Njtig7fKaPDfotU6huOa1alds/edit
+//
+// node.js VS V8 version table
+// https://nodejs.org/en/download/releases
+//
+// 1. to find line-of-code history (git blame)
+//    git log --full-history -S 'V8_DEPRECATED("Use DisposePlatform()")' include/v8-initialization.h
+// 2. to find tag version
+//    git tag --contains 367074
+
+// V8 version check helper
+// V8_version >= version
+#define SCRIPTX_V8_VERSION_AT_LEAST(major, minor) \
+  (V8_MAJOR_VERSION > (major) || (V8_MAJOR_VERSION == (major) && V8_MINOR_VERSION >= (minor)))
+
+// V8_version <= version
+#define SCRIPTX_V8_VERSION_AT_MOST(major, minor) \
+  (V8_MAJOR_VERSION < (major) || (V8_MAJOR_VERSION == (major) && V8_MINOR_VERSION <= (minor)))
+
+// old_version <= V8_version <= new_version
+#define SCRIPTX_V8_VERSION_BETWEEN(old_major, old_minor, new_major, new_minor) \
+  SCRIPTX_V8_VERSION_AT_LEAST(old_major, old_minor) &&                         \
+      SCRIPTX_V8_VERSION_AT_MOST(new_major, new_minor)
+
 namespace script::v8_backend {
 
 class V8Engine;
