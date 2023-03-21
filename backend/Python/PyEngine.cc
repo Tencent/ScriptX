@@ -134,11 +134,19 @@ void PyEngine::destroy() noexcept {
 }
 
 Local<Value> PyEngine::get(const Local<String>& key) {
+  // First find in __builtins__
   PyObject* item = getDictItem(getGlobalBuiltin(), key.toStringHolder().c_str());
   if (item)
     return py_interop::toLocal<Value>(item);
   else
-    return py_interop::toLocal<Value>(Py_None);
+  {
+    // No found. Find in __main__
+    item = getDictItem(getGlobalMain(), key.toStringHolder().c_str());
+    if (item)
+      return py_interop::toLocal<Value>(item);
+    else
+      return py_interop::toLocal<Value>(Py_None);
+  }
 }
 
 void PyEngine::set(const Local<String>& key, const Local<Value>& value) {
