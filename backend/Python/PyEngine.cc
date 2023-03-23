@@ -18,6 +18,7 @@
 #include "PyEngine.h"
 #include "PyInternalHelper.h"
 #include "PyRuntimeSettings.h"
+#include "PyReference.hpp"
 #include <cstring>
 #include "../../src/Utils.h"
 #include "../../src/utils/Helper.hpp"
