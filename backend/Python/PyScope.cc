@@ -76,19 +76,12 @@ EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
   // wait to enter engine
   engine.engineLockHelper.waitToEnterEngine();
 
-  // Check if there is another existing thread state (put by another engine)   
-  // PyThreadState_GET will cause FATAL error if oldState is NULL
-  // so here get & check oldState by swap twice
-  PyThreadState* oldState = PyThreadState_Swap(NULL);
-  bool isOldStateNotEmpty = oldState != NULL;
-  PyThreadState_Swap(oldState);
-  if (isOldStateNotEmpty) {
-      // Another thread state is loaded, record it in prev thread state
-      prevThreadState = PyThreadState_Swap(NULL);
-  }
-  else
+  // Record existing thread state into prevThreadState and set it to NULL
+  // PyThreadState_GET may cause FATAL error, so use PyThreadState_Swap here
+  prevThreadState = PyThreadState_Swap(NULL);
+  if(prevThreadState == NULL)
   {
-    // Why empty? At least will be main interperter thread state!
+    // Why prevThreadState is NULL? At least will be main interperter thread state!
     throw Exception("Bad previous thread state!");
   }
 
