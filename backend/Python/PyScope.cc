@@ -76,8 +76,8 @@ EngineScopeImpl::EngineScopeImpl(PyEngine &engine, PyEngine * enginePtr) {
   // wait to enter engine
   engine.engineLockHelper.waitToEnterEngine();
 
-  // Record existing thread state into prevThreadState and set it to NULL
-  // PyThreadState_GET may cause FATAL error, so use PyThreadState_Swap here
+  // Record existing thread state into prevThreadState
+  // PyThreadState_GET may cause FATAL error, so use PyThreadState_Swap instead
   prevThreadState = PyThreadState_Swap(NULL);
   if(prevThreadState == NULL)
   {
@@ -123,8 +123,9 @@ ExitEngineScopeImpl::ExitEngineScopeImpl(PyEngine &engine)
  :enteredEngine(&engine)
  {
   engine.engineLockHelper.waitToExitEngine();
-  // Store entered thread state
-  enteredThreadState = PyThreadState_Swap(engine.mainThreadState_);
+  // Store entered thread state and switch to mainThreadState
+  // currentThreadState == mainThreadState means none of the engine is entered
+  enteredThreadState = PyThreadState_Swap(PyEngine::mainThreadStateInTLS_.get());
   engine.engineLockHelper.finishExitEngine();
 }
 
