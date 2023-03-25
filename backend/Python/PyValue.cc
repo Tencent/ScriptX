@@ -20,37 +20,28 @@
 #include "../../src/Scope.h"
 #include "../../src/Value.h"
 #include "PyHelper.hpp"
-
-using script::py_interop;
-using script::py_backend::checkException;
+#include "PyEngine.h"
 
 namespace script {
 
-template <typename T>
-Local<T> checkAndMakeLocal(PyObject* ref) {
-  return py_interop::makeLocal<T>(checkException(ref));
-}
-
-// for python this creates an empty dict
-Local<Object> Object::newObject() { return checkAndMakeLocal<Object>(PyDict_New()); }
+Local<Object> Object::newObject() { return py_interop::asLocal<Object>(PyDict_New()); }
 
 Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
                                     const Local<Value>* args) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  throw Exception("Python can't create a dict with data in array");
+  return py_interop::asLocal<Object>(PyDict_New());
 }
 
 Local<String> String::newString(const char* utf8) {
-  return checkAndMakeLocal<String>(PyBytes_FromString(utf8));
+  return py_interop::asLocal<String>(PyUnicode_FromString(utf8));
 }
 
 Local<String> String::newString(std::string_view utf8) {
-  return checkAndMakeLocal<String>(
-      PyBytes_FromStringAndSize(utf8.data(), static_cast<Py_ssize_t>(utf8.length())));
+  return py_interop::asLocal<String>(PyUnicode_FromStringAndSize(utf8.data(), utf8.size()));
 }
 
 Local<String> String::newString(const std::string& utf8) {
-  return checkAndMakeLocal<String>(
-      PyBytes_FromStringAndSize(utf8.c_str(), static_cast<Py_ssize_t>(utf8.length())));
+  return newString(std::string_view(utf8));
 }
 
 #if defined(__cpp_char8_t)
@@ -63,94 +54,107 @@ Local<String> String::newString(std::u8string_view utf8) {
   return newString(std::string_view(reinterpret_cast<const char*>(utf8.data()), utf8.length()));
 }
 
-Local<String> String::newString(const std::u8string& utf8) { return newString(utf8.c_str()); }
+Local<String> String::newString(const std::u8string& utf8) {
+  return newString(std::u8string_view(utf8));
+}
 
 #endif
 
 Local<Number> Number::newNumber(float value) { return newNumber(static_cast<double>(value)); }
 
 Local<Number> Number::newNumber(double value) {
-  return checkAndMakeLocal<Number>(PyLong_FromDouble(value));
+  return py_interop::asLocal<Number>(PyFloat_FromDouble(value));
 }
 
 Local<Number> Number::newNumber(int32_t value) {
-  return checkAndMakeLocal<Number>(PyLong_FromLong(static_cast<long>(value)));
+  return py_interop::asLocal<Number>(PyLong_FromLong(value));
 }
 
 Local<Number> Number::newNumber(int64_t value) {
-  return checkAndMakeLocal<Number>(PyLong_FromLongLong(static_cast<long long>(value)));
+  return py_interop::asLocal<Number>(PyLong_FromLongLong(value));
 }
 
 Local<Boolean> Boolean::newBoolean(bool value) {
-  return checkAndMakeLocal<Boolean>(PyBool_FromLong(value));
+  return py_interop::asLocal<Boolean>(PyBool_FromLong(value));
 }
 
-namespace {
+Local<Function> Function::newFunction(FunctionCallback callback) {
+  struct FunctionData {
+    FunctionCallback function;
+    py_backend::PyEngine* engine;
+  };
 
-static constexpr const char* kFunctionDataName = "_ScriptX_function_data";
-
-struct FunctionData {
-  FunctionCallback function;
-  py_backend::PyEngine* engine = nullptr;
-};
-
-}  // namespace
-
-Local<Function> Function::newFunction(script::FunctionCallback callback) {
-  auto callbackIns = std::make_unique<FunctionData>();
-  callbackIns->engine = EngineScope::currentEngineAs<py_backend::PyEngine>();
-  callbackIns->function = std::move(callback);
-
-  PyMethodDef method{};
-  method.ml_name = "ScriptX_native_method";
-  method.ml_flags = METH_O;
-  method.ml_doc = "ScriptX Function::newFunction";
-  method.ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
-    auto ptr = PyCapsule_GetPointer(self, kFunctionDataName);
-    if (ptr == nullptr) {
-      ::PyErr_SetString(PyExc_TypeError, "invalid 'self' for native method");
-    } else {
-      auto data = static_cast<FunctionData*>(ptr);
-      try {
-        auto ret = data->function(py_interop::makeArguments(nullptr, self, args));
-        return py_interop::toPy(ret);
-      } catch (Exception& e) {
-        py_backend::rethrowException(e);
-      }
+  PyMethodDef* method = new PyMethodDef;
+  method->ml_name = "scriptx_function";
+  method->ml_flags = METH_VARARGS;
+  method->ml_doc = nullptr;
+  method->ml_meth = [](PyObject* self, PyObject* args) -> PyObject* {
+    auto data = static_cast<FunctionData*>(PyCapsule_GetPointer(self, nullptr));
+    try{
+      Tracer tracer(data->engine, "CppFunction");
+      Local<Value> ret = data->function(py_interop::makeArguments(data->engine, self, args));
+      return py_interop::getPy(ret);
+    }
+    catch(const Exception &e) {
+      Local<Value> exception = e.exception();
+      PyObject* exceptionObj = py_interop::peekPy(exception);
+      PyErr_SetObject((PyObject*)Py_TYPE(exceptionObj), exceptionObj);
+    }
+    catch(const std::exception &e) {
+      PyObject *scriptxType = (PyObject*)
+        EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+      PyErr_SetString(scriptxType, e.what());
+    }
+    catch(...) {
+      PyObject *scriptxType = (PyObject*)
+        EngineScope::currentEngineAs<py_backend::PyEngine>()->scriptxExceptionTypeObj;
+      PyErr_SetString(scriptxType, "[No Exception Message]");
     }
     return nullptr;
   };
 
-  auto ctx = PyCapsule_New(callbackIns.get(), kFunctionDataName, [](PyObject* cap) {
-    auto ptr = PyCapsule_GetPointer(cap, kFunctionDataName);
+  PyCapsule_Destructor destructor = [](PyObject* cap) {
+    void* ptr = PyCapsule_GetPointer(cap, nullptr);
     delete static_cast<FunctionData*>(ptr);
-  });
-  py_backend::checkException(ctx);
-  callbackIns.release();
+  };
+  PyObject* capsule = PyCapsule_New(
+      new FunctionData{std::move(callback), py_backend::currentEngine()}, nullptr, destructor);
+  py_backend::checkAndThrowException();
 
-  PyObject* closure = PyCFunction_New(&method, ctx);
-  Py_XDECREF(ctx);
-  py_backend::checkException(closure);
+  PyObject* function = PyCFunction_New(method, capsule);
+  Py_DECREF(capsule);
+  py_backend::checkAndThrowException();
 
-  return Local<Function>(closure);
+  return py_interop::asLocal<Function>(function);
 }
 
-Local<Array> Array::newArray(size_t size) {
-  return checkAndMakeLocal<Array>(PyList_New(static_cast<Py_ssize_t>(size)));
-}
+Local<Array> Array::newArray(size_t size) { return py_interop::asLocal<Array>(PyList_New(size)); }
 
 Local<Array> Array::newArrayImpl(size_t size, const Local<Value>* args) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  PyObject* list = PyList_New(size);
+  if (!list) {
+    throw Exception();
+  }
+  for (size_t i = 0; i < size; ++i) {
+    PyList_SetItem(list, i, py_interop::getPy(args[i]));
+  }
+  return py_interop::asLocal<Array>(list);
 }
 
-Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<ByteBuffer> ByteBuffer::newByteBuffer(size_t size) {
+  const char* bytes = new char[size]{};
+  PyObject* result = PyByteArray_FromStringAndSize(bytes, size);
+  delete bytes;
+  return py_interop::asLocal<ByteBuffer>(result);
+}
 
 Local<script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, size_t size) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  return py_interop::asLocal<ByteBuffer>(
+      PyByteArray_FromStringAndSize(static_cast<char*>(nativeBuffer), size));
 }
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(std::shared_ptr<void> nativeBuffer, size_t size) {
-  TEMPLATE_NOT_IMPLEMENTED();
+  throw Exception("Python does not support sharing buffer pointer.");
 }
 
 }  // namespace script

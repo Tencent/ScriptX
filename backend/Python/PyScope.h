@@ -17,14 +17,14 @@
 
 #pragma once
 #include "../../src/Reference.h"
-#include "PyHelper.h"
 
 namespace script::py_backend {
 
 class PyEngine;
 
 class EngineScopeImpl {
-  PyGILState_STATE gilState_;
+  // Previous thread state
+  PyThreadState* prevThreadState;
 
  public:
   explicit EngineScopeImpl(PyEngine &, PyEngine *);
@@ -33,7 +33,10 @@ class EngineScopeImpl {
 };
 
 class ExitEngineScopeImpl {
-  PyThreadState *threadState;
+  // Entered thread state
+  PyThreadState* enteredThreadState;
+  // Entered engine
+  PyEngine* enteredEngine;
 
  public:
   explicit ExitEngineScopeImpl(PyEngine &);
@@ -47,7 +50,8 @@ class StackFrameScopeImpl {
 
   template <typename T>
   Local<T> returnValue(const Local<T> &localRef) {
-    return localRef;
+    // create a new ref for localRef
+    return Local<T>(localRef);
   }
 };
 }  // namespace script::py_backend

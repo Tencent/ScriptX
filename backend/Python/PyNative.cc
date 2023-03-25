@@ -18,6 +18,7 @@
 #include "../../src/Native.hpp"
 #include "PyEngine.h"
 #include "PyHelper.hpp"
+#include "PyReference.hpp"
 
 namespace script {
 
@@ -25,37 +26,51 @@ Arguments::Arguments(InternalCallbackInfoType callbackInfo) : callbackInfo_(call
 
 Arguments::~Arguments() = default;
 
-Local<Object> Arguments::thiz() const {
-  return py_interop::makeLocal<Value>(callbackInfo_.self).asObject();
-}
+Local<Object> Arguments::thiz() const { return py_interop::toLocal<Object>(callbackInfo_.self); }
 
-bool Arguments::hasThiz() const { return callbackInfo_.self != nullptr; }
+bool Arguments::hasThiz() const { return callbackInfo_.self; }
 
-size_t Arguments::size() const {
-  if (!callbackInfo_.args) {
-    return 0;
-  }
-  return PyTuple_Size(callbackInfo_.args);
-}
+size_t Arguments::size() const { return PyTuple_Size(callbackInfo_.args); }
 
 Local<Value> Arguments::operator[](size_t i) const {
-  if (i < size()) {
-    return py_interop::makeLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
+  if (i >= size()) {
+    return Local<Value>();
+  } else {
+    return py_interop::toLocal<Value>(PyTuple_GetItem(callbackInfo_.args, i));
   }
-  return {};
 }
 
 ScriptEngine* Arguments::engine() const { return callbackInfo_.engine; }
 
-ScriptClass::ScriptClass(const script::Local<script::Object>& scriptObject) : internalState_() {
-  TEMPLATE_NOT_IMPLEMENTED();
+ScriptClass::ScriptClass(const Local<Object>& scriptObject) : internalState_() {
+  internalState_.scriptEngine_ = py_backend::currentEngineChecked();
+  internalState_.weakRef_ = scriptObject;
 }
 
-Local<Object> ScriptClass::getScriptObject() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Object> ScriptClass::getScriptObject() const { 
+  return internalState_.weakRef_.get(); 
+}
 
-Local<Array> ScriptClass::getInternalStore() const { TEMPLATE_NOT_IMPLEMENTED(); }
+Local<Array> ScriptClass::getInternalStore() const {
+  Local<Value> weakRef = internalState_.weakRef_.getValue();
+  if(weakRef.isNull())
+    throw Exception("getInternalStore on empty script object");
+  PyObject* ref = py_interop::peekPy(weakRef);
 
-ScriptEngine* ScriptClass::getScriptEngine() const { TEMPLATE_NOT_IMPLEMENTED(); }
+  // create internal storage if not exist
+  PyObject* storage = PyObject_GetAttrString(ref, "scriptx_internal_store");    // return new ref
+  if(!storage || storage == Py_None || PyList_Check(storage) == 0)
+  {
+    py_backend::checkAndClearException();
+    PyObject *internalList = PyList_New(0);
+    py_backend::setAttr(ref, "scriptx_internal_store", internalList);
+    Py_DECREF(internalList);
+    storage = PyObject_GetAttrString(ref, "scriptx_internal_store");    // return new ref
+  }
+  return py_interop::toLocal<Array>(storage);
+}
 
-ScriptClass::~ScriptClass() = default;
+ScriptEngine* ScriptClass::getScriptEngine() const { return internalState_.scriptEngine_; }
+
+ScriptClass::~ScriptClass(){};
 }  // namespace script

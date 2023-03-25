@@ -23,9 +23,28 @@ namespace script {
 
 namespace py_backend {
 
+// Two exception sources:
+// 1. PyErr_Fetch get from Python
+// 2. Construct from std::string
+//
+// Four exception usage way:
+// 1. exception() need return "Exception Object"
+// 2. message() need return "Message String"
+// 3. traceback() need return "Stacktrace String"
+// 4. throw exception back to Python in ml_meth callback function
+
 class ExceptionFields {
  public:
+  mutable Global<Value> exceptionObj_{};
+
   mutable std::string message_{};
+  mutable bool hasMessage_ = false;
+
+  mutable std::string stacktrace_{};
+  mutable bool hasStacktrace_ = false;
+  
+  std::string getMessage() const noexcept;
+  std::string getStacktrace() const noexcept;
 };
 
 }  // namespace py_backend

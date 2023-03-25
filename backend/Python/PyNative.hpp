@@ -23,11 +23,24 @@
 namespace script {
 
 template <typename T>
-ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {}
+ScriptClass::ScriptClass(const ScriptClass::ConstructFromCpp<T>) : internalState_() {
+  auto engine = py_backend::currentEngineChecked();
+  internalState_.scriptEngine_ = engine;
+
+  // pass "this" through into tp_init by wrapped in a capsule
+  PyCapsule_Destructor destructor = [](PyObject* cap) {};
+  PyObject* capsule =
+      PyCapsule_New(this, nullptr, destructor);
+
+  auto ref = engine->newNativeClass<T>({py_interop::asLocal<Value>(capsule)});
+  internalState_.weakRef_ = ref;
+
+  py_backend::extendLifeTimeToNextLoop(engine, py_interop::getPy(ref.asValue()));
+}
 
 template <typename T>
 T* Arguments::engineAs() const {
-  return nullptr;
+  return static_cast<T*>(engine());
 }
 
 }  // namespace script

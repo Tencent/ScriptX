@@ -15,22 +15,24 @@
  * limitations under the License.
  */
 
-#pragma once
-#include "../../src/types.h"
-#include "../PyHelper.h"
+# pragma once
 
-namespace script {
+#include <string>
+#include <vector>
 
-struct py_interop;
+namespace script::py_backend {
+namespace py_runtime_settings {
 
-template <>
-struct internal::ImplType<StringHolder> {
-  using type = PyObject*;
-};
+void initDefaultPythonRuntimeSettings();
 
-template <>
-struct internal::ImplType<internal::interop> {
-  using type = py_interop;
-};
+void setPythonHomePath(const std::wstring &path);
+std::wstring getPythonHomePath();
 
-}  // namespace script
+void setModuleSearchPaths(const std::vector<std::wstring> &paths);
+void addModuleSearchPath(const std::wstring &path);
+std::vector<std::wstring> getModuleSearchPaths();
+
+std::wstring getPlatformPathSeparator();
+
+}
+}

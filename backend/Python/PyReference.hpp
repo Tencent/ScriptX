@@ -17,87 +17,95 @@
 
 #pragma once
 #include <utility>
+#include "PyHelper.hpp"
+#include "PyEngine.h"
+#include <set>
 
 namespace script {
 
-namespace py_backend {
-
-inline PyObject* incRef(PyObject* ref) { return Py_XNewRef(ref); }
-
-inline void decRef(PyObject* ref) { Py_XDECREF(ref); }
-
-}  // namespace py_backend
+// =============== Global ===============
 
 template <typename T>
 Global<T>::Global() noexcept : val_() {}
 
 template <typename T>
-Global<T>::Global(const script::Local<T>& localReference) {}
+Global<T>::Global(const script::Local<T>& localReference) :val_(py_interop::peekPy(localReference)) {}
 
 template <typename T>
-Global<T>::Global(const script::Weak<T>& weak) {}
+Global<T>::Global(const script::Weak<T>& weak) : val_(weak.val_.peek()) {}
 
 template <typename T>
 Global<T>::Global(const script::Global<T>& copy) : val_(copy.val_) {}
 
 template <typename T>
-Global<T>::Global(script::Global<T>&& move) noexcept : val_(move.val_) {}
+Global<T>::Global(script::Global<T>&& move) noexcept : val_(std::move(move.val_)) {}
 
 template <typename T>
-Global<T>::~Global() {}
+Global<T>::~Global() {
+  val_.dtor();
+}
 
 template <typename T>
 Global<T>& Global<T>::operator=(const script::Global<T>& assign) {
-  Global(assign).swap(*this);
+  val_ = assign.val_;
   return *this;
 }
 
 template <typename T>
 Global<T>& Global<T>::operator=(script::Global<T>&& move) noexcept {
-  Global(std::move(move)).swap(*this);
+  val_ = std::move(move.val_);
   return *this;
 }
 
 template <typename T>
-void Global<T>::swap(Global& rhs) noexcept {}
+Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
+  auto state{py_backend::GlobalRefState(py_interop::peekPy(assign))};
+  val_ = std::move(state);
+  state.dtor();
+  return *this;
+}
+
 
 template <typename T>
-Global<T>& Global<T>::operator=(const script::Local<T>& assign) {
-  *this = Global<T>(assign);
-  return *this;
+void Global<T>::swap(Global& rhs) noexcept {
+  val_.swap(rhs.val_);
 }
 
 template <typename T>
 Local<T> Global<T>::get() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  return py_interop::asLocal<T>(val_.get());
 }
 
 template <typename T>
 Local<Value> Global<T>::getValue() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  return py_interop::asLocal<Value>(val_.get());
 }
 
 template <typename T>
 bool Global<T>::isEmpty() const {
-  return false;
+  return val_.isEmpty();
 }
 
 template <typename T>
-void Global<T>::reset() {}
+void Global<T>::reset() {
+  val_.reset();
+}
 
-// == Weak ==
-
-template <typename T>
-Weak<T>::Weak() noexcept : val_() {}
-
-template <typename T>
-Weak<T>::~Weak() {}
+// =============== Weak ===============
 
 template <typename T>
-Weak<T>::Weak(const script::Local<T>& localReference) {}
+Weak<T>::Weak() noexcept {};
 
 template <typename T>
-Weak<T>::Weak(const script::Global<T>& globalReference) {}
+Weak<T>::~Weak() {
+  val_.dtor();
+}
+
+template <typename T>
+Weak<T>::Weak(const script::Local<T>& localReference) : val_(py_interop::peekPy(localReference)) {}
+
+template <typename T>
+Weak<T>::Weak(const script::Global<T>& globalReference) : val_(globalReference.val_.peek()) {}
 
 template <typename T>
 Weak<T>::Weak(const script::Weak<T>& copy) : val_(copy.val_) {}
@@ -118,33 +126,38 @@ Weak<T>& Weak<T>::operator=(script::Weak<T>&& move) noexcept {
 }
 
 template <typename T>
-void Weak<T>::swap(Weak& rhs) noexcept {
-  std::swap(val_, rhs.val_);
+Weak<T>& Weak<T>::operator=(const script::Local<T>& assign) {
+  auto state{py_backend::WeakRefState(py_interop::peekPy(assign))};
+  val_ = std::move(state);
+  state.dtor();
+  return *this;
 }
 
 template <typename T>
-Weak<T>& Weak<T>::operator=(const script::Local<T>& assign) {
-  *this = Weak<T>(assign);
-  return *this;
+void Weak<T>::swap(Weak& rhs) noexcept {
+  val_.swap(rhs.val_);
 }
 
 template <typename T>
 Local<T> Weak<T>::get() const {
   if (isEmpty()) throw Exception("get on empty Weak");
-  TEMPLATE_NOT_IMPLEMENTED();
+  return py_interop::asLocal<T>(val_.get());
 }
 
 template <typename T>
 Local<Value> Weak<T>::getValue() const {
-  TEMPLATE_NOT_IMPLEMENTED();
+  if (isEmpty()) return Local<Value>();
+  return py_interop::asLocal<Value>(val_.get());
 }
 
 template <typename T>
 bool Weak<T>::isEmpty() const {
-  return false;
+  return val_.isEmpty();
 }
 
 template <typename T>
-void Weak<T>::reset() noexcept {}
+void Weak<T>::reset() noexcept {
+  val_.reset();
+}
 
 }  // namespace script

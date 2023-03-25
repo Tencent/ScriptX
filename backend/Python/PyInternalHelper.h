@@ -16,21 +16,19 @@
  */
 
 #pragma once
-#include "../../src/types.h"
-#include "../PyHelper.h"
+#include "../../src/foundation.h"
 
-namespace script {
+SCRIPTX_BEGIN_INCLUDE_LIBRARY
+#include <pystate.h>
+SCRIPTX_END_INCLUDE_LIBRARY
 
-struct py_interop;
+// =========================================
+// - Attention! Functions and definitions below is copied from CPython source code so they 
+//  may need to be re-adapted as the CPython backend's version is updated.
+// - These function and definitions are not exported. We can only copy the implementation.
 
-template <>
-struct internal::ImplType<StringHolder> {
-  using type = PyObject*;
-};
+extern "C" void _PyThreadState_DeleteExcept(/*_PyRuntimeState *runtime, */ PyThreadState *tstate);
 
-template <>
-struct internal::ImplType<internal::interop> {
-  using type = py_interop;
-};
+// =========================================
 
-}  // namespace script
+extern "C" void SetPyInterpreterStateFinalizing(PyInterpreterState *is);

@@ -24,13 +24,13 @@ namespace script {
 namespace py_backend {
 
 struct ArgumentsData {
-  mutable PyEngine* engine;
+  PyEngine* engine;
   PyObject* self;
   PyObject* args;
 };
 
-struct ScriptClassState {
-  ScriptEngine* scriptEngine_ = nullptr;
+struct PyScriptClassState {
+  PyEngine* scriptEngine_ = nullptr;
   Weak<Object> weakRef_;
 };
 
@@ -43,7 +43,7 @@ struct internal::ImplType<::script::Arguments> {
 
 template <>
 struct internal::ImplType<::script::ScriptClass> {
-  using type = py_backend::ScriptClassState;
+  using type = py_backend::PyScriptClassState;
 };
 
 }  // namespace script

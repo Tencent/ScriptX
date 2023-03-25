@@ -18,11 +18,61 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 #include "../../src/types.h"
 #include "../PyHelper.h"
 
-namespace script::internal {
+namespace script {
+
+namespace py_backend {
+
+struct GlobalRefState {
+  PyObject* _ref;
+  PyEngine *_engine;
+
+  GlobalRefState();
+  GlobalRefState(PyObject* obj);
+  GlobalRefState(const GlobalRefState& assign);
+  GlobalRefState(GlobalRefState&& move) noexcept;
+
+  GlobalRefState& operator=(const GlobalRefState& assign);
+  GlobalRefState& operator=(GlobalRefState&& move) noexcept;
+  void swap(GlobalRefState& other);
+
+  bool isEmpty() const;
+  PyObject *get() const;    // ref count + 1
+  PyObject *peek() const;   // ref count no change
+  void reset();
+  void dtor(bool eraseFromList = true);
+};
+
+struct WeakRefState {
+  PyObject* _ref;
+  bool _isRealWeakRef = false;  
+  PyEngine* _engine;  
+  // if true, _ref is a real weak ref, or _ref will be a global ref instead 
+  // (some builtin types like <int, string, ...> cannot have native weak ref)
+
+  WeakRefState();
+  WeakRefState(PyObject* obj);
+  WeakRefState(const WeakRefState& assign);
+  WeakRefState(WeakRefState&& move) noexcept;
+
+  WeakRefState& operator=(const WeakRefState& assign);
+  WeakRefState& operator=(WeakRefState&& move) noexcept;
+  void swap(WeakRefState& other);
+
+  bool isEmpty() const;
+  bool isRealWeakRef() const;
+
+  PyObject *get() const;          // ref count + 1
+  PyObject *peek() const;   // ref count no change
+  void reset();
+  void dtor(bool eraseFromList = true);
+};
+
+}   // namespace script::py_backend
+
+namespace internal {
 
 template <typename T>
 struct ImplType<Local<T>> {
@@ -31,12 +81,14 @@ struct ImplType<Local<T>> {
 
 template <typename T>
 struct ImplType<Global<T>> {
-  using type = PyObject*;
+  using type = py_backend::GlobalRefState;
 };
 
 template <typename T>
 struct ImplType<Weak<T>> {
-  using type = PyObject*;
+  using type = py_backend::WeakRefState;
 };
 
 }  // namespace script::internal
+
+}// namespace script
