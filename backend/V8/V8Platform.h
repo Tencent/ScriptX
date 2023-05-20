@@ -1,6 +1,6 @@
 /*
  * Tencent is pleased to support the open source community by making ScriptX available.
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2023 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,11 +79,7 @@ class V8Platform : public v8::Platform {
     return defaultPlatform_->GetTracingController();
   }
 
-  v8::PageAllocator* GetPageAllocator() override {
-    // V8 has a bug around this, we always return null to use the default one
-    // return defaultPlatform_->GetPageAllocator();
-    return nullptr;
-  }
+  v8::PageAllocator* GetPageAllocator() override { return defaultPlatform_->GetPageAllocator(); }
 
   // v8::Platform::PostJob, introduced since 8.4
   // https://chromium.googlesource.com/v8/v8/+/05b6268126c1435d1c964ef81799728088b72c76
@@ -129,7 +125,7 @@ class V8Platform : public v8::Platform {
 
  private:
   static std::mutex lock_;
-  static std::weak_ptr<V8Platform> weakInstance_;
+  static std::shared_ptr<V8Platform> singletonInstance_;
 
   struct EngineData {
     // auto created in the default ctor
@@ -140,6 +136,9 @@ class V8Platform : public v8::Platform {
   std::unordered_map<v8::Isolate*, EngineData> engineMap_;
 
  public:
+  /**
+   * @return the VERY ONE AND ONLY platform
+   */
   static std::shared_ptr<V8Platform> getPlatform();
 
   void addEngineInstance(v8::Isolate* isolate, V8Engine* engine);

@@ -1,6 +1,6 @@
 /*
  * Tencent is pleased to support the open source community by making ScriptX available.
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2023 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,17 +108,21 @@ class MessageQueueTaskRunner : public v8::TaskRunner {
 V8Platform::EngineData::EngineData()
     : messageQueueRunner(std::make_shared<MessageQueueTaskRunner>()) {}
 
-std::weak_ptr<V8Platform> V8Platform::weakInstance_;
+// lock_ should be declared before singletonInstance_
+// because singletonInstance_ depends on lock_
+// so the initialize order should be lock_ -> singletonInstance_
+// while the de-initialize order be singletonInstance_ -> lock_
+// reference: "Dynamic initialization' rule 3
+// https://en.cppreference.com/w/cpp/language/initialization
 std::mutex V8Platform::lock_;
+std::shared_ptr<V8Platform> V8Platform::singletonInstance_;
 
 std::shared_ptr<V8Platform> V8Platform::getPlatform() {
   std::lock_guard<std::mutex> lock(lock_);
-  auto ins = weakInstance_.lock();
-  if (!ins) {
-    ins = std::shared_ptr<V8Platform>(new V8Platform());
-    weakInstance_ = ins;
+  if (!singletonInstance_) {
+    singletonInstance_ = std::shared_ptr<V8Platform>(new V8Platform());
   }
-  return ins;
+  return singletonInstance_;
 }
 
 void V8Platform::addEngineInstance(v8::Isolate* isolate, script::v8_backend::V8Engine* engine) {
@@ -134,13 +138,28 @@ void V8Platform::removeEngineInstance(v8::Isolate* isolate) {
   }
 }
 
+// the following comment from v8/src/init.cc AdvanceStartupState function
+// the calling order are strongly enforced by v8
+//
+// Ensure the following order:
+// v8::V8::InitializePlatform(platform);
+// v8::V8::Initialize();
+// v8::Isolate* isolate = v8::Isolate::New(...);
+// ...
+// isolate->Dispose();
+// v8::V8::Dispose();
+// v8::V8::DisposePlatform();
+
 V8Platform::V8Platform() : defaultPlatform_(v8::platform::NewDefaultPlatform()) {
   // constructor is called inside lock_guard of lock_
   v8::V8::InitializePlatform(this);
+  v8::V8::Initialize();
 }
 
 V8Platform::~V8Platform() {
   std::lock_guard<std::mutex> lock(lock_);
+  v8::V8::Dispose();
+
 #if SCRIPTX_V8_VERSION_AT_LEAST(10, 0)
   v8::V8::DisposePlatform();
 #else
