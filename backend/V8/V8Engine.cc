@@ -31,9 +31,6 @@ V8Engine::V8Engine(std::shared_ptr<utils::MessageQueue> mq,
                    const std::function<v8::Isolate*()>& isolateFactory)
     : v8Platform_(V8Platform::getPlatform()),
       messageQueue_(mq ? std::move(mq) : std::make_shared<utils::MessageQueue>()) {
-  // init v8
-  v8::V8::Initialize();
-
   // create isolation
   if (isolateFactory) {
     isolate_ = isolateFactory();

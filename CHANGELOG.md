@@ -1,7 +1,13 @@
+
+Version 3.4.0 (2023-05):
+1. `[V8]` **BEHAVIOR CHANGE:** `V8Platform` now being a singleton, not ref-counted by `V8Engine`s any more.
+2. `[V8]` add support for V8 version 11.4
+3. `[V8]` add test support for V8 arm64
+
 ---
-Version 3.3.0 (2023-03):
-[V8] add support for V8 version 10.8
-[V8] add support for node.js version 19.8.1
+Version 3.3.1 (2023-03):
+1. `[V8]` add support for V8 version 10.8
+2. `[V8]` add support for node.js version 19.8.1
 
 ---
 Version 3.3.0 (2023-03):

@@ -1,6 +1,6 @@
 /*
  * Tencent is pleased to support the open source community by making ScriptX available.
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2023 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #include "../V8Scope.h"
 #include "../V8Scope.hpp"
 
-// intenal used marcos
+// internal used marcos
 #undef SCRIPTX_V8_VERSION_AT_LEAST
 #undef SCRIPTX_V8_VERSION_AT_MOST
 #undef SCRIPTX_V8_VERSION_BETWEEN
