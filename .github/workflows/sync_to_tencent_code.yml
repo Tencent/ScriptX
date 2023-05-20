@@ -9,12 +9,13 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: mirror-repository
-        uses: spyoungtech/mirror-action@v0.4.3
+        uses: spyoungtech/mirror-action@v0.6.0
         with:
          REMOTE: 'https://git.code.tencent.com/Tencent_Open_Source/ScriptX.git'
          GIT_USERNAME: ${{ secrets.TENCENT_CODE_GIT_USERNAME }}
          GIT_PASSWORD: ${{ secrets.TENCENT_CODE_GIT_PASSWORD }}
+         DEBUG: true
