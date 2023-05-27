@@ -144,6 +144,8 @@ class V8Platform : public v8::Platform {
   void addEngineInstance(v8::Isolate* isolate, V8Engine* engine);
 
   void removeEngineInstance(v8::Isolate* isolate);
+
+  friend struct script::v8_interop;
 };
 
 }  // namespace script::v8_backend
