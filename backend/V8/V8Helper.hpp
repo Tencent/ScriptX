@@ -97,6 +97,32 @@ struct v8_interop {
   static ArgumentsData extractArguments(const Arguments& args) {
     return ArgumentsData{args.callbackInfo_.first, args.callbackInfo_.second};
   }
+
+  struct Critical {
+    /**
+     * DANGEROUS OPERATION!!!
+     * By default the v8 platform is a process-level singleton, which will be destroyed during
+     * process exit. In some C++ guide, it's recommended not to relay on static variable
+     * destruction.
+     *
+     * By call this method, it is guaranteed not to destroy the platform instance (actually by
+     * making the singleton leak).
+     */
+    static void neverDestroyPlatform();
+
+    /**
+     * DANGEROUS OPERATION!!!
+     * By default the v8 platform is a process-level singleton, which will be destroyed during
+     * process exit. In some case, if you are sure not to use V8 in the process again (never
+     * re-create a instance), you can call this method to destroy the platform immediately. Once
+     * destroyed, V8 usually shuts down thread pool, etc to release resources.
+     *
+     * In face, if there is still running V8Engine instance, the platform will be destroy
+     * afterwords.
+     *
+     */
+    static void immediatelyDestroyPlatform();
+  };
 };
 
 }  // namespace script

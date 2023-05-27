@@ -17,8 +17,10 @@
 
 #include "V8Platform.h"
 #include <libplatform/libplatform.h>
+#include <type_traits>
 #include "../../src/Utils.h"
 #include "V8Engine.h"
+#include "V8Helper.hpp"
 
 namespace script::v8_backend {
 
@@ -198,3 +200,18 @@ bool V8Platform::OnCriticalMemoryPressure(size_t length) {
 #endif
 
 }  // namespace script::v8_backend
+
+void script::v8_interop::Critical::neverDestroyPlatform() {
+  using script::v8_backend::V8Platform;
+  auto platform = V8Platform::getPlatform();
+
+  // make the shared_ptr leak
+  std::aligned_storage_t<sizeof(std::shared_ptr<V8Platform>)> buffer;
+  new (&buffer) std::shared_ptr<V8Platform>(platform);
+}
+
+void script::v8_interop::Critical::immediatelyDestroyPlatform() {
+  using script::v8_backend::V8Platform;
+  std::lock_guard<std::mutex> lock(V8Platform::lock_);
+  V8Platform::singletonInstance_ = nullptr;
+}
