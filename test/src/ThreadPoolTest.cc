@@ -17,10 +17,10 @@
 
 #include <array>
 #include <atomic>
+#include <iomanip>
 #include "test.h"
 
 namespace script::utils::test {
-
 static void handleMessage(Message& msg) {
   auto* i = static_cast<std::atomic_int64_t*>(msg.ptr0);
   (*i)++;
@@ -74,19 +74,21 @@ TEST(ThreadPool, MultiThreadRun) {
   EXPECT_EQ(max * kProducerCount, i->load());
 }
 
-TEST(ThreadPool, Benchmark) {
+static constexpr auto kEnableMultiThreadTest = true;
+
+template <size_t kProducerThreads, size_t kWorkerThreads>
+void runThreadpoolBenchmark() {
+  using std::chrono::duration;
   using std::chrono::duration_cast;
   using std::chrono::milliseconds;
+  using std::chrono::nanoseconds;
   using std::chrono::steady_clock;
   using std::chrono_literals::operator""ms;
 
-  constexpr auto kEnable = false;
-  constexpr auto kRunTime = 5000ms;
-  constexpr auto kWorkerThreads = 4;
-  constexpr auto kProducerThreads = 4;
+  constexpr auto kRunTimeMs = 1000ms;
 
   // simple benchmark
-  if (!kEnable) return;
+  if (!kEnableMultiThreadTest) return;
 
   auto start = steady_clock::now();
 
@@ -97,30 +99,50 @@ TEST(ThreadPool, Benchmark) {
                   nullptr);
   stopMsg.ptr0 = &tp;
 
-  tp.postMessage(stopMsg, kRunTime);
+  tp.postMessage(stopMsg, kRunTimeMs);
 
-  for (int j = 0; j < kProducerThreads; ++j) {
-    std::thread([&]() {
+  std::array<std::unique_ptr<std::thread>, kProducerThreads> p;
+  for (auto& t : p) {
+    t = std::make_unique<std::thread>([&]() {
       while (true) {
         Message msg(handleMessage, nullptr);
         msg.ptr0 = i.get();
-        try {
-          tp.postMessage(msg);
-        } catch (std::runtime_error&) {
+        if (tp.postMessage(msg) == 0) {
           break;
         }
       }
-    }).detach();
+    });
   }
 
   tp.awaitTermination();
+  for (auto& t : p) {
+    t->join();
+  }
 
   // run time should be close to kRunTime
-  auto runTimeMillis = duration_cast<milliseconds>((steady_clock::now() - start)).count();
+  const auto runTimeMillis = duration_cast<milliseconds>((steady_clock::now() - start)).count();
 
-  std::cout << "run time:" << runTimeMillis << "ms, " << i->load() << "ops"
-            << " [" << i->load() * 1000 / static_cast<double>(runTimeMillis) << " ops/S]"
-            << std::endl;
+  const auto opsPerSecond = i->load() * 1000 / runTimeMillis;
+  const auto nanosencodsPerOp = duration_cast<duration<double, std::nano>>(
+      duration<double, std::milli>(static_cast<double>(runTimeMillis) / i->load()));
+
+  std::cout << kProducerThreads << "-producers " << kWorkerThreads << "-workers "
+            << "time:" << runTimeMillis << "ms, " << std::setw(9) << i->load() << " ops"
+            << " [" << std::setw(9) << opsPerSecond << " ops/s]"
+            << " [" << std::setw(9) << nanosencodsPerOp.count() << " ns/op]" << std::endl;
 }
 
+TEST(ThreadPool, Benchmark_1p_1w) { runThreadpoolBenchmark<1, 1>(); }
+
+TEST(ThreadPool, Benchmark_1p_2w) { runThreadpoolBenchmark<1, 2>(); }
+
+TEST(ThreadPool, Benchmark_1p_4w) { runThreadpoolBenchmark<1, 4>(); }
+
+TEST(ThreadPool, Benchmark_2p_1w) { runThreadpoolBenchmark<2, 1>(); }
+
+TEST(ThreadPool, Benchmark_4p_1w) { runThreadpoolBenchmark<4, 1>(); }
+
+TEST(ThreadPool, Benchmark_2p_2w) { runThreadpoolBenchmark<2, 2>(); }
+
+TEST(ThreadPool, Benchmark_4p_4w) { runThreadpoolBenchmark<4, 4>(); }
 }  // namespace script::utils::test

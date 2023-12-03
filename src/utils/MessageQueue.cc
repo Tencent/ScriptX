@@ -234,7 +234,16 @@ int32_t MessageQueue::postMessage(Message* msg, int64_t delayNanos) {
 
 std::deque<Message*>::const_iterator MessageQueue::findInsertPositionLocked(
     std::chrono::nanoseconds dueTime, int32_t priority) const {
-  auto it = queue_.begin();
+  if (queue_.empty()) {
+    return queue_.end();
+  }
+
+  // search backwords, since add to queue-end is the most common case
+  auto it = queue_.end() - 1;
+  while (it != queue_.begin() && (*it)->dueTime >= dueTime) {
+    --it;
+  }
+
   // search by due-time
   while (it != queue_.end() && (*it)->dueTime < dueTime) {
     ++it;

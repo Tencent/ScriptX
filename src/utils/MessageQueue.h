@@ -350,7 +350,7 @@ class MessageQueue {
    * \endcode
    *
    */
-  template <class Rep = int, class Period = std::milli>
+  template <class Rep = int64_t, class Period = std::milli>
   int32_t postMessage(const Message& message,
                       std::chrono::duration<Rep, Period> delay = std::chrono::milliseconds(0)) {
     using std::chrono::duration_cast;
