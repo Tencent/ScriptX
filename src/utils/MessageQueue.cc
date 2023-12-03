@@ -33,8 +33,12 @@ class LoopQueueGuard {
 
  public:
   explicit LoopQueueGuard(MessageQueue* queue) : queue_(queue) {
-    queue_->workerCount_++;
     getRunningQueue()[queue]++;
+
+    {
+      std::unique_lock<std::mutex> lk(queue_->queueMutex_);
+      ++queue_->workerCount_;
+    }
   }
 
   SCRIPTX_DISALLOW_COPY_AND_MOVE(LoopQueueGuard);
@@ -45,7 +49,17 @@ class LoopQueueGuard {
       q.erase(queue_);
     }
 
-    queue_->workerCount_--;
+    // bugfix: awaitTermination won't return even if all worker quit.
+    // https://en.cppreference.com/w/cpp/thread/condition_variable
+    // follow what the STD told us to
+    // "Even if the shared variable is atomic, it must be modified while owning the mutex to
+    // correctly publish the modification to the waiting thread."
+    // DEEP EXPLAINATION:
+    // https://stackoverflow.com/questions/38147825/shared-atomic-variable-is-not-properly-published-if-it-is-not-modified-under-mut
+    {
+      std::unique_lock<std::mutex> lk(queue_->queueMutex_);
+      --queue_->workerCount_;
+    }
     queue_->workerQuitCondition_.notify_all();
   }
 
@@ -180,7 +194,7 @@ void MessageQueue::awaitTermination() {
   workerQuitCondition_.wait(lk, [this] { return workerCount_ == 0; });
 }
 
-bool MessageQueue::isShutdown() {
+bool MessageQueue::isShutdown() const {
   std::unique_lock<std::mutex> lk(queueMutex_);
   return shutdown_ != ShutdownType::kNone;
 }
@@ -386,7 +400,7 @@ MessageQueue::LoopReturnType MessageQueue::loopQueue(MessageQueue::LoopType loop
   if (loopType == LoopType::kLoopOnce) {
     onceMessageCount = dueMessageCount();
   }
-  MessageQueue::LoopReturnType returnType = LoopReturnType::kRunOnce;
+  LoopReturnType returnType = LoopReturnType::kRunOnce;
 
   while (true) {
     Message* message = awaitDueMessage(loopType, onceMessageCount, returnType);
