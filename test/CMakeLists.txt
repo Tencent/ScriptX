@@ -53,6 +53,8 @@ set(SCRIPTX_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
 
 # import googletest
 include(cmake/gtest/CMakeLists.txt)
+# import google benchmark
+include(cmake/benchmark/CMakeLists.txt)
 
 target_sources(UnitTests PRIVATE
         src/gtest_main.cc
@@ -103,7 +105,7 @@ target_compile_definitions(ScriptX PUBLIC ${DEVOPS_LIBS_MARCO})
 # if you want to close rtti feature for ScriptX and your project
 #target_compile_options(ScriptX PRIVATE -fno-rtti)
 #target_compile_options(UnitTests PRIVATE -fno-rtti)
-target_link_libraries(UnitTests gtest ScriptX)
+target_link_libraries(UnitTests gtest benchmark ScriptX)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # using clang or gcc
