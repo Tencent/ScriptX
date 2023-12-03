@@ -226,7 +226,7 @@ class MessageQueue {
   std::condition_variable queueNotFullCondition_;
   std::deque<Message*> queue_;
   std::atomic_int32_t messageIdCounter_;
-  std::atomic_uint32_t workerCount_;
+  std::uint32_t workerCount_;  // guard by queueMutex_
   std::condition_variable workerQuitCondition_;
 
   std::shared_ptr<Supervisor> supervisor_;
@@ -321,7 +321,7 @@ class MessageQueue {
   /**
    * @return if the MessageQueue is shut down or shutting down.
    */
-  bool isShutdown();
+  bool isShutdown() const;
 
   /**
    * causing current loopQueue() call return immediately.
