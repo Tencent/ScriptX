@@ -16,6 +16,7 @@
  */
 
 #include "LuaScope.hpp"
+#include "LuaReference.hpp"
 #include "trait/TraitScope.h"
 
 namespace script::lua_backend {

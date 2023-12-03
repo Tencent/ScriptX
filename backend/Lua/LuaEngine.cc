@@ -206,19 +206,19 @@ size_t LuaEngine::globalIdCounter() {
 }
 
 Local<Value> LuaEngine::get(const Local<String>& key) {
-  auto lua = lua_backend::currentLua();
+  auto lua = lua_;
   auto keyString = lua_tostring(lua, key.val_);
   return get(keyString);
 }
 
 void LuaEngine::set(const Local<String>& key, const Local<Value>& value) {
-  auto lua = lua_backend::currentLua();
+  auto lua = lua_;
   auto keyString = lua_tostring(lua, key.val_);
   set(keyString, value);
 }
 
 Local<Value> LuaEngine::get(const char* key) {
-  auto lua = lua_backend::currentLua();
+  auto lua = lua_;
 
   lua_backend::luaEnsureStack(lua, 1);
   lua_getglobal(lua, key);
@@ -227,7 +227,7 @@ Local<Value> LuaEngine::get(const char* key) {
 }
 
 void LuaEngine::set(const char* key, const Local<Value>& value) {
-  auto lua = lua_backend::currentLua();
+  auto lua = lua_;
 
   lua_backend::luaStackScope(lua, [lua, key, &value]() {
     lua_backend::luaEnsureStack(lua, 2);
