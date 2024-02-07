@@ -323,7 +323,7 @@ void V8Engine::removeKeptReference(size_t id) {
 // Native
 
 constexpr int kInstanceObjectAlignedPointer_ScriptClass = 0;         // ScriptClass* pointer
-constexpr int kInstanceObjectAlignedPointer_PolymorphicPointer = 0;  // the actual type pointer
+constexpr int kInstanceObjectAlignedPointer_PolymorphicPointer = 1;  // the actual type pointer
 
 void V8Engine::performRegisterNativeClass(
     internal::TypeIndex typeIndex, const internal::ClassDefineState* classDefine,
@@ -442,7 +442,7 @@ v8::Local<v8::FunctionTemplate> V8Engine::newConstructor(
         }
       },
       data);
-  funcT->InstanceTemplate()->SetInternalFieldCount(1);
+  funcT->InstanceTemplate()->SetInternalFieldCount(2);
   return funcT;
 }
 
