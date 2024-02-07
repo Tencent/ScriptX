@@ -136,7 +136,7 @@ TEST_F(ByteBufferTest, DataView) {
            {"BigInt64Array", ByteBuffer::Type::kInt64},
            {"BigUint64Array", ByteBuffer::Type::kUint64},
 #endif
-           {"Float32Array", ByteBuffer::Type::KFloat32},
+           {"Float32Array", ByteBuffer::Type::kFloat32},
            {"Float64Array", ByteBuffer::Type::kFloat64},
            {"DataView", ByteBuffer::Type::kUnspecified}}) {
     std::ostringstream code;

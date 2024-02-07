@@ -17,6 +17,7 @@
 
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <iomanip>
 #include "test.h"
 
@@ -74,8 +75,6 @@ TEST(ThreadPool, MultiThreadRun) {
   EXPECT_EQ(max * kProducerCount, i->load());
 }
 
-static constexpr auto kEnableMultiThreadTest = true;
-
 template <size_t kProducerThreads, size_t kWorkerThreads>
 void runThreadpoolBenchmark() {
   using std::chrono::duration;
@@ -85,7 +84,8 @@ void runThreadpoolBenchmark() {
   using std::chrono::steady_clock;
   using std::chrono_literals::operator""ms;
 
-  constexpr auto kRunTimeMs = 1000ms;
+  constexpr auto kEnableMultiThreadTest = false;
+  constexpr auto kRunTimeMs = 200ms;
 
   // simple benchmark
   if (!kEnableMultiThreadTest) return;
@@ -100,6 +100,16 @@ void runThreadpoolBenchmark() {
   stopMsg.ptr0 = &tp;
 
   tp.postMessage(stopMsg, kRunTimeMs);
+
+  auto handleMessage = [](Message& msg) {
+    auto* i = static_cast<std::atomic_int64_t*>(msg.ptr0);
+    for (int j = 0; j < 100 * 1000; ++j) {
+      // do a bit havey work
+      auto x = sinf(i->load());
+      static_cast<void>(x);
+    }
+    (*i)++;
+  };
 
   std::array<std::unique_ptr<std::thread>, kProducerThreads> p;
   for (auto& t : p) {

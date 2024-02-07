@@ -501,7 +501,7 @@ ByteBuffer::Type mapType(JSTypedArrayType type) {
     case kJSTypedArrayTypeUint32Array:
       return ByteBuffer::Type::kUint32;
     case kJSTypedArrayTypeFloat32Array:
-      return ByteBuffer::Type::KFloat32;
+      return ByteBuffer::Type::kFloat32;
     case kJSTypedArrayTypeFloat64Array:
       return ByteBuffer::Type::kFloat64;
     case kJSTypedArrayTypeArrayBuffer:

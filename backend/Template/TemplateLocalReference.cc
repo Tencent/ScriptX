@@ -199,7 +199,7 @@ void Local<Array>::add(const script::Local<script::Value>& value) const { set(si
 
 void Local<Array>::clear() const {}
 
-ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::KFloat32; }
+ByteBuffer::Type Local<ByteBuffer>::getType() const { return ByteBuffer::Type::kFloat32; }
 
 bool Local<ByteBuffer>::isShared() const { return true; }
 
