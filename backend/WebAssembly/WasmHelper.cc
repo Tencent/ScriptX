@@ -873,7 +873,7 @@ CHECKED_EM_JS(void, _ScriptX_ByteBuffer_fillTypeAndSize,
   const kUint32 = 0x604;
   const kInt64 = 0x708;
   const kUint64 = 0x808;
-  const KFloat32 = 0x904;
+  const kFloat32 = 0x904;
   const kFloat64 = 0xa08;
 
   let type = kUnspecified;
@@ -892,7 +892,7 @@ CHECKED_EM_JS(void, _ScriptX_ByteBuffer_fillTypeAndSize,
   } else if (val instanceof Uint32Array) {
     type = kUint32;
   } else if (val instanceof Float32Array) {
-    type = KFloat32;
+    type = kFloat32;
   } else if (val instanceof Float64Array) {
     type = kFloat64;
   } else if (val instanceof BigInt64Array) {

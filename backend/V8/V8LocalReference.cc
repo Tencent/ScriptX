@@ -378,7 +378,7 @@ ByteBuffer::Type Local<ByteBuffer>::getType() const {
     } else if (val_->IsBigUint64Array()) {
       return ByteBuffer::Type::kUint64;
     } else if (val_->IsFloat32Array()) {
-      return ByteBuffer::Type::KFloat32;
+      return ByteBuffer::Type::kFloat32;
     } else if (val_->IsFloat64Array()) {
       return ByteBuffer::Type::kFloat64;
     }

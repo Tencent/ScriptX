@@ -282,7 +282,7 @@ class ByteBuffer : public Value {
     kUint32 = internal::makeType(6, 4),
     kInt64 = internal::makeType(7, 8),
     kUint64 = internal::makeType(8, 8),
-    KFloat32 = internal::makeType(9, 4),
+    kFloat32 = internal::makeType(9, 4),
     kFloat64 = internal::makeType(10, 8)
   };
 
