@@ -204,6 +204,9 @@ static_assert(sizeof(InplaceMessage) == sizeof(Message));
 class MessageQueue {
  public:
   class Supervisor {
+   public:
+    virtual ~Supervisor() = default;
+
    protected:
     virtual void beforeMessage(Message& message) = 0;
 
