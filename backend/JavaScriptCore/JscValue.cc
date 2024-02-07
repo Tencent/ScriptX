@@ -21,6 +21,7 @@
 #include "../../src/Value.h"
 #include "JscEngine.h"
 #include "JscHelper.hpp"
+#include "JscReference.hpp"
 
 namespace script {
 
