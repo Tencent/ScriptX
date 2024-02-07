@@ -167,7 +167,8 @@ class LuaEngine : public ScriptEngine {
   static void* getNativeThis(lua_State* lua, const internal::ClassDefineState* classDefine,
                              int selfIndex);
 
-  using PushInstanceFunctionCallback = Local<Value> (*)(lua_State*, void*, void*, const Arguments&);
+  using PushInstanceFunctionCallback = Local<Value> (*)(lua_State*, void* data, void* thiz,
+                                                        const Arguments&);
   /**
    * [0, +1, -]
    */

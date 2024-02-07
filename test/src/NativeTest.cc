@@ -716,7 +716,18 @@ class BaseClass {
 // actually  BaseClassScriptWrapper* and ScriptClass* will be different memory address
 class BaseClassScriptWrapper : public BaseClass, public ScriptClass {
  public:
-  explicit BaseClassScriptWrapper(const Local<Object>& thiz) : BaseClass(), ScriptClass(thiz) {}
+  // used to check callback used the right pointer
+  void* ctorCalledInstancePtr_ = nullptr;
+  void* nameCalledInstancePtr_ = nullptr;
+
+  explicit BaseClassScriptWrapper(const Local<Object>& thiz) : BaseClass(), ScriptClass(thiz) {
+    ctorCalledInstancePtr_ = this;
+  }
+
+  std::string name() override {
+    nameCalledInstancePtr_ = this;
+    return "BaseWrapper";
+  }
 };
 
 const auto baseWrapperDefine =
@@ -737,6 +748,8 @@ TEST_F(NativeTest, BindBaseClass) {
     engine->registerNativeClass(baseWrapperDefine);
     auto base = engine->newNativeClass<BaseClassScriptWrapper>();
     auto ptr = engine->getNativeInstance<BaseClassScriptWrapper>(base);
+    ASSERT_EQ(ptr, ptr->ctorCalledInstancePtr_);
+
     engine->set("base", base);
 
     engine->eval("base.age = 10");
@@ -750,6 +763,11 @@ TEST_F(NativeTest, BindBaseClass) {
     auto num = engine->eval(TS().js("base.num").lua("return base.num").select());
     ASSERT_TRUE(num.isNumber());
     EXPECT_EQ(ptr->getNum(), num.asNumber().toInt32());
+
+    EXPECT_EQ(ptr->nameCalledInstancePtr_, nullptr);
+    engine->eval(TS().js("base.name()").lua("return base:name()").select());  // invoke getter func
+    EXPECT_EQ(ptr->nameCalledInstancePtr_, ptr);
+
   } catch (const Exception& e) {
     FAIL() << e;
   }
