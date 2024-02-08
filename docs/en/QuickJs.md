@@ -1,6 +1,6 @@
 # QuickJs engine
 
-Current support QuickJs version is 2021-03-27.
+Current support QuickJs version is 2021-03-27 and 2024-01-13.
 
 Other version should be also supported.
 
