@@ -1,3 +1,5 @@
+Version 3.5.0 (2023-05):
+1. `[QuickJs]` add support for QuickJs 2024-01-13
 
 Version 3.4.0 (2023-05):
 1. `[V8]` **BEHAVIOR CHANGE:** `V8Platform` now being a singleton, not ref-counted by `V8Engine`s any more.

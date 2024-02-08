@@ -23,7 +23,7 @@ ScriptX的术语中，"前端"指对外的C++ API，"后端"则指不同的底�
 | V8 | JavaScript | 7.4+ | done |
 | JavaScriptCore | JavaScript | 7604.1.38.0.7+<br>（iOS 10+/macOS10.12+) | done |
 | Node.js | JavaScript | 14.x+ | done |
-| QuickJs | JavaScript | 2021-03-27 | done |
+| QuickJs | JavaScript | 2024-01-13 | done |
 | WebAssembly | JavaScript | Emscripten-2.0.5+ | done |
 | Lua | Lua | 5.4+ | done |
 | CPython | Python |  | todo |
