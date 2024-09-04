@@ -649,7 +649,7 @@ InternalStoreHelper::set(T&& value) const {
 
 template <typename... T>
 inline internal::type_t<Local<Value>,
-                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)>...>
+                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)...>>
 Local<Function>::call(const Local<Value>& thiz, T&&... args) const {
   return call(thiz, {internal::TypeConverter<T>::toScript(std::forward<T>(args))...});
 }
@@ -661,7 +661,7 @@ std::function<FuncType> Local<Function>::wrapper(const Local<Value>& thiz) const
 
 template <typename... T>
 inline internal::type_t<Local<Object>,
-                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)>...>
+                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)...>>
 Object::newObject(const Local<Value>& type, T&&... args) {
   return newObject(type, {internal::TypeConverter<T>::toScript(std::forward<T>(args))...});
 }
@@ -686,7 +686,7 @@ inline Local<Array> Array::newArray(const std::initializer_list<Local<Value>>& e
 
 template <typename... T>
 inline internal::type_t<Local<Array>,
-                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)>...>
+                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)...>>
 Array::of(T&&... args) {
   return newArray({internal::TypeConverter<T>::toScript(std::forward<T>(args))...});
 }
@@ -737,7 +737,7 @@ ScriptEngine::set(StringLike&& keyStringLike, T&& value) {
 
 template <typename D, typename... T>
 inline internal::type_t<Local<Object>,
-                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)>...>
+                        std::void_t<decltype(&internal::TypeConverter<T>::toScript)...>>
 ScriptEngine::newNativeClass(T&&... args) {
   return newNativeClass<D>({internal::TypeConverter<T>::toScript(std::forward<T>(args))...});
 }
