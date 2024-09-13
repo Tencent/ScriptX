@@ -158,7 +158,7 @@ Local<Value> V8Engine::eval(const Local<String>& script, const Local<Value>& sou
     throw Exception("can't eval script");
   }
   v8::ScriptOrigin origin(
-#if SCRIPTX_V8_VERSION_AT_LEAST(9, 0)
+#if SCRIPTX_V8_VERSION_GE(9, 0)
       // V8 9.0 add isolate param for external API
       isolate_,
 #endif
@@ -506,7 +506,7 @@ void V8Engine::registerNativeClassInstance(v8::Local<v8::FunctionTemplate> funcT
     auto data = v8::External::New(
         isolate_, const_cast<typename internal::InstanceDefine::PropertyDefine*>(&prop));
 
-#if SCRIPTX_V8_VERSION_AT_MOST(10, 1)  // SetAccessor AccessorSignature deprecated in 10.2 a8beac
+#if SCRIPTX_V8_VERSION_LE(10, 1)  // SetAccessor AccessorSignature deprecated in 10.2 a8beac
     auto accessSignature = v8::AccessorSignature::New(isolate_, funcT);
     instanceT->SetAccessor(v8Name, getter, setter, data, v8::AccessControl::DEFAULT,
                            v8::PropertyAttribute::DontDelete, accessSignature);

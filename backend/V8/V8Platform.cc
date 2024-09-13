@@ -71,14 +71,16 @@ class MessageQueueTaskRunner : public v8::TaskRunner {
 
   void PostNonNestableTask(std::unique_ptr<v8::Task> task) override { PostTask(std::move(task)); }
 
+  bool NonNestableTasksEnabled() const override { return true; }
+
+#if SCRIPTX_V8_VERSION_GE(7, 5)
   void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
                                   double delay_in_seconds) override {
     PostDelayedTask(std::move(task), delay_in_seconds);
   }
 
-  bool NonNestableTasksEnabled() const override { return true; }
-
   bool NonNestableDelayedTasksEnabled() const override { return true; }
+#endif
 
  private:
   void schedulePump() {
@@ -162,7 +164,7 @@ V8Platform::~V8Platform() {
   std::lock_guard<std::mutex> lock(lock_);
   v8::V8::Dispose();
 
-#if SCRIPTX_V8_VERSION_AT_LEAST(10, 0)
+#if SCRIPTX_V8_VERSION_GE(10, 0)
   v8::V8::DisposePlatform();
 #else
   // DEPRECATED in 10.0 36707481ffa
@@ -192,7 +194,7 @@ void V8Platform::OnCriticalMemoryPressure() {
   return defaultPlatform_->OnCriticalMemoryPressure();
 }
 
-#if SCRIPTX_V8_VERSION_AT_MOST(10, 6)
+#if SCRIPTX_V8_VERSION_LE(10, 6)
 bool V8Platform::OnCriticalMemoryPressure(size_t length) {
   Logger() << "V8Platform::OnCriticalMemoryPressure(" << length << ")";
   return defaultPlatform_->OnCriticalMemoryPressure(length);

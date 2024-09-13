@@ -51,7 +51,7 @@ class V8Platform : public v8::Platform {
 
   void OnCriticalMemoryPressure() override;
 
-#if SCRIPTX_V8_VERSION_AT_MOST(10, 6)
+#if SCRIPTX_V8_VERSION_LE(10, 6)
   // DEPRECATED in 10.7 - 24cf9b
   // REMOVED in 10.8 - 8b8703
   bool OnCriticalMemoryPressure(size_t length) override;
@@ -86,8 +86,7 @@ class V8Platform : public v8::Platform {
   // NOTE: not available in node 14.x (node.js modified v8 code...)
   // https://nodejs.org/en/download/releases/
   // and node 15.x uses v8 8.6+
-#if defined(BUILDING_NODE_EXTENSION) ? SCRIPTX_V8_VERSION_AT_LEAST(8, 6) \
-                                     : SCRIPTX_V8_VERSION_AT_LEAST(8, 4)
+#if defined(BUILDING_NODE_EXTENSION) ? SCRIPTX_V8_VERSION_GE(8, 6) : SCRIPTX_V8_VERSION_GE(8, 4)
 
   virtual std::unique_ptr<v8::JobHandle> PostJob(v8::TaskPriority priority,
                                                  std::unique_ptr<v8::JobTask> job_task) override {
@@ -96,14 +95,14 @@ class V8Platform : public v8::Platform {
 
 #endif
 
-#if SCRIPTX_V8_VERSION_AT_LEAST(10, 5)  // added in 10.5 1e0d18
+#if SCRIPTX_V8_VERSION_GE(10, 5)  // added in 10.5 1e0d18
   std::unique_ptr<v8::JobHandle> CreateJob(v8::TaskPriority priority,
                                            std::unique_ptr<v8::JobTask> job_task) override {
     return defaultPlatform_->CreateJob(priority, std::move(job_task));
   }
 #endif
 
-#if !SCRIPTX_V8_VERSION_AT_LEAST(8, 0)
+#if !SCRIPTX_V8_VERSION_GE(8, 0)
   // v8 8.0 added default impl
   // v8 8.1 removed those function
   // so we won't override them since v8 8.0
