@@ -102,11 +102,10 @@ class V8Platform : public v8::Platform {
   }
 #endif
 
-#if !SCRIPTX_V8_VERSION_GE(8, 0)
+#if SCRIPTX_V8_VERSION_BETWEEN(7, 9, 8, 1)
+  // v8 7.9 added pure virtual function
   // v8 8.0 added default impl
-  // v8 8.1 removed those function
-  // so we won't override them since v8 8.0
-  // https://github.com/v8/v8/commit/95aba36b52eecdec56752956a7960b916f986a39
+  // v8 8.2 removed
 
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
     return GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<v8::Task>(task));

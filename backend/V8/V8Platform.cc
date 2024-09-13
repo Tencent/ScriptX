@@ -59,7 +59,7 @@ class MessageQueueTaskRunner : public v8::TaskRunner {
 
   void PostDelayedTask(std::unique_ptr<v8::Task> task, double delay_in_seconds) override {
     defaultTaskRunner_->PostDelayedTask(std::move(task), delay_in_seconds);
-    schedulePump();
+    schedulePump(delay_in_seconds);
   }
 
   void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override {
@@ -69,21 +69,32 @@ class MessageQueueTaskRunner : public v8::TaskRunner {
 
   bool IdleTasksEnabled() override { return defaultTaskRunner_->IdleTasksEnabled(); }
 
-  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override { PostTask(std::move(task)); }
-
-  bool NonNestableTasksEnabled() const override { return true; }
-
-#if SCRIPTX_V8_VERSION_GE(7, 5)
-  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
-                                  double delay_in_seconds) override {
-    PostDelayedTask(std::move(task), delay_in_seconds);
+  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {
+    defaultTaskRunner_->PostNonNestableTask(std::move(task));
+    schedulePump();
   }
 
-  bool NonNestableDelayedTasksEnabled() const override { return true; }
+  bool NonNestableTasksEnabled() const override {
+    return defaultTaskRunner_->NonNestableTasksEnabled();
+  }
+
+#if SCRIPTX_V8_VERSION_BETWEEN(7, 5, 12, 4)
+  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
+                                  double delay_in_seconds) override {
+    defaultTaskRunner_->PostNonNestableDelayedTask(std::move(task), delay_in_seconds);
+    schedulePump(delay_in_seconds);
+  }
+#endif
+
+#if SCRIPTX_V8_VERSION_GE(7, 5)
+  bool NonNestableDelayedTasksEnabled() const override {
+    return defaultTaskRunner_->NonNestableDelayedTasksEnabled();
+  }
 #endif
 
  private:
-  void schedulePump() {
+  void schedulePump(double delay_in_seconds = 0) {
+    // TODO: time
     bool expected = false;
     if (engine_ && isPumpScheduled_.compare_exchange_strong(expected, true)) {
       script::utils::Message s(

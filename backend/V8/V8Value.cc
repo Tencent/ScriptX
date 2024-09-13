@@ -176,9 +176,9 @@ Local<class script::ByteBuffer> ByteBuffer::newByteBuffer(void* nativeBuffer, si
   return ret;
 }
 
-#if V8_MAJOR_VERSION >= 8
+#if SCRIPTX_V8_VERSION_GE(8, 1)
 
-// v8 8.0 introduced new api for this
+// v8 8.1 introduced new api for this
 // https://docs.google.com/document/d/1sTc_jRL87Fu175Holm5SV0kajkseGl2r8ifGY76G35k/edit
 
 Local<ByteBuffer> ByteBuffer::newByteBuffer(std::shared_ptr<void> buffer, size_t size) {
