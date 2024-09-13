@@ -52,9 +52,15 @@ include(${CMAKE_CURRENT_LIST_DIR}/test_libs/CMakeLists.txt)
 
 if (${SCRIPTX_BACKEND} STREQUAL V8)
     if (SCRIPTX_TEST_BUILD_ONLY)
+      if ("${SCRIPTX_V8_INCLUDES}" STREQUAL "")
         set(DEVOPS_LIBS_INCLUDE
-                "${SCRIPTX_TEST_LIBS}/v8/mac/include"
-                CACHE STRING "" FORCE)
+          "${SCRIPTX_TEST_LIBS}/v8/mac/include"
+          CACHE STRING "" FORCE)
+      else()
+        set(DEVOPS_LIBS_INCLUDE
+          "${SCRIPTX_V8_INCLUDES}"
+          CACHE STRING "" FORCE)
+      endif()
     elseif (APPLE)
         if (CMAKE_SYSTEM_PROCESSOR STREQUAL arm64)
             set(DEVOPS_LIBS_INCLUDE
