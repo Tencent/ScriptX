@@ -23,6 +23,7 @@
 #include "../../src/foundation.h"
 
 SCRIPTX_BEGIN_INCLUDE_LIBRARY
+#include <libplatform/libplatform.h>
 #include <v8-platform.h>
 SCRIPTX_END_INCLUDE_LIBRARY
 
@@ -44,10 +45,12 @@ class V8Platform : public v8::Platform {
 
  public:
   // this method is used in v8 internally, we should handle it properly, since V8 7.1.1
+#if SCRIPTX_V8_VERSION_GE(13, 0)
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(v8::Isolate* isolate,
+                                                          v8::TaskPriority priority) override;
+#else
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(v8::Isolate* isolate) override;
-
-  // call in V8Engine
-  bool pumpMessageQueue(v8::Isolate* isolate);
+#endif
 
   void OnCriticalMemoryPressure() override;
 
@@ -57,10 +60,10 @@ class V8Platform : public v8::Platform {
   bool OnCriticalMemoryPressure(size_t length) override;
 #endif
 
- public:
   // directly delegate to default platform
   int NumberOfWorkerThreads() override { return defaultPlatform_->NumberOfWorkerThreads(); }
 
+#if SCRIPTX_V8_VERSION_LE(11, 3)  // added default impl to call PostTaskOnWorkerThreadImpl in 11.4
   void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
     return defaultPlatform_->CallOnWorkerThread(std::move(task));
   }
@@ -68,6 +71,7 @@ class V8Platform : public v8::Platform {
   void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task, double delay_in_seconds) override {
     return defaultPlatform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
   }
+#endif
 
   double MonotonicallyIncreasingTime() override {
     return defaultPlatform_->MonotonicallyIncreasingTime();
@@ -86,8 +90,9 @@ class V8Platform : public v8::Platform {
   // NOTE: not available in node 14.x (node.js modified v8 code...)
   // https://nodejs.org/en/download/releases/
   // and node 15.x uses v8 8.6+
-#if defined(BUILDING_NODE_EXTENSION) ? SCRIPTX_V8_VERSION_GE(8, 6) : SCRIPTX_V8_VERSION_GE(8, 4)
-
+  // V8 12.2 make it none-virtual by delegate to CreateJobImpl
+#if defined(BUILDING_NODE_EXTENSION) ? SCRIPTX_V8_VERSION_BETWEEN(8, 6, 12, 1) \
+                                     : SCRIPTX_V8_VERSION_BETWEEN(8, 4, 12, 1)
   virtual std::unique_ptr<v8::JobHandle> PostJob(v8::TaskPriority priority,
                                                  std::unique_ptr<v8::JobTask> job_task) override {
     return defaultPlatform_->PostJob(priority, std::move(job_task));
@@ -95,18 +100,40 @@ class V8Platform : public v8::Platform {
 
 #endif
 
-#if SCRIPTX_V8_VERSION_GE(10, 5)  // added in 10.5 1e0d18
+#if SCRIPTX_V8_VERSION_BETWEEN(10, 5, 11, 3)
+  // added pure-virtual in 10.5 1e0d18
+  // added default impl to CreateJobImpl in 11.4
   std::unique_ptr<v8::JobHandle> CreateJob(v8::TaskPriority priority,
                                            std::unique_ptr<v8::JobTask> job_task) override {
     return defaultPlatform_->CreateJob(priority, std::move(job_task));
   }
 #endif
 
-#if SCRIPTX_V8_VERSION_BETWEEN(7, 9, 8, 1)
-  // v8 7.9 added pure virtual function
-  // v8 8.0 added default impl
-  // v8 8.2 removed
+#if SCRIPTX_V8_VERSION_GE(11, 4)
+ protected:
+  virtual std::unique_ptr<v8::JobHandle> CreateJobImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) override {
+    return defaultPlatform_->CreateJob(priority, std::move(job_task));
+  }
 
+  virtual void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+                                          const v8::SourceLocation& location) override {
+    defaultPlatform_->CallOnWorkerThread(std::move(task));  // TODO
+  }
+
+  virtual void PostDelayedTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                                 std::unique_ptr<v8::Task> task,
+                                                 double delay_in_seconds,
+                                                 const v8::SourceLocation& location) override {
+    // TODO
+    defaultPlatform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
+  }
+
+ public:
+#endif
+
+#if SCRIPTX_V8_VERSION_LE(8, 0)  // removed in 8.1
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
     return GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<v8::Task>(task));
   }

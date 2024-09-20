@@ -155,7 +155,7 @@ jobs:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
         run: |
           mkdir -p build && cd build
-          ../test/cmake/test_v7_compile.sh
+          ../test/cmake/test_v8_compiles.sh continue
 
   android-clang-build:
     # disable for now
