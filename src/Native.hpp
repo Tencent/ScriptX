@@ -609,15 +609,15 @@ inline std::function<FuncType> createFunctionWrapper(const Local<Function>& func
 namespace script {
 
 template <typename Func>
-inline internal::type_t<
-    Local<Function>, std::void_t<decltype(internal::bindStaticFunc(std::declval<Func>(), false))>>
+inline internal::type_t<Local<Function>,
+                        decltype(internal::bindStaticFunc(std::declval<Func>(), false))>
 Function::newFunction(Func&& callback, bool nothrow) {
   return newFunction(internal::bindStaticFunc(std::forward<Func>(callback), nothrow));
 }
 
 template <typename T>
-inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::toScript)>>
-Local<Object>::set(const Local<String>& key, T&& value) const {
+inline internal::type_t<void, decltype(&internal::TypeConverter<T>::toScript)> Local<Object>::set(
+    const Local<String>& key, T&& value) const {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   // static_cast is crucial!!!
   // force the compiler to choose the non-template version
@@ -626,22 +626,22 @@ Local<Object>::set(const Local<String>& key, T&& value) const {
 }
 
 template <typename StringLike, typename T, typename>
-inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::toScript)>>
-Local<Object>::set(StringLike&& keyStringLike, T&& value) const {
+inline internal::type_t<void, decltype(&internal::TypeConverter<T>::toScript)> Local<Object>::set(
+    StringLike&& keyStringLike, T&& value) const {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   set(String::newString(std::forward<StringLike>(keyStringLike)),
       static_cast<const Local<Value>&>(val));
 }
 
 template <typename T>
-inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::toScript)>>
-Local<Array>::set(size_t index, T&& value) const {
+inline internal::type_t<void, decltype(&internal::TypeConverter<T>::toScript)> Local<Array>::set(
+    size_t index, T&& value) const {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   set(index, static_cast<const Local<Value>&>(val));
 }
 
 template <typename T>
-inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::toScript)>>
+inline internal::type_t<void, decltype(&internal::TypeConverter<T>::toScript)>
 InternalStoreHelper::set(T&& value) const {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   set(static_cast<const Local<Value>&>(val));
@@ -718,15 +718,15 @@ Exception::Exception(StringLike&& messageStringLike)
     : Exception(internal::extractStringLike(std::forward<StringLike>(messageStringLike))) {}
 
 template <typename T>
-inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::toScript)>>
-ScriptEngine::set(const Local<String>& key, T&& value) {
+inline internal::type_t<void, decltype(&internal::TypeConverter<T>::toScript)> ScriptEngine::set(
+    const Local<String>& key, T&& value) {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   set(key, static_cast<const Local<Value>&>(val));
 }
 
 template <typename StringLike, typename T, typename>
-inline internal::type_t<void, std::void_t<decltype(&internal::TypeConverter<T>::toScript)>>
-ScriptEngine::set(StringLike&& keyStringLike, T&& value) {
+inline internal::type_t<void, decltype(&internal::TypeConverter<T>::toScript)> ScriptEngine::set(
+    StringLike&& keyStringLike, T&& value) {
   auto val = internal::TypeConverter<T>::toScript(std::forward<T>(value));
   set(String::newString(std::forward<StringLike>(keyStringLike)),
       static_cast<const Local<Value>&>(val));
