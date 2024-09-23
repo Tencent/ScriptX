@@ -178,7 +178,7 @@ V8Platform::~V8Platform() {
 #endif
 }
 
-#if SCRIPTX_V8_VERSION_GE(13, 0)
+#if SCRIPTX_V8_VERSION_GE(11, 7)
 std::shared_ptr<v8::TaskRunner> V8Platform::GetForegroundTaskRunner(v8::Isolate* isolate,
                                                                     v8::TaskPriority priority) {
 #else

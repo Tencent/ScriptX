@@ -20,7 +20,7 @@ ScriptX的术语中，"前端"指对外的C++ API，"后端"则指不同的底�
 
 | 后端 | 语言 | 版本 | 状态 |
 | :----: |  :----:  | :----:  | :----: |
-| V8 | JavaScript | 7.4+ | done |
+| V8 | JavaScript | 7.4+<br>([tested versions][tested_v8_versions]) | done |
 | JavaScriptCore | JavaScript | 7604.1.38.0.7+<br>（iOS 10+/macOS10.12+) | done |
 | Node.js | JavaScript | 14.x+ | done |
 | QuickJs | JavaScript | 2024-01-13 | done |
@@ -30,6 +30,7 @@ ScriptX的术语中，"前端"指对外的C++ API，"后端"则指不同的底�
 | YARV | Ruby |  | todo |
 | Mono | C# |  | todo |
 
+[tested_v8_versions]: https://github.com/LanderlYoung/ScriptXTestLibs/blob/main/v8/supported_versions.txt
 
 # 简介
 

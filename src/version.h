@@ -19,9 +19,9 @@
 
 // ScriptX version config files
 // auto generated from the file VERSION
-#define SCRIPTX_VERSION_STRING "3.5.0"
+#define SCRIPTX_VERSION_STRING "3.6.0"
 #define SCRIPTX_VERSION_MAJOR 3
-#define SCRIPTX_VERSION_MINOR 5
+#define SCRIPTX_VERSION_MINOR 6
 #define SCRIPTX_VERSION_PATCH 0
 
 namespace script {
