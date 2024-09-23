@@ -158,8 +158,9 @@ Local<Value> V8Engine::eval(const Local<String>& script, const Local<Value>& sou
     throw Exception("can't eval script");
   }
   v8::ScriptOrigin origin(
-#if SCRIPTX_V8_VERSION_AT_LEAST(9, 0)
+#if SCRIPTX_V8_VERSION_BETWEEN(9, 0, 12, 0)
       // V8 9.0 add isolate param for external API
+      // V8 12.1 deprecated the isolate version, and introduced the one without isolation
       isolate_,
 #endif
       sourceFile.isNull() || !sourceFile.isString() ? v8::Local<v8::String>()
@@ -180,17 +181,18 @@ Local<Value> V8Engine::eval(const Local<String>& script) { return eval(script, {
 void V8Engine::registerNativeClassStatic(v8::Local<v8::FunctionTemplate> funcT,
                                          const internal::StaticDefine* staticDefine) {
   for (auto& prop : staticDefine->properties) {
+    using PropDefPtr = internal::StaticDefine::PropertyDefine*;
+
     StackFrameScope stack;
     auto name = String::newString(prop.name);
 
-    v8::AccessorGetterCallback getter = nullptr;
-    v8::AccessorSetterCallback setter = nullptr;
+    v8::AccessorNameGetterCallback getter = nullptr;
+    v8::AccessorNameSetterCallback setter = nullptr;
 
     if (prop.getter) {
-      getter = [](v8::Local<v8::String> /*property*/,
+      getter = [](v8::Local<v8::Name> /*property*/,
                   const v8::PropertyCallbackInfo<v8::Value>& info) {
-        auto ptr = static_cast<internal::StaticDefine::PropertyDefine*>(
-            info.Data().As<v8::External>()->Value());
+        auto ptr = static_cast<PropDefPtr>(info.Data().As<v8::External>()->Value());
         Tracer trace(EngineScope::currentEngine(), ptr->traceName);
         Local<Value> ret = ptr->getter();
         try {
@@ -202,10 +204,9 @@ void V8Engine::registerNativeClassStatic(v8::Local<v8::FunctionTemplate> funcT,
     }
 
     if (prop.setter) {
-      setter = [](v8::Local<v8::String> /*property*/, v8::Local<v8::Value> value,
+      setter = [](v8::Local<v8::Name> /*property*/, v8::Local<v8::Value> value,
                   const v8::PropertyCallbackInfo<void>& info) {
-        auto ptr = static_cast<internal::StaticDefine::PropertyDefine*>(
-            info.Data().As<v8::External>()->Value());
+        auto ptr = static_cast<PropDefPtr>(info.Data().As<v8::External>()->Value());
         Tracer trace(EngineScope::currentEngine(), ptr->traceName);
         try {
           ptr->setter(make<Local<Value>>(value));
@@ -216,25 +217,26 @@ void V8Engine::registerNativeClassStatic(v8::Local<v8::FunctionTemplate> funcT,
     } else {
       // v8 requires setter to be present, otherwise, a real js set code with create a new
       // property...
-      setter = [](v8::Local<v8::String> property, v8::Local<v8::Value> value,
+      setter = [](v8::Local<v8::Name> property, v8::Local<v8::Value> value,
                   const v8::PropertyCallbackInfo<void>& info) {};
     }
 
-    funcT->SetNativeDataProperty(
-        toV8(isolate_, name), getter, setter,
-        v8::External::New(isolate_, const_cast<internal::StaticDefine::PropertyDefine*>(&prop)),
-        v8::PropertyAttribute::DontDelete);
+    // SetNativeDataProperty with Local<String> and AccessControl is deprecated
+    funcT->SetNativeDataProperty(toV8(isolate_, name).As<v8::Name>(), getter, setter,
+                                 v8::External::New(isolate_, const_cast<PropDefPtr>(&prop)),
+                                 v8::PropertyAttribute::DontDelete);
   }
 
   for (auto& func : staticDefine->functions) {
+    using FuncDefPtr = internal::StaticDefine::FunctionDefine*;
+
     StackFrameScope stack;
     auto name = String::newString(func.name);
 
     auto fn = v8::FunctionTemplate::New(
         isolate_,
         [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-          auto funcDef = reinterpret_cast<internal::StaticDefine::FunctionDefine*>(
-              info.Data().As<v8::External>()->Value());
+          auto funcDef = reinterpret_cast<FuncDefPtr>(info.Data().As<v8::External>()->Value());
           auto engine = v8_backend::currentEngine();
           Tracer trace(engine, funcDef->traceName);
 
@@ -245,8 +247,8 @@ void V8Engine::registerNativeClassStatic(v8::Local<v8::FunctionTemplate> funcT,
             v8_backend::rethrowException(e);
           }
         },
-        v8::External::New(isolate_, const_cast<internal::StaticDefine::FunctionDefine*>(&func)), {},
-        0, v8::ConstructorBehavior::kThrow);
+        v8::External::New(isolate_, const_cast<FuncDefPtr>(&func)), {}, 0,
+        v8::ConstructorBehavior::kThrow);
     if (!fn.IsEmpty()) {
       funcT->Set(toV8(isolate_, name), fn, v8::PropertyAttribute::DontDelete);
     } else {
@@ -453,67 +455,67 @@ void V8Engine::registerNativeClassInstance(v8::Local<v8::FunctionTemplate> funcT
   // instance
   auto instanceT = funcT->PrototypeTemplate();
   auto signature = v8::Signature::New(isolate_, funcT);
+
   for (auto& prop : classDefine->instanceDefine.properties) {
+    // Template::SetAccessor is removed in 12.8
+    // using Template::SetAccessorProperty is recommended
+
+    using PropDefPtr = typename internal::InstanceDefine::PropertyDefine*;
     StackFrameScope stack;
     auto name = String::newString(prop.name);
-
-    v8::AccessorGetterCallback getter = nullptr;
-    v8::AccessorSetterCallback setter = nullptr;
+    auto data = v8::External::New(isolate_, const_cast<PropDefPtr>(&prop));
+    v8::Local<v8::FunctionTemplate> getter;
+    v8::Local<v8::FunctionTemplate> setter;
 
     if (prop.getter) {
-      getter = [](v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
-        auto ptr = static_cast<decltype(&prop)>(info.Data().As<v8::External>()->Value());
-        auto thiz = static_cast<void*>(info.This()->GetAlignedPointerFromInternalField(
-            kInstanceObjectAlignedPointer_PolymorphicPointer));
-        auto scriptClass =
-            static_cast<ScriptClass*>(info.This()->GetAlignedPointerFromInternalField(
-                kInstanceObjectAlignedPointer_ScriptClass));
-        auto& getter = ptr->getter;
+      getter = v8::FunctionTemplate::New(
+          isolate_,
+          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+            auto ptr = static_cast<PropDefPtr>(info.Data().As<v8::External>()->Value());
+            auto thiz = static_cast<void*>(info.This()->GetAlignedPointerFromInternalField(
+                kInstanceObjectAlignedPointer_PolymorphicPointer));
+            auto scriptClass =
+                static_cast<ScriptClass*>(info.This()->GetAlignedPointerFromInternalField(
+                    kInstanceObjectAlignedPointer_ScriptClass));
+            auto& getter = ptr->getter;
 
-        Tracer trace(scriptClass->getScriptEngine(), ptr->traceName);
+            Tracer trace(scriptClass->getScriptEngine(), ptr->traceName);
 
-        Local<Value> ret = (getter)(thiz);
-        try {
-          info.GetReturnValue().Set(toV8(info.GetIsolate(), ret));
-        } catch (const Exception& e) {
-          v8_backend::rethrowException(e);
-        }
-      };
+            Local<Value> ret = (getter)(thiz);
+            try {
+              info.GetReturnValue().Set(toV8(info.GetIsolate(), ret));
+            } catch (const Exception& e) {
+              v8_backend::rethrowException(e);
+            }
+          },
+          data, signature);
     }
 
     if (prop.setter) {
-      setter = [](v8::Local<v8::String> property, v8::Local<v8::Value> value,
-                  const v8::PropertyCallbackInfo<void>& info) {
-        auto ptr = static_cast<decltype(&prop)>(info.Data().As<v8::External>()->Value());
-        auto thiz = static_cast<void*>(info.This()->GetAlignedPointerFromInternalField(
-            kInstanceObjectAlignedPointer_PolymorphicPointer));
-        auto scriptClass =
-            static_cast<ScriptClass*>(info.This()->GetAlignedPointerFromInternalField(
-                kInstanceObjectAlignedPointer_ScriptClass));
-        auto& setter = ptr->setter;
+      setter = v8::FunctionTemplate::New(
+          isolate_,
+          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+            auto ptr = static_cast<PropDefPtr>(info.Data().As<v8::External>()->Value());
+            auto thiz = static_cast<void*>(info.This()->GetAlignedPointerFromInternalField(
+                kInstanceObjectAlignedPointer_PolymorphicPointer));
+            auto scriptClass =
+                static_cast<ScriptClass*>(info.This()->GetAlignedPointerFromInternalField(
+                    kInstanceObjectAlignedPointer_ScriptClass));
+            auto& setter = ptr->setter;
 
-        Tracer trace(scriptClass->getScriptEngine(), ptr->traceName);
+            Tracer trace(scriptClass->getScriptEngine(), ptr->traceName);
 
-        try {
-          (setter)(thiz, make<Local<Value>>(value));
-        } catch (const Exception& e) {
-          v8_backend::rethrowException(e);
-        }
-      };
+            try {
+              (setter)(thiz, make<Local<Value>>(info[0]));
+            } catch (const Exception& e) {
+              v8_backend::rethrowException(e);
+            }
+          },
+          data, signature);
     }
 
-    auto v8Name = toV8(isolate_, name);
-    auto data = v8::External::New(
-        isolate_, const_cast<typename internal::InstanceDefine::PropertyDefine*>(&prop));
-
-#if SCRIPTX_V8_VERSION_AT_MOST(10, 1)  // SetAccessor AccessorSignature deprecated in 10.2 a8beac
-    auto accessSignature = v8::AccessorSignature::New(isolate_, funcT);
-    instanceT->SetAccessor(v8Name, getter, setter, data, v8::AccessControl::DEFAULT,
-                           v8::PropertyAttribute::DontDelete, accessSignature);
-#else
-    instanceT->SetAccessor(v8Name, getter, setter, data, v8::AccessControl::DEFAULT,
-                           v8::PropertyAttribute::DontDelete);
-#endif
+    instanceT->SetAccessorProperty(toV8(isolate_, name).As<v8::Name>(), getter, setter,
+                                   v8::PropertyAttribute::DontDelete);
   }
 
   for (auto& func : classDefine->instanceDefine.functions) {
@@ -541,7 +543,7 @@ void V8Engine::registerNativeClassInstance(v8::Local<v8::FunctionTemplate> funcT
         },
         v8::External::New(isolate_, const_cast<FuncDefPtr>(&func)), signature);
     if (!fn.IsEmpty()) {
-      funcT->PrototypeTemplate()->Set(toV8(isolate_, name), fn, v8::PropertyAttribute::DontDelete);
+      instanceT->Set(toV8(isolate_, name), fn, v8::PropertyAttribute::DontDelete);
     } else {
       throw Exception("can't create function for instance");
     }

@@ -1,3 +1,7 @@
+Version 3.6.0 (2024-09):
+1. `[V8]` add test infrastructure to test on multiple v8 versions
+2. `[V8]` add support to v8 versions through 7.4~13.0
+
 Version 3.5.0 (2023-05):
 1. `[QuickJs]` add support for QuickJs 2024-01-13
 

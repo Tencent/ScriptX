@@ -16,8 +16,9 @@
  */
 
 #include "V8Platform.h"
-#include <libplatform/libplatform.h>
+#include <cstdlib>
 #include <type_traits>
+#include <utility>
 #include "../../src/Utils.h"
 #include "V8Engine.h"
 #include "V8Helper.hpp"
@@ -26,13 +27,8 @@ namespace script::v8_backend {
 
 class MessageQueueTaskRunner : public v8::TaskRunner {
  private:
-  V8Platform* platform_{};
   v8::Isolate* isolate_{};
-  std::shared_ptr<v8::TaskRunner> defaultTaskRunner_{};
-
   V8Engine* engine_{};
-
-  std::atomic_bool isPumpScheduled_{false};
 
  public:
   MessageQueueTaskRunner() = default;
@@ -41,69 +37,81 @@ class MessageQueueTaskRunner : public v8::TaskRunner {
 
   ~MessageQueueTaskRunner() override = default;
 
-  bool hasRunner() const { return defaultTaskRunner_ != nullptr; }
+  bool inited() const { return isolate_ != nullptr; }
 
-  void setQueue(V8Platform* platform, v8::Isolate* isolate,
-                std::shared_ptr<v8::TaskRunner> defaultTaskRunner) {
-    platform_ = platform;
-    isolate_ = isolate;
-    defaultTaskRunner_ = std::move(defaultTaskRunner);
-  }
+  void setQueue(v8::Isolate* isolate) { isolate_ = isolate; }
 
   void setEngine(V8Engine* engine) { engine_ = engine; }
 
-  void PostTask(std::unique_ptr<v8::Task> task) override {
-    defaultTaskRunner_->PostTask(std::move(task));
-    schedulePump();
+#if SCRIPTX_V8_VERSION_GE(12, 4)  // changed to PostTaskImpl
+  void PostTaskImpl(std::unique_ptr<v8::Task> task, const v8::SourceLocation& location) override {
+    scheduleTask(std::move(task));
   }
 
+  void PostDelayedTaskImpl(std::unique_ptr<v8::Task> task, double delay_in_seconds,
+                           const v8::SourceLocation& location) override {
+    scheduleTask(std::move(task), delay_in_seconds);
+  }
+
+  void PostIdleTaskImpl(std::unique_ptr<v8::IdleTask> task,
+                        const v8::SourceLocation& location) override {
+    ::abort();
+  }
+
+  void PostNonNestableTaskImpl(std::unique_ptr<v8::Task> task,
+                               const v8::SourceLocation& location) override {
+    scheduleTask(std::move(task));
+  }
+
+  void PostNonNestableDelayedTaskImpl(std::unique_ptr<v8::Task> task, double delay_in_seconds,
+                                      const v8::SourceLocation& location) override {
+    scheduleTask(std::move(task), delay_in_seconds);
+  }
+
+#else
+  void PostTask(std::unique_ptr<v8::Task> task) override { scheduleTask(std::move(task)); }
+
   void PostDelayedTask(std::unique_ptr<v8::Task> task, double delay_in_seconds) override {
-    defaultTaskRunner_->PostDelayedTask(std::move(task), delay_in_seconds);
-    schedulePump();
+    scheduleTask(std::move(task), delay_in_seconds);
   }
 
   void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override {
-    defaultTaskRunner_->PostIdleTask(std::move(task));
-    schedulePump();
+    // not supported
+    ::abort();
   }
 
-  bool IdleTasksEnabled() override { return defaultTaskRunner_->IdleTasksEnabled(); }
-
-  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override { PostTask(std::move(task)); }
-
-  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
-                                  double delay_in_seconds) override {
-    PostDelayedTask(std::move(task), delay_in_seconds);
+  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {
+    scheduleTask(std::move(task));
   }
+#endif
+
+  bool IdleTasksEnabled() override { return false; }
 
   bool NonNestableTasksEnabled() const override { return true; }
 
+#if SCRIPTX_V8_VERSION_BETWEEN(7, 5, 12, 4)
+  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
+                                  double delay_in_seconds) override {
+    scheduleTask(std::move(task), delay_in_seconds);
+  }
+#endif
+
+#if SCRIPTX_V8_VERSION_GE(7, 5)
   bool NonNestableDelayedTasksEnabled() const override { return true; }
+#endif
 
  private:
-  void schedulePump() {
-    bool expected = false;
-    if (engine_ && isPumpScheduled_.compare_exchange_strong(expected, true)) {
-      script::utils::Message s(
-          [](auto& msg) {
-            static_cast<MessageQueueTaskRunner*>(msg.ptr0)->isPumpScheduled_ = false;
-            auto platform = static_cast<V8Platform*>(msg.ptr1);
-            auto isolate = static_cast<v8::Isolate*>(msg.ptr2);
+  void scheduleTask(std::unique_ptr<v8::Task> task, double delay_in_seconds = 0) {
+    script::utils::Message s([](auto& msg) { static_cast<v8::Task*>(msg.ptr0)->Run(); },
+                             [](auto& msg) {
+                               using deleter = std::unique_ptr<v8::Task>::deleter_type;
+                               deleter{}(static_cast<v8::Task*>(msg.ptr0));
+                             });
+    s.name = "SchedulePump";
+    s.ptr0 = task.release();
+    s.tag = engine_;
 
-            while (platform->pumpMessageQueue(isolate)) {
-              // loop until no more message to pump
-            }
-          },
-          nullptr);
-
-      s.name = "SchedulePump";
-      s.ptr0 = this;
-      s.ptr1 = platform_;
-      s.ptr2 = isolate_;
-      s.tag = engine_;
-
-      engine_->messageQueue()->postMessage(s);
-    }
+    engine_->messageQueue()->postMessage(s, std::chrono::duration<double>(delay_in_seconds));
   }
 };
 
@@ -162,7 +170,7 @@ V8Platform::~V8Platform() {
   std::lock_guard<std::mutex> lock(lock_);
   v8::V8::Dispose();
 
-#if SCRIPTX_V8_VERSION_AT_LEAST(10, 0)
+#if SCRIPTX_V8_VERSION_GE(10, 0)
   v8::V8::DisposePlatform();
 #else
   // DEPRECATED in 10.0 36707481ffa
@@ -170,21 +178,21 @@ V8Platform::~V8Platform() {
 #endif
 }
 
+#if SCRIPTX_V8_VERSION_GE(11, 7)
+std::shared_ptr<v8::TaskRunner> V8Platform::GetForegroundTaskRunner(v8::Isolate* isolate,
+                                                                    v8::TaskPriority priority) {
+#else
 std::shared_ptr<v8::TaskRunner> V8Platform::GetForegroundTaskRunner(v8::Isolate* isolate) {
+#endif
   std::lock_guard<std::mutex> lock(lock_);
   auto queueRunner = engineMap_[isolate].messageQueueRunner;
-  if (!queueRunner->hasRunner()) {
+  if (!queueRunner->inited()) {
     // this method may be called during creating Isolate...
     // set anything we now ASAP
-    queueRunner->setQueue(this, isolate, defaultPlatform_->GetForegroundTaskRunner(isolate));
+    queueRunner->setQueue(isolate);
   }
 
   return queueRunner;
-}
-
-bool V8Platform::pumpMessageQueue(v8::Isolate* isolate) {
-  v8::Locker locker(isolate);
-  return v8::platform::PumpMessageLoop(defaultPlatform_.get(), isolate);
 }
 
 void V8Platform::OnCriticalMemoryPressure() {
@@ -192,7 +200,7 @@ void V8Platform::OnCriticalMemoryPressure() {
   return defaultPlatform_->OnCriticalMemoryPressure();
 }
 
-#if SCRIPTX_V8_VERSION_AT_MOST(10, 6)
+#if SCRIPTX_V8_VERSION_LE(10, 6)
 bool V8Platform::OnCriticalMemoryPressure(size_t length) {
   Logger() << "V8Platform::OnCriticalMemoryPressure(" << length << ")";
   return defaultPlatform_->OnCriticalMemoryPressure(length);

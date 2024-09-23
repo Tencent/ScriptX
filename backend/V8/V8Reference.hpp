@@ -32,8 +32,11 @@ namespace script {
 namespace v8_backend {
 
 template <typename T>
+
 GlobalRefState<T>::GlobalRefState(V8Engine* scriptEngine, const GlobalRefState::V8Global& v8Global)
-    : engine_(scriptEngine), ref_(v8Global) {}
+    : engine_(scriptEngine),
+      // v8::Global don't support copy
+      ref_{engine_->isolate_, v8Global} {}
 
 template <typename T>
 GlobalRefState<T>::GlobalRefState(V8Engine* scriptEngine, const Local<T>& localReference)

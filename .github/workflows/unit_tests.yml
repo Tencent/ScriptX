@@ -24,8 +24,8 @@ jobs:
           # mac runner seems to be slow and rear
           # - Release
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4.1.7
+      - uses: actions/cache@v4.0.2
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -61,15 +61,15 @@ jobs:
           - Debug
           - Release
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4.1.7
+      - uses: actions/cache@v4.0.2
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
             build/ScriptXTestLibs
             build/googletest-src
       - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
+        uses: microsoft/setup-msbuild@v2
       - name: Configure cmake X64
         if: matrix.backends != 'JavaScriptCore'
         shell: powershell
@@ -112,8 +112,8 @@ jobs:
           - Debug
           - Release
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4.1.7
+      - uses: actions/cache@v4.0.2
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -138,6 +138,29 @@ jobs:
           cd build
           ./UnitTests
 
+  ubuntu-v8-versions-build:
+    timeout-minutes: 60
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # format index{0 .. index-1}/concurrency
+        job_split: [ 0/8, 1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8 ]
+    steps:
+      - uses: actions/checkout@v4.1.7
+      - uses: actions/cache@v4.0.2
+        with:
+          key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
+          path: |
+            build/ScriptXTestLibs
+      - name: Test build v8 on supported versions
+        env:
+          SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
+          SCRIPTX_TEST_V8_JOB_SPLIT_CONFIG: ${{ matrix.job_split }}
+        run: |
+          mkdir -p build && cd build
+          ../test/cmake/test_v8_compiles.sh continue
+
   android-clang-build:
     # disable for now
     # 1. we don't have android libraries
@@ -153,8 +176,8 @@ jobs:
           - Debug
           - Release
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4.1.7
+      - uses: actions/cache@v4.0.2
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -185,9 +208,9 @@ jobs:
       matrix:
         node-version: [ 14.x, 15.x, 16.x, 18.x ] # 19.x
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.7
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4.0.4
         with:
           node-version: ${{ matrix.node-version }}
       - name: Prepare npm
@@ -209,20 +232,20 @@ jobs:
       matrix:
         emscripten-version: [ '3.0.0', '3.1.33' ]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4.1.7
+      - uses: actions/cache@v4.0.2
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
             build/ScriptXTestLibs
             build/googletest-src
       - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v11
+        uses: mymindstorm/setup-emsdk@v14
         with:
           version: ${{ matrix.emscripten-version }}
           actions-cache-folder: emsdk-cache-${{ matrix.emscripten-version }}
       - name: Setup Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4.0.4
         with:
           node-version: '19.3.0' # insteadof '>= 14', use fixed version
       - name: Configure Webassembly backend

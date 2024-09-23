@@ -20,8 +20,8 @@ jobs:
       matrix:
         backends: [ V8, JavaScriptCore, QuickJs, Lua ]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4.1.7
+      - uses: actions/cache@v4.0.2
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |

@@ -37,17 +37,16 @@ SCRIPTX_END_INCLUDE_LIBRARY
 
 // V8 version check helper
 // V8_version >= version
-#define SCRIPTX_V8_VERSION_AT_LEAST(major, minor) \
+#define SCRIPTX_V8_VERSION_GE(major, minor) \
   (V8_MAJOR_VERSION > (major) || (V8_MAJOR_VERSION == (major) && V8_MINOR_VERSION >= (minor)))
 
 // V8_version <= version
-#define SCRIPTX_V8_VERSION_AT_MOST(major, minor) \
+#define SCRIPTX_V8_VERSION_LE(major, minor) \
   (V8_MAJOR_VERSION < (major) || (V8_MAJOR_VERSION == (major) && V8_MINOR_VERSION <= (minor)))
 
 // old_version <= V8_version <= new_version
 #define SCRIPTX_V8_VERSION_BETWEEN(old_major, old_minor, new_major, new_minor) \
-  SCRIPTX_V8_VERSION_AT_LEAST(old_major, old_minor) &&                         \
-      SCRIPTX_V8_VERSION_AT_MOST(new_major, new_minor)
+  SCRIPTX_V8_VERSION_GE(old_major, old_minor) && SCRIPTX_V8_VERSION_LE(new_major, new_minor)
 
 namespace script::v8_backend {
 

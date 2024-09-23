@@ -56,8 +56,9 @@ TypeMap(::script::Unsupported, v8::Value);
 template <typename T>
 class GlobalRefState {
  private:
-  using V8Global =
-      typename ::v8::CopyablePersistentTraits<v8_backend::V8ValueType<T>>::CopyablePersistent;
+  // v8::CopyablePersistentTraits deprecated in 10.5, removed in 12.5
+  // always use v8::Global
+  using V8Global = v8::Global<v8_backend::V8ValueType<T>>;
 
  public:
   V8Engine* engine_ = nullptr;
@@ -70,7 +71,17 @@ class GlobalRefState {
 
   GlobalRefState(V8Engine* scriptEngine, const V8Global& v8Global);
 
-  GlobalRefState(const GlobalRefState& copy) : engine_(copy.engine_), ref_(copy.ref_) {}
+  // v8::Global don't support copy
+  GlobalRefState(const GlobalRefState& copy)
+      : engine_(copy.engine_), ref_{currentEngineIsolateChecked(), copy.ref_} {}
+
+  GlobalRefState& operator=(const GlobalRefState& assign) {
+    if (this != &assign) {
+      engine_ = assign.engine_;
+      ref_ = V8Global(currentEngineIsolateChecked(), assign.ref_);
+    }
+    return *this;
+  }
 
   GlobalRefState(GlobalRefState&& move) noexcept
       : engine_(move.engine_), ref_(std::move(move.ref_)) {
@@ -78,14 +89,6 @@ class GlobalRefState {
     // this is still a copy
     move.ref_.Reset();
     move.engine_ = nullptr;
-  }
-
-  GlobalRefState& operator=(const GlobalRefState& assign) {
-    if (this != &assign) {
-      engine_ = assign.engine_;
-      ref_ = assign.ref_;
-    }
-    return *this;
   }
 
   GlobalRefState& operator=(GlobalRefState&& assign) noexcept {
