@@ -68,10 +68,10 @@ else
   if echo "$SCRIPTX_TEST_V8_JOB_SPLIT_CONFIG" | grep -q -w -E '[0-9]+\/[0-9]+'; then
     TOTAL=$(echo ${SCRIPTX_TEST_V8_JOB_SPLIT_CONFIG} | cut -d/ -f 2)
     INDEX=$(echo ${SCRIPTX_TEST_V8_JOB_SPLIT_CONFIG} | cut -d/ -f 1)
-    COUNT=${#SUPPORTED_VERSIONS[@]}
+    COUNT=$((${#SUPPORTED_VERSIONS[@]} - 1))
 
     START=$(((COUNT * INDEX + TOTAL - 1) / TOTAL))  # upper(COUNT * INDEX / TOTAL)
-    END=$((COUNT * (INDEX + 1) / TOTAL))  # lower(COUNT * (INDEX+1) / TOTAL)
+    END=$((COUNT * (INDEX + 1) / TOTAL))            # lower(COUNT * (INDEX+1) / TOTAL)
 
     log "split job=[$START, $END] total=$COUNT"
 
@@ -88,7 +88,5 @@ fi
 log "passed versions: [" "${PASSED_VERSIONS[@]}" "]"
 log "failed versions: [" "${FAILED_VERSIONS[@]}" "]"
 
-if [[ ${#FAILED_VERSIONS[@]} -gt 0 ]]; then
-  exit 1
-fi
+exit "${#FAILED_VERSIONS[@]}"
 

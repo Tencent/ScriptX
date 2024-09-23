@@ -85,6 +85,10 @@ class MessageQueueTaskRunner : public v8::TaskRunner {
   }
 #endif
 
+#if SCRIPTX_V8_VERSION_BETWEEN(7, 5, 7, 5)
+#error "V8 compile error test"
+#endif
+
   bool IdleTasksEnabled() override { return false; }
 
   bool NonNestableTasksEnabled() const override { return true; }
