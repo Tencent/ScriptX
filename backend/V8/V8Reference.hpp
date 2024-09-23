@@ -35,12 +35,8 @@ template <typename T>
 
 GlobalRefState<T>::GlobalRefState(V8Engine* scriptEngine, const GlobalRefState::V8Global& v8Global)
     : engine_(scriptEngine),
-      // #if SCRIPTX_V8_VERSION_GE(10, 5)
       // v8::Global don't support copy
-      ref_{engine_->isolate_, v8Global}  // #else
-                                         //       ref_(v8Global)
-                                         // #endif
-{}
+      ref_{engine_->isolate_, v8Global} {}
 
 template <typename T>
 GlobalRefState<T>::GlobalRefState(V8Engine* scriptEngine, const Local<T>& localReference)
