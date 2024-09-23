@@ -332,7 +332,7 @@ Local<Value> Local<Function>::callImpl(const Local<Value>& thiz, size_t size,
         qjs_backend::checkException(ret);
       });
 
-  engine.scheduleTick();
+  engine.triggerTick();
   return qjs_interop::makeLocal<Value>(ret);
 }
 

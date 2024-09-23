@@ -102,11 +102,25 @@ class MessageQueueTaskRunner : public v8::TaskRunner {
 
  private:
   void scheduleTask(std::unique_ptr<v8::Task> task, double delay_in_seconds = 0) {
-    script::utils::Message s([](auto& msg) { static_cast<v8::Task*>(msg.ptr0)->Run(); },
-                             [](auto& msg) {
-                               using deleter = std::unique_ptr<v8::Task>::deleter_type;
-                               deleter{}(static_cast<v8::Task*>(msg.ptr0));
-                             });
+    if (engine_->isDestroying()) {
+      return;
+    }
+
+    script::utils::Message s(
+        [](auto& msg) {
+          auto engine = static_cast<V8Engine*>(msg.tag);
+          EngineScope scope(engine);
+          try {
+            static_cast<v8::Task*>(msg.ptr0)->Run();
+          } catch (const Exception& e) {
+            // this should not happen, all JS exceptions should be handled by V8
+            abort();
+          }
+        },
+        [](auto& msg) {
+          using deleter = std::unique_ptr<v8::Task>::deleter_type;
+          deleter{}(static_cast<v8::Task*>(msg.ptr0));
+        });
     s.name = "SchedulePump";
     s.ptr0 = task.release();
     s.tag = engine_;
