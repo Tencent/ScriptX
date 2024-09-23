@@ -30,6 +30,7 @@ EngineScopeImpl::EngineScopeImpl(QjsEngine &current, QjsEngine *prev)
 }
 
 EngineScopeImpl::~EngineScopeImpl() {
+  current_->triggerTick();
   current_->runtimeLock_.unlock();
   if (previous_) {
     previous_->runtimeLock_.lock();

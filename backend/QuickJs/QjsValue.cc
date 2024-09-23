@@ -47,7 +47,7 @@ Local<Object> Object::newObjectImpl(const Local<Value>& type, size_t size,
     qjs_backend::checkException(ret);
   });
 
-  engine.scheduleTick();
+  engine.triggerTick();
   return qjs_interop::makeLocal<Object>(ret);
 }
 
