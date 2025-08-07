@@ -74,7 +74,7 @@ class TestClass : public ScriptClass {
   static TestClass* create(const Arguments& args) { return new TestClass(args.thiz()); }
 };
 
-const ClassDefine<TestClass> TestClassDefAll =
+static const ClassDefine<TestClass> TestClassDefAll =
     defineClass<TestClass>("TestClass")
         .nameSpace("script.engine.test")
         .constructor()
@@ -86,14 +86,14 @@ const ClassDefine<TestClass> TestClassDefAll =
         .instanceProperty("src", &TestClass::getSrc, &TestClass::setSrc)
         .build();
 
-const ClassDefine<TestClass> TestClassDefStatic =
+static const ClassDefine<TestClass> TestClassDefStatic =
     defineClass<TestClass>("TestClass")
         .nameSpace("script.engine.test")
         .function("add", &TestClass::add)
         .property("version", &TestClass::getVersion, &TestClass::setVersion)
         .build();
 
-const ClassDefine<TestClass> TestClassDefInstance =
+static const ClassDefine<TestClass> TestClassDefInstance =
     defineClass<TestClass>("TestClass")
         .nameSpace("script.engine.test")
         .constructor(TestClass::create)
@@ -664,7 +664,7 @@ class InternalStorageTest : public ScriptClass {
   Local<Value> getVal() { return getInternalStore().get(0); }
 };
 
-ClassDefine<InternalStorageTest> internalStorageTest =
+static ClassDefine<InternalStorageTest> internalStorageTest =
     defineClass<InternalStorageTest>("InternalStorageTest")
         .constructor()
         .instanceProperty("val", &InternalStorageTest::getVal, &InternalStorageTest::setVal)
@@ -860,7 +860,7 @@ TEST_F(NativeTest, MissMatchedType) {
 
   EngineScope scope(engine);
 
-  auto def = defineClass<Instance>("Instance")
+  static auto def = defineClass<Instance>("Instance")
                  .constructor()
                  .function("sfun", &Instance::sfun)
                  .instanceFunction("fun", &Instance::fun)
@@ -1083,7 +1083,7 @@ TEST_F(NativeTest, NativeFounction) {
     using ScriptClass::ScriptClass;
   };
 
-  auto def = defineClass<Instance>("Instance")
+  static auto def = defineClass<Instance>("Instance")
                  .constructor()
                  .instanceFunction("f", [](Instance*, int) {})
                  .build();

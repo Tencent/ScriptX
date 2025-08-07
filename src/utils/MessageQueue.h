@@ -25,6 +25,7 @@
 #include <functional>
 #include <limits>
 #include <mutex>
+#include <stdexcept>
 #include <vector>
 #include "../foundation.h"
 #include "MemoryPool.hpp"
