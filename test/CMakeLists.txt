@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.6)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -143,7 +143,7 @@ if (${SCRIPTX_BACKEND} STREQUAL ${SCRIPTX_BACKEND_WEBASSEMBLY})
             )
     target_link_options(UnitTests PRIVATE
             "-sEXPORTED_FUNCTIONS=['_main']"
-            "-sEXTRA_EXPORTED_RUNTIME_METHODS=['callMain']")
+            "-sEXPORTED_RUNTIME_METHODS=['callMain', 'HEAPU8', 'HEAP8', 'allocateUTF8']")
 endif ()
 
 add_test(

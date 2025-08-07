@@ -25,7 +25,7 @@ jobs:
           # - Release
     steps:
       - uses: actions/checkout@v4.1.7
-      - uses: actions/cache@v4.0.2
+      - uses: actions/cache@v4
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -62,7 +62,7 @@ jobs:
           - Release
     steps:
       - uses: actions/checkout@v4.1.7
-      - uses: actions/cache@v4.0.2
+      - uses: actions/cache@v4
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -102,8 +102,7 @@ jobs:
 
   ubuntu-gcc-run:
     timeout-minutes: 30
-    # JavaScriptCore requires libicu66 which is only avaliable on ubuntu-20.04
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -113,7 +112,7 @@ jobs:
           - Release
     steps:
       - uses: actions/checkout@v4.1.7
-      - uses: actions/cache@v4.0.2
+      - uses: actions/cache@v4
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -140,7 +139,7 @@ jobs:
 
   ubuntu-v8-versions-build:
     timeout-minutes: 60
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -148,7 +147,7 @@ jobs:
         job_split: [ 0/8, 1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8 ]
     steps:
       - uses: actions/checkout@v4.1.7
-      - uses: actions/cache@v4.0.2
+      - uses: actions/cache@v4
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -177,7 +176,7 @@ jobs:
           - Release
     steps:
       - uses: actions/checkout@v4.1.7
-      - uses: actions/cache@v4.0.2
+      - uses: actions/cache@v4
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -206,7 +205,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [ 14.x, 15.x, 16.x, 18.x ] # 19.x
+        node-version: [ 18.x, 20.x, 22.x ] # 24.x
     steps:
       - uses: actions/checkout@v4.1.7
       - name: Use Node.js ${{ matrix.node-version }}
@@ -230,10 +229,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        emscripten-version: [ '3.0.0', '3.1.33' ]
+        emscripten-version: [ '4.0.0', '3.1.33' ]
     steps:
       - uses: actions/checkout@v4.1.7
-      - uses: actions/cache@v4.0.2
+      - uses: actions/cache@v4
         with:
           key: ScriptX-UnitTests-Depedencies-${{ hashFiles('test/cmake/**') }}
           path: |
@@ -245,9 +244,9 @@ jobs:
           version: ${{ matrix.emscripten-version }}
           actions-cache-folder: emsdk-cache-${{ matrix.emscripten-version }}
       - name: Setup Node.js
-        uses: actions/setup-node@v4.0.4
+        uses: actions/setup-node@v4
         with:
-          node-version: '19.3.0' # insteadof '>= 14', use fixed version
+          node-version: 24 # insteadof '>= 14', use fixed version
       - name: Configure Webassembly backend
         env:
           SCRIPTX_TEST_FORCE_UPDATE_DEPS: ON
@@ -264,5 +263,4 @@ jobs:
         run: |
           cd build
           # exclude failed tests
-          # --no-experimental-fetch config from https://github.com/emscripten-core/emscripten/issues/16915
-          node --no-experimental-fetch UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All:EngineTest.JsPromiseTest:EngineTest.JsPromiseTest2:ShowCaseTest.SetTimeout'
+          node UnitTests.js '--gtest_filter=-ThreadPool.*:EngineScopeTest.ExitEngine:EngineScopeTest.TwoThreads:EngineScopeTest.ThreadLocal:MessageQueue.Interrupt:MessageQueue.Shutdown:MessageQueue.ShutdownNow:MessageQueue.FullAndPostInsideLoopQueue:ReferenceTest.WeakGc:ReferenceTest.WeakGc:ReferenceTest.GlobalNotClear:ReferenceTest.GlobalOnEngineDestroy:ReferenceTest.WeakOnEngineDestroy:ReferenceTest.WeakNotClrear:ManagedObjectTest.EngineDispose:ManagedObjectTest.FunctionCallback:PressureTest.All:EngineTest.JsPromiseTest:EngineTest.JsPromiseTest2:ShowCaseTest.SetTimeout'

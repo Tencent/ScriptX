@@ -25,6 +25,7 @@
 #include <functional>
 #include <limits>
 #include <mutex>
+#include <stdexcept>
 #include <vector>
 #include "../foundation.h"
 #include "MemoryPool.hpp"
@@ -58,7 +59,7 @@ struct alignas(std::max_align_t) ArbitraryData {
 inline ArbitraryData& ArbitraryData::operator=(const ArbitraryData& copy) {
   // copy ArbitraryData byte-by-byte
   // since is may be used as a chunk of memory to support placement new.
-  std::memcpy(this, &copy, sizeof(copy));  // NOLINT
+  std::memcpy(static_cast<void*>(this), &copy, sizeof(copy));  // NOLINT
   return *this;
 }
 

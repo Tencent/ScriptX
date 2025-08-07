@@ -557,7 +557,7 @@ void testNumber(T value) {
   EXPECT_EQ(num.toInt64(), static_cast<int64_t>(value));
 #endif
   EXPECT_FLOAT_EQ(num.toFloat(), static_cast<float>(value));
-  EXPECT_FLOAT_EQ(num.toDouble(), static_cast<double>(value));
+  EXPECT_DOUBLE_EQ(num.toDouble(), static_cast<double>(value));
 }
 
 TEST_F(ValueTest, Number) {

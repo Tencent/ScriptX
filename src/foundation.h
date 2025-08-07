@@ -58,7 +58,7 @@ struct ImplType {
 
 #ifdef _MSC_VER
 
-// MSVC only support the standart _Pragma on recent version, use the extension key word here
+// MSVC only support the standard _Pragma on recent version, use the extension key word here
 #define SCRIPTX_BEGIN_INCLUDE_LIBRARY __pragma(warning(push, 0))
 #define SCRIPTX_END_INCLUDE_LIBRARY __pragma(pop)
 
@@ -73,10 +73,12 @@ struct ImplType {
 // GCC can't suppress all warnings by -Wall
 // suppress anything encountered explicitly
 // 1. -Wcast-function-type for QuickJs
+// 2. -Waddress for JSC nullable function symbol
 
 #define SCRIPTX_BEGIN_INCLUDE_LIBRARY                                        \
   _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wall\"") \
-      _Pragma("GCC diagnostic ignored \"-Wcast-function-type\"")
+      _Pragma("GCC diagnostic ignored \"-Wcast-function-type\"")             \
+          _Pragma("GCC diagnostic ignored \"-Waddress\"")
 
 #define SCRIPTX_END_INCLUDE_LIBRARY _Pragma("GCC diagnostic pop")
 
